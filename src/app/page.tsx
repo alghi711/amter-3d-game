@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { mockCat } from "@/lib/mock-cat";
 import { useInputKind } from "@/lib/use-input-kind";
 import { pickReaction } from "@/lib/cat-reactions";
@@ -11,7 +11,7 @@ import { SPOT_LABELS, type HouseSpot } from "@/components/room/CatHouse";
 import CarePanel from "@/components/care/CarePanel";
 import CareStatusPanel from "@/components/care/CareStatusPanel";
 import AutosaveBackupSheet, { AutosaveStatusPill } from "@/components/save/AutosaveBackupSheet";
-import { encodeBackupSnapshot, readLocalAutosave, writeLocalAutosave, type AutosaveState, type GameSaveSnapshot } from "@/lib/mock-saves";
+import { useAutosave } from "@/lib/use-autosave";
 import { FloatingGentleReminder } from "@/components/mood/GentleReminderBanner";
 import { CompactGrowthBadge } from "@/components/growth/ExperienceStageIndicator";
 import { evaluateAchievementBadges } from "@/components/growth/BadgeCollectionGallery";
@@ -51,8 +51,6 @@ export default function Home() {
   const [moodHistory, setMoodHistory] = useState<MoodTransition[]>([]);
   const [showGrowthSheet, setShowGrowthSheet] = useState(false);
   const [showSaveSheet, setShowSaveSheet] = useState(false);
-  const [autosaveStatus, setAutosaveStatus] = useState<AutosaveState>("tersimpan");
-  const [lastSavedLabel, setLastSavedLabel] = useState<string>("Baru saja");
   const [experience, setExperience] = useState<number>(cat.experience + (cat.level - 1) * 50);
   const [closeness, setCloseness] = useState<number>(cat.closeness);
   const [stageOverride, setStageOverride] = useState<GrowthStage | null>(null);
@@ -60,45 +58,24 @@ export default function Home() {
   const [unlockedToastBadge, setUnlockedToastBadge] = useState<MockAchievement | null>(null);
   const seenBadgesRef = useRef<Set<string> | null>(null);
 
-  // Muat simpanan lokal saat pertama kali membuka halaman
-  useEffect(() => {
-    const saved = readLocalAutosave();
-    if (!saved) return;
-    const t = setTimeout(() => {
-      setExperience(saved.experience);
-      setCloseness(saved.closeness);
-      setLastSavedLabel(saved.savedAtLabel || "Dari sesi terakhir");
-    }, 20);
-    return () => clearTimeout(t);
+  const handleHydrateSave = useCallback((saved: { experience: number; closeness: number }) => {
+    setExperience(saved.experience);
+    setCloseness(saved.closeness);
   }, []);
 
-  const triggerManualSave = () => {
-    setAutosaveStatus("menyimpan");
-    const currentMood = deriveCatMood(stats, simulatedHour, moodOverride).mood;
-    const baseSnap = {
-      id: "save-auto-latest",
+  const { autosaveStatus, lastSavedLabel, saveNow: triggerManualSave } = useAutosave(
+    {
       catId: cat.id,
       catName: cat.name,
       stage: growth.stage,
       level: growth.level,
       experience,
       closeness,
-      mood: currentMood,
+      mood: deriveCatMood(stats, simulatedHour, moodOverride).mood,
       stats,
-      savedAtLabel: "Baru saja",
-      savedAtMs: 0,
-      deviceLabel: "Browser Perangkat Ini",
-    };
-    const snap: GameSaveSnapshot = {
-      ...baseSnap,
-      backupCode: encodeBackupSnapshot(baseSnap),
-    };
-    writeLocalAutosave(snap);
-    setTimeout(() => {
-      setAutosaveStatus("tersimpan");
-      setLastSavedLabel("Baru saja");
-    }, 350);
-  };
+    },
+    handleHydrateSave,
+  );
 
   useEffect(() => {
     const currentBadges = evaluateAchievementBadges({ experience, closeness, stats, history });
