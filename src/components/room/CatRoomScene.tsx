@@ -3,7 +3,7 @@
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { AdaptiveDpr, ContactShadows, OrbitControls, PerformanceMonitor, PerspectiveCamera } from "@react-three/drei";
 import { QUALITY_PROFILES, detectQuality, stepQuality, type QualityLevel } from "@/lib/quality";
-import CatHouse, { type HouseSpot } from "./CatHouse";
+import CatHouse, { HOUSE_SPOTS, type HouseSpot } from "./CatHouse";
 import { useEffect, useRef, useState } from "react";
 import { TOUCH, type Group } from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -244,6 +244,40 @@ function ResponsiveCamera() {
  * Kamera bebas: putar (1 jari / drag), zoom (cubit / scroll), dengan redaman halus.
  * Sudut dibatasi agar kamera tidak menembus dinding/lantai. `resetSignal` berubah → kembali ke sudut awal.
  */
+/** Batas ruangan (dinding di x=-4 dan z=-4) dan zona benda yang tak boleh ditembus kamera. */
+const ROOM_BOUNDS = { minX: -3.6, minZ: -3.6, maxX: 7, maxZ: 7, minY: 0.35, maxY: 6 };
+const OBSTACLES: { x: number; z: number; r: number; h: number }[] = (
+  [
+    ["bed", 1.0, 0.6],
+    ["foodBowl", 0.45, 0.4],
+    ["waterBowl", 0.45, 0.4],
+    ["litterBox", 0.75, 0.5],
+    ["scratchPost", 0.6, 1.6],
+  ] as const
+).map(([spot, r, h]) => ({ x: HOUSE_SPOTS[spot][0], z: HOUSE_SPOTS[spot][2], r, h }));
+
+/** Tiap frame: jepit posisi kamera di dalam ruangan & dorong keluar dari silinder benda. */
+function CameraCollision() {
+  useFrame(({ camera }) => {
+    const p = camera.position;
+    p.x = Math.min(ROOM_BOUNDS.maxX, Math.max(ROOM_BOUNDS.minX, p.x));
+    p.z = Math.min(ROOM_BOUNDS.maxZ, Math.max(ROOM_BOUNDS.minZ, p.z));
+    p.y = Math.min(ROOM_BOUNDS.maxY, Math.max(ROOM_BOUNDS.minY, p.y));
+    for (const o of OBSTACLES) {
+      if (p.y > o.h) continue;
+      const dx = p.x - o.x;
+      const dz = p.z - o.z;
+      const d = Math.hypot(dx, dz);
+      if (d < o.r) {
+        const k = d === 0 ? 1 : o.r / d;
+        p.x = o.x + (d === 0 ? o.r : dx * k);
+        p.z = o.z + (d === 0 ? 0 : dz * k);
+      }
+    }
+  });
+  return null;
+}
+
 const CAMERA_HOME: [number, number, number] = [3.5, 3, 5];
 
 function CameraRig({ enabled, resetSignal }: { enabled: boolean; resetSignal: number }) {
@@ -321,6 +355,7 @@ export default function CatRoomScene({
         <ContactShadows position={[0, 0.01, 0]} opacity={0.35} blur={2} far={3} resolution={256} />
       )}
       <CameraRig enabled={!petting} resetSignal={cameraReset} />
+      <CameraCollision />
     </Canvas>
   );
 }
