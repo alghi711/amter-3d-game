@@ -5,7 +5,7 @@ import { AdaptiveDpr, ContactShadows, OrbitControls, PerformanceMonitor, Perspec
 import { QUALITY_PROFILES, detectQuality, stepQuality, type QualityLevel } from "@/lib/quality";
 import CatHouse, { HOUSE_SPOTS, type HouseSpot } from "./CatHouse";
 import { useEffect, useRef, useState } from "react";
-import { MathUtils, MOUSE, TOUCH, type Group } from "three";
+import { MathUtils, MOUSE, TOUCH, type Group, type Mesh, type Object3D } from "three";
 import { resolveAnimState, type CatAnimState } from "@/lib/cat-animation";
 import { CAMERA_CONTROL_PRESETS, useInputKind } from "@/lib/use-input-kind";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -36,6 +36,23 @@ function Heart({ onDone }: { onDone: () => void }) {
         <coneGeometry args={[0.13, 0.17, 16]} />
         <meshStandardMaterial color="#ff5c8a" emissive="#ff5c8a" emissiveIntensity={0.3} />
       </mesh>
+    </group>
+  );
+}
+
+const TAIL_SEGMENTS = 5;
+const SEG_LEN = 0.14;
+
+/** Ruas ekor rekursif: tiap ruas adalah anak dari ruas sebelumnya, makin ke ujung makin kecil. */
+function TailSegment({ index, color }: { index: number; color: string }) {
+  const r = 0.075 - index * 0.008;
+  return (
+    <group position={[0, index === 0 ? 0 : SEG_LEN, 0]} userData={{ tailSegment: true }}>
+      <mesh name="ekor" position={[0, SEG_LEN / 2, 0]} castShadow>
+        <capsuleGeometry args={[r, SEG_LEN, 6, 12]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      {index + 1 < TAIL_SEGMENTS && <TailSegment index={index + 1} color={color} />}
     </group>
   );
 }
@@ -124,6 +141,7 @@ function Cat({
   };
   const body = useRef<Group>(null);
   const tail = useRef<Group>(null);
+  const chest = useRef<Mesh>(null);
   // jadwal perilaku idle & nilai yang di-damp antar frame
   const idleRef = useRef({ nextBlink: 2, blinkUntil: 0, nextLook: 3, lookYaw: 0, tailPhase: 0, tailAmp: 0.4 });
 
@@ -181,13 +199,23 @@ function Cat({
     const tailAmp = next === "kesal" ? 0.9 : petting ? 0.4 + k * 0.3 : next === "tidur" ? 0.1 : 0.4;
     idle.tailPhase += delta * tailSpeed;
     idle.tailAmp = d(idle.tailAmp, tailAmp, 5);
-    if (tail.current) tail.current.rotation.z = Math.sin(idle.tailPhase) * idle.tailAmp;
+    // ekor bersegmen: tiap ruas ikut bergoyang dengan jeda fase → gerak melambai seperti gelombang
+    if (tail.current) {
+      let seg: Object3D | undefined = tail.current;
+      for (let i = 0; seg; i++) {
+        seg.rotation.z = Math.sin(idle.tailPhase - i * 0.7) * idle.tailAmp * (0.55 + i * 0.15);
+        if (i > 0) seg.rotation.x = -0.12 - (next === "tidur" ? 0 : Math.sin(idle.tailPhase * 0.5 - i) * 0.05);
+        seg = seg.children.find((c) => c.userData.tailSegment);
+      }
+    }
 
     // badan: napas, condong saat dielus, rebah saat tidur, lompat kecil saat kaget
     if (body.current) {
       const sleeping = next === "tidur";
       const breath = Math.sin(t * (sleeping ? 1.2 : 2)) * (sleeping ? 0.035 : 0.02);
-      body.current.scale.y = d(body.current.scale.y, (sleeping ? 0.8 : 1) + breath, 10);
+      body.current.scale.y = d(body.current.scale.y, sleeping ? 0.8 : 1, 6);
+      // napas: dada mengembang-mengempis (x/z) terpisah dari postur
+      if (chest.current) chest.current.scale.set(1 + breath, 1 + breath * 0.5, 1 + breath);
       const lean = petting ? -(r?.lean ?? 0) * 0.15 : 0;
       body.current.rotation.z = d(body.current.rotation.z, lean, 6);
       const hop = touched && age < 0.4 ? Math.sin((age / 0.4) * Math.PI) * 0.15 : 0;
@@ -231,7 +259,7 @@ function Cat({
       onPointerOut={() => (document.body.style.cursor = "auto")}
     >
       <group ref={body}>
-        <mesh name="badan" position={[0, 0.45, 0]} castShadow>
+        <mesh ref={chest} name="badan" position={[0, 0.45, 0]} castShadow>
           <sphereGeometry args={[0.5, 32, 32]} />
           <meshStandardMaterial color={color} />
         </mesh>
@@ -269,11 +297,8 @@ function Cat({
       {hearts.map((h) => (
         <Heart key={h} onDone={() => setHearts((all) => all.filter((x) => x !== h))} />
       ))}
-      <group ref={tail} position={[0, 0.35, -0.45]}>
-        <mesh name="ekor" position={[0, 0.3, -0.05]} rotation={[-0.4, 0, 0]} castShadow>
-          <capsuleGeometry args={[0.07, 0.6, 8, 16]} />
-          <meshStandardMaterial color={color} />
-        </mesh>
+      <group ref={tail} position={[0, 0.35, -0.45]} rotation={[-0.5, 0, 0]}>
+        <TailSegment index={0} color={color} />
       </group>
     </group>
   );
