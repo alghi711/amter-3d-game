@@ -1,8 +1,9 @@
 "use client";
 
 import { RoundedBox } from "@react-three/drei";
-import type { ThreeEvent } from "@react-three/fiber";
-import { useState, type ReactNode } from "react";
+import { useFrame, type ThreeEvent } from "@react-three/fiber";
+import { useRef, useState, type ReactNode } from "react";
+import type { Mesh } from "three";
 
 /** Posisi benda rumah — dipakai ulang oleh interaksi (makan, minum, main, tidur). */
 export const HOUSE_SPOTS = {
@@ -55,6 +56,25 @@ function Usable({ spot, onUse, children }: { spot: HouseSpot; onUse?: (s: HouseS
 
 export type BowlState = { level: number; fill: string };
 
+function ToyBall({ color, active }: { color: string; active: boolean }) {
+  const ref = useRef<Mesh>(null);
+  useFrame(({ clock }) => {
+    if (!ref.current) return;
+    if (!active) {
+      ref.current.position.set(0, 0.18, 0);
+      return;
+    }
+    const t = clock.getElapsedTime();
+    ref.current.position.set(Math.sin(t * 6) * 0.22, 0.18 + Math.abs(Math.sin(t * 9)) * 0.25, Math.cos(t * 6) * 0.18);
+  });
+  return (
+    <mesh ref={ref} position={[0, 0.18, 0]} castShadow>
+      <sphereGeometry args={[0.18, 24, 24]} />
+      <meshStandardMaterial color={color} />
+    </mesh>
+  );
+}
+
 function Bowl({ color, fill, level = 0.7 }: { color: string; fill: string; level?: number }) {
   const clamped = Math.max(0.05, Math.min(1, level));
   return (
@@ -77,11 +97,15 @@ export default function CatHouse({
   foodBowlState,
   waterBowlState,
   litterDirty = false,
+  toyColor = "#ffd166",
+  playingToy = false,
 }: {
   onUse?: (spot: HouseSpot) => void;
   foodBowlState?: BowlState;
   waterBowlState?: BowlState;
   litterDirty?: boolean;
+  toyColor?: string;
+  playingToy?: boolean;
 }) {
   return (
     <group>
@@ -135,10 +159,7 @@ export default function CatHouse({
 
       {/* bola mainan */}
       <Usable spot="toy" onUse={onUse}>
-        <mesh position={[0, 0.18, 0]} castShadow>
-          <sphereGeometry args={[0.18, 24, 24]} />
-          <meshStandardMaterial color="#ffd166" />
-        </mesh>
+        <ToyBall color={toyColor} active={playingToy} />
       </Usable>
 
       {/* kotak pasir */}

@@ -10,7 +10,7 @@ import { ANIM_LABELS, type CatAnimState } from "@/lib/cat-animation";
 import { SPOT_LABELS, type HouseSpot } from "@/components/room/CatHouse";
 import CarePanel from "@/components/care/CarePanel";
 import CareStatusPanel from "@/components/care/CareStatusPanel";
-import { CARE_ACTIONS, MEAL_ITEMS, useCare, type CareAction, type MealItem } from "@/lib/use-care";
+import { CARE_ACTIONS, MEAL_ITEMS, TOY_ITEMS, useCare, type CareAction, type MealItem, type ToyItem } from "@/lib/use-care";
 
 const CatRoomScene = dynamic(() => import("@/components/room/CatRoomScene"), {
   ssr: false,
@@ -41,6 +41,7 @@ export default function Home() {
   const [waterFill, setWaterFill] = useState(MEAL_ITEMS.minum[0].fillColor);
   const [bathing, setBathing] = useState(false);
   const [litterDirty, setLitterDirty] = useState(true);
+  const [toyColor, setToyColor] = useState(TOY_ITEMS[0].color);
 
   useEffect(() => {
     if (!bathing) return;
@@ -75,6 +76,18 @@ export default function Home() {
     setToast(`${cat.name} ${item.message}`);
   };
 
+  const playToy = (toy: ToyItem) => {
+    if (stats.energy < 15) {
+      setSpot("bed");
+      setToast(`${cat.name} terlalu lelah untuk bermain — waktunya istirahat 😴`);
+      return;
+    }
+    perform({ effect: toy.effect });
+    setToyColor(toy.color);
+    setSpot(toy.spot);
+    setToast(`${cat.name} ${toy.message}`);
+  };
+
   const touchCat = (t: CatTouch) => setToast(pickReaction(t, cat.name));
 
   const useObject = (s: HouseSpot) => {
@@ -90,13 +103,21 @@ export default function Home() {
       doCare("bersihkan");
       return;
     }
+    if (s === "toy") {
+      playToy(TOY_ITEMS[0]);
+      return;
+    }
+    if (s === "scratchPost") {
+      playToy(TOY_ITEMS[2]);
+      return;
+    }
     setSpot(s);
     setToast(`${cat.name} menuju ${SPOT_LABELS[s].toLowerCase()}`);
   };
   return (
     <main className="relative h-dvh w-full overflow-hidden bg-[#fff6ef] text-stone-800">
       <div className="absolute inset-0">
-        <CatRoomScene furColor={cat.furColor} catSpot={spot} onAnimState={setAnim} onUseObject={useObject} onCatTouch={touchCat} cameraReset={cameraReset} foodBowlState={{ level: stats.hunger / 100, fill: foodFill }} waterBowlState={{ level: stats.thirst / 100, fill: waterFill }} bathing={bathing} litterDirty={litterDirty || stats.hygiene < 65} />
+        <CatRoomScene furColor={cat.furColor} catSpot={spot} onAnimState={setAnim} onUseObject={useObject} onCatTouch={touchCat} cameraReset={cameraReset} foodBowlState={{ level: stats.hunger / 100, fill: foodFill }} waterBowlState={{ level: stats.thirst / 100, fill: waterFill }} bathing={bathing} litterDirty={litterDirty || stats.hygiene < 65} toyColor={toyColor} playingToy={anim === "main"} />
       </div>
 
       {/* Header info kucing */}
@@ -142,7 +163,7 @@ export default function Home() {
         {showStatus ? (
           <CareStatusPanel stats={stats} name={cat.name} onClose={() => setShowStatus(false)} />
         ) : (
-          <CarePanel stats={stats} onAction={doCare} onServeMeal={serveMeal} onOpenStatus={() => setShowStatus(true)} />
+          <CarePanel stats={stats} onAction={doCare} onServeMeal={serveMeal} onPlayToy={playToy} onOpenStatus={() => setShowStatus(true)} />
         )}
       </footer>
     </main>

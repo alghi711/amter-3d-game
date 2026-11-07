@@ -29,6 +29,22 @@ export const MEAL_ITEMS: Record<"makan" | "minum", MealItem[]> = {
   ],
 };
 
+export type ToyItem = {
+  id: string;
+  label: string;
+  icon: string;
+  color: string;
+  spot: HouseSpot;
+  effect: Partial<CatStats>;
+  message: string;
+};
+
+export const TOY_ITEMS: ToyItem[] = [
+  { id: "ball", label: "Bola Lonceng", icon: "🧶", color: "#ffd166", spot: "toy", effect: { happiness: 20, energy: -10 }, message: "asyik mengejar bola lonceng" },
+  { id: "wand", label: "Tongkat Bulu", icon: "🪶", color: "#f472b6", spot: "toy", effect: { happiness: 28, energy: -15, hunger: -5 }, message: "melompat lincah menangkap tongkat bulu!" },
+  { id: "scratch", label: "Garuk Tiang", icon: "🪵", color: "#c49a6c", spot: "scratchPost", effect: { happiness: 18, energy: -8 }, message: "puas mengasah kuku di tiang garuk" },
+];
+
 export const CARE_ACTIONS: Record<
   CareAction,
   { label: string; icon: string; spot: HouseSpot | null; effect: Partial<CatStats>; message: string }

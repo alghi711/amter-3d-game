@@ -434,6 +434,8 @@ export default function CatRoomScene({
   waterBowlState,
   bathing = false,
   litterDirty = false,
+  toyColor = "#ffd166",
+  playingToy = false,
 }: {
   furColor: string;
   /** benda yang sedang dituju kucing; null = kembali ke karpet */
@@ -447,6 +449,8 @@ export default function CatRoomScene({
   waterBowlState?: BowlState;
   bathing?: boolean;
   litterDirty?: boolean;
+  toyColor?: string;
+  playingToy?: boolean;
 }) {
   const [petting, setPetting] = useState(false);
   // kualitas awal ditebak dari perangkat, lalu diturunkan otomatis bila FPS anjlok
@@ -471,7 +475,7 @@ export default function CatRoomScene({
       <color attach="background" args={["#fff6ef"]} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[4, 6, 3]} intensity={1.2} castShadow={q.shadows} shadow-mapSize={[q.shadowMapSize, q.shadowMapSize]} />
-      <CatHouse onUse={onUseObject} foodBowlState={foodBowlState} waterBowlState={waterBowlState} litterDirty={litterDirty} />
+      <CatHouse onUse={onUseObject} foodBowlState={foodBowlState} waterBowlState={waterBowlState} litterDirty={litterDirty} toyColor={toyColor} playingToy={playingToy} />
       <Cat color={furColor} spot={catSpot} onAnimState={onAnimState} onTouch={onCatTouch} onPettingChange={setPetting} anim={q.anim} bathing={bathing} />
       {q.contactShadows && (
         <ContactShadows position={[0, 0.01, 0]} opacity={0.35} blur={2} far={3} resolution={256} />

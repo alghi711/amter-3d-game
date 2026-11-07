@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { CatStats } from "@/lib/mock-cat";
 import { careScore, careStatus } from "./CareStatusPanel";
-import { CARE_ACTIONS, MEAL_ITEMS, STAT_LABELS, type CareAction, type MealItem } from "@/lib/use-care";
+import { CARE_ACTIONS, MEAL_ITEMS, STAT_LABELS, TOY_ITEMS, type CareAction, type MealItem, type ToyItem } from "@/lib/use-care";
 
 /** Bilah kondisi ringkas (5 kebutuhan). */
 export function StatBars({ stats }: { stats: CatStats }) {
@@ -33,26 +33,32 @@ export default function CarePanel({
   stats,
   onAction,
   onServeMeal,
+  onPlayToy,
   busy,
   onOpenStatus,
 }: {
   stats: CatStats;
   onAction: (a: CareAction) => void;
   onServeMeal?: (item: MealItem) => void;
+  onPlayToy?: (toy: ToyItem) => void;
   busy?: boolean;
   /** buka panel detail kondisi perawatan */
   onOpenStatus?: () => void;
 }) {
-  const [mealMenu, setMealMenu] = useState<"makan" | "minum" | null>(null);
+  const [subMenu, setSubMenu] = useState<"makan" | "minum" | "main" | null>(null);
   const score = careScore(stats);
   const status = careStatus(score);
 
   const handleClick = (a: CareAction) => {
     if ((a === "makan" || a === "minum") && onServeMeal) {
-      setMealMenu((cur) => (cur === a ? null : a));
+      setSubMenu((cur) => (cur === a ? null : a));
       return;
     }
-    setMealMenu(null);
+    if (a === "main" && onPlayToy) {
+      setSubMenu((cur) => (cur === "main" ? null : "main"));
+      return;
+    }
+    setSubMenu(null);
     onAction(a);
   };
 
@@ -76,15 +82,15 @@ export default function CarePanel({
       </button>
       <StatBars stats={stats} />
 
-      {mealMenu && (
-        <div className="mt-2.5 flex items-center gap-2 rounded-2xl bg-amber-100/80 p-2" role="group" aria-label={`Pilih ${mealMenu}`}>
-          {MEAL_ITEMS[mealMenu].map((item) => (
+      {(subMenu === "makan" || subMenu === "minum") && (
+        <div className="mt-2.5 flex items-center gap-2 rounded-2xl bg-amber-100/80 p-2" role="group" aria-label={`Pilih ${subMenu}`}>
+          {MEAL_ITEMS[subMenu].map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => {
                 onServeMeal?.(item);
-                setMealMenu(null);
+                setSubMenu(null);
               }}
               className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white px-2 py-1.5 text-xs font-medium text-stone-700 shadow-sm transition hover:bg-amber-50 active:scale-95"
             >
@@ -97,9 +103,30 @@ export default function CarePanel({
         </div>
       )}
 
+      {subMenu === "main" && (
+        <div className="mt-2.5 flex items-center gap-2 rounded-2xl bg-amber-100/80 p-2" role="group" aria-label="Pilih mainan">
+          {TOY_ITEMS.map((toy) => (
+            <button
+              key={toy.id}
+              type="button"
+              onClick={() => {
+                onPlayToy?.(toy);
+                setSubMenu(null);
+              }}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white px-2 py-1.5 text-xs font-medium text-stone-700 shadow-sm transition hover:bg-amber-50 active:scale-95"
+            >
+              <span className="text-base" aria-hidden>
+                {toy.icon}
+              </span>
+              <span>{toy.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="mt-3 grid grid-cols-5 gap-2">
         {(Object.keys(CARE_ACTIONS) as CareAction[]).map((a) => {
-          const active = mealMenu === a;
+          const active = subMenu === a;
           return (
             <button
               key={a}
