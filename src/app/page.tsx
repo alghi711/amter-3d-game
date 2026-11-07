@@ -87,7 +87,7 @@ export default function Home() {
       setToast(refusal);
       return;
     }
-    perform({ effect: item.effect, label: item.label, icon: item.icon });
+    perform({ effect: item.effect, label: item.label, icon: item.icon, action: item.action, itemType: item.id });
     if (item.action === "makan") {
       setFoodFill(item.fillColor);
       setSpot("foodBowl");
@@ -105,7 +105,7 @@ export default function Home() {
       setToast(refusal);
       return;
     }
-    perform({ effect: toy.effect, label: toy.label, icon: toy.icon });
+    perform({ effect: toy.effect, label: toy.label, icon: toy.icon, action: "main", itemType: toy.id });
     setToyColor(toy.color);
     setSpot(toy.spot);
     setToast(`${cat.name} ${toy.message}`);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useReducer } from "react";
+import { useCallback, useEffect, useReducer } from "react";
 import type { HouseSpot } from "@/components/room/CatHouse";
 import { mockCat, type CatStats } from "@/lib/mock-cat";
 
@@ -81,11 +81,19 @@ type CareState = {
 
 type CareDispatch =
   | CareAction
-  | { effect: Partial<CatStats>; label?: string; icon?: string };
+  | { effect: Partial<CatStats>; label?: string; icon?: string }
+  | { syncStats: CatStats; deltas?: Partial<CatStats> };
 
 let logSeq = 1;
 
 function reducer(state: CareState, input: CareDispatch): CareState {
+  if (typeof input === "object" && "syncStats" in input) {
+    return {
+      ...state,
+      stats: input.syncStats,
+      lastDeltas: input.deltas ?? state.lastDeltas,
+    };
+  }
   const next = { ...state.stats };
   const effect = typeof input === "string" ? CARE_ACTIONS[input].effect : input.effect;
   const label = typeof input === "string" ? CARE_ACTIONS[input].label : (input.label ?? "Rawat");
@@ -107,7 +115,50 @@ function reducer(state: CareState, input: CareDispatch): CareState {
 
 /** State perawatan sementara (data tiruan, belum tersimpan) — nanti diganti store + backend. */
 export function useCare(initial: CatStats = mockCat.stats) {
-  const [state, perform] = useReducer(reducer, { stats: initial, lastDeltas: {}, history: [] });
+  const [state, dispatch] = useReducer(reducer, { stats: initial, lastDeltas: {}, history: [] });
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/care/summary")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { stats?: CatStats } | null) => {
+        if (active && data?.stats) {
+          dispatch({ syncStats: data.stats });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const perform = useCallback((input: CareAction | { effect: Partial<CatStats>; label?: string; icon?: string; action?: CareAction; itemType?: string }) => {
+    dispatch(input);
+    const action: CareAction | undefined = typeof input === "string" ? input : input.action;
+    const itemType = typeof input === "object" ? input.itemType : undefined;
+    if (!action) return;
+
+    const endpoint =
+      action === "makan" || action === "minum"
+        ? "/api/care/feed"
+        : action === "mandi" || action === "bersihkan"
+          ? "/api/care/hygiene"
+          : "/api/care/play";
+
+    fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, itemType }),
+    })
+      .then((r) => r.json())
+      .then((data: { stats?: CatStats; deltas?: Partial<CatStats> }) => {
+        if (data?.stats) {
+          dispatch({ syncStats: data.stats, deltas: data.deltas });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   return { stats: state.stats, lastDeltas: state.lastDeltas, history: state.history, perform };
 }
 
