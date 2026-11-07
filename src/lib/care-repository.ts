@@ -3,6 +3,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { ensureCareSchema } from "@/db";
 import { catMoods, cats, catStats, interactions } from "@/db/schema";
 import { deriveCatMood } from "@/lib/mock-mood";
+import { evaluateAndPersistCatPersonality } from "@/lib/personality-service";
 import {
   applyTimeDecay,
   evaluateCareAction,
@@ -175,6 +176,7 @@ export async function executeCareAction(params: {
       },
     });
 
+  await evaluateAndPersistCatPersonality(catId);
   const updatedSnapshot = await getCatCareSnapshot(catId);
   return { evaluation, snapshot: updatedSnapshot };
 }
