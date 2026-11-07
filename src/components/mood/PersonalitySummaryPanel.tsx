@@ -1,8 +1,58 @@
 "use client";
 
+import { useState } from "react";
 import type { CatStats } from "@/lib/mock-cat";
 import { MOCK_PERSONALITY_TRAITS, type PersonalityTrait } from "@/lib/mock-mood";
 import type { CareLogEntry } from "@/lib/use-care";
+
+export type CarePatternPreset = "seimbang" | "manja" | "aktif" | "kuliner" | "rapi";
+
+export const CARE_PATTERN_PRESETS: Record<
+  CarePatternPreset,
+  {
+    label: string;
+    icon: string;
+    summary: string;
+    habitText: string;
+    bonus: Record<string, number>;
+  }
+> = {
+  seimbang: {
+    label: "Seimbang",
+    icon: "⚖️",
+    summary: "Mengikuti riwayat perawatan saat ini",
+    habitText: "Terbiasa makan, bermain, dan tidur teratur sesuai jadwal rumah.",
+    bonus: {},
+  },
+  manja: {
+    label: "Sering Dielus",
+    icon: "💕",
+    summary: "Banyak sentuhan lembut & perhatian",
+    habitText: "Suka menghampiri layar dan mengeong manja minta dielus kepalanya.",
+    bonus: { manja: 20, tenang: 10 },
+  },
+  aktif: {
+    label: "Rajin Diajak Main",
+    icon: "🧶",
+    summary: "Sering mengejar bola & tongkat bulu",
+    habitText: "Setiap pagi langsung menunggu di dekat bola mainan dan tiang garuk.",
+    bonus: { aktif: 22, manja: 5 },
+  },
+  kuliner: {
+    label: "Tepat Waktu Makan",
+    icon: "🍣",
+    summary: "Rutin diberi variasi makanan & susu",
+    habitText: "Hafal bunyi mangkuk dan duduk rapi di depan tempat makan.",
+    bonus: { kuliner: 22, tenang: 6 },
+  },
+  rapi: {
+    label: "Rajin Mandi & Bersih",
+    icon: "🫧",
+    summary: "Kandang dan bulu selalu dijaga bersih",
+    habitText: "Rajin menjilati bulu seusai makan dan enggan menginjak tempat kotor.",
+    bonus: { rapi: 24, tenang: 8 },
+  },
+};
 
 const EXTRA_TRAIT_POOL: PersonalityTrait[] = [
   ...MOCK_PERSONALITY_TRAITS,
@@ -26,8 +76,12 @@ const EXTRA_TRAIT_POOL: PersonalityTrait[] = [
 
 const clamp = (n: number) => Math.max(15, Math.min(100, Math.round(n)));
 
-/** Hitung skor sifat kepribadian kucing berdasarkan kondisi perawatan & riwayat interaksi pemain. */
-export function derivePersonalityTraits(stats: CatStats, history: CareLogEntry[] = []): PersonalityTrait[] {
+/** Hitung skor sifat kepribadian kucing berdasarkan kondisi perawatan, riwayat interaksi, dan simulasi pola rawat. */
+export function derivePersonalityTraits(
+  stats: CatStats,
+  history: CareLogEntry[] = [],
+  pattern: CarePatternPreset = "seimbang",
+): PersonalityTrait[] {
   const counts = { meal: 0, play: 0, clean: 0, pet: 0 };
   for (const item of history) {
     const l = item.label.toLowerCase();
@@ -37,13 +91,15 @@ export function derivePersonalityTraits(stats: CatStats, history: CareLogEntry[]
     else counts.meal++;
   }
 
+  const presetBonus = CARE_PATTERN_PRESETS[pattern].bonus;
+
   return EXTRA_TRAIT_POOL.map((t) => {
-    let bonus = 0;
-    if (t.id === "manja") bonus = (stats.happiness - 70) * 0.25 + counts.pet * 5;
-    if (t.id === "aktif") bonus = (stats.energy - 55) * 0.2 + counts.play * 6;
-    if (t.id === "kuliner") bonus = (stats.hunger - 65) * 0.25 + counts.meal * 5;
-    if (t.id === "rapi") bonus = (stats.hygiene - 70) * 0.3 + counts.clean * 6;
-    if (t.id === "tenang") bonus = (100 - stats.energy) * 0.15;
+    let bonus = presetBonus[t.id] ?? 0;
+    if (t.id === "manja") bonus += (stats.happiness - 70) * 0.25 + counts.pet * 5;
+    if (t.id === "aktif") bonus += (stats.energy - 55) * 0.2 + counts.play * 6;
+    if (t.id === "kuliner") bonus += (stats.hunger - 65) * 0.25 + counts.meal * 5;
+    if (t.id === "rapi") bonus += (stats.hygiene - 70) * 0.3 + counts.clean * 6;
+    if (t.id === "tenang") bonus += (100 - stats.energy) * 0.15;
     return {
       ...t,
       score: clamp(t.score + bonus),
@@ -51,7 +107,7 @@ export function derivePersonalityTraits(stats: CatStats, history: CareLogEntry[]
   }).sort((a, b) => b.score - a.score);
 }
 
-/** Panel ringkasan kepribadian kucing: sifat dominan, skor tiap sifat, dan penyebab terbentuknya. */
+/** Panel ringkasan kepribadian kucing + simulator pembentukan kebiasaan dari pola rawat. */
 export default function PersonalitySummaryPanel({
   name,
   stats,
@@ -61,11 +117,41 @@ export default function PersonalitySummaryPanel({
   stats: CatStats;
   history?: CareLogEntry[];
 }) {
-  const traits = derivePersonalityTraits(stats, history);
+  const [pattern, setPattern] = useState<CarePatternPreset>("seimbang");
+  const traits = derivePersonalityTraits(stats, history, pattern);
   const dominant = traits[0];
+  const activePreset = CARE_PATTERN_PRESETS[pattern];
 
   return (
     <div className="space-y-2.5">
+      {/* Simulator Pola Rawat -> Kebiasaan */}
+      <div className="rounded-2xl border border-stone-100 bg-stone-50/90 p-2.5 text-xs">
+        <p className="font-semibold text-stone-700">Simulasi Pola Rawat & Kebiasaan:</p>
+        <div className="mt-1.5 flex flex-wrap gap-1" role="radiogroup" aria-label="Pilih simulasi pola rawat">
+          {(Object.keys(CARE_PATTERN_PRESETS) as CarePatternPreset[]).map((key) => {
+            const p = CARE_PATTERN_PRESETS[key];
+            const active = pattern === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setPattern(key)}
+                className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
+                  active ? "bg-amber-500 text-white shadow-sm" : "bg-white text-stone-600 hover:bg-amber-50"
+                }`}
+              >
+                {p.icon} {p.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-1.5 text-[11px] text-stone-600">
+          <strong className="text-amber-900">Kebiasaan yang terbentuk:</strong> {activePreset.habitText}
+        </p>
+      </div>
+
       {/* Kartu sifat utama / julukan */}
       <div className="flex items-center justify-between gap-3 rounded-2xl bg-amber-50/90 p-3 text-xs">
         <div className="flex items-center gap-2.5">
@@ -84,7 +170,7 @@ export default function PersonalitySummaryPanel({
       </div>
 
       {/* Daftar sifat yang terbentuk */}
-      <div className="max-h-44 space-y-2 overflow-y-auto pr-1" aria-label="Daftar sifat kepribadian">
+      <div className="max-h-36 space-y-2 overflow-y-auto pr-1" aria-label="Daftar sifat kepribadian">
         {traits.slice(0, 4).map((trait) => (
           <div key={trait.id} className="rounded-2xl border border-stone-100 bg-stone-50/80 p-2.5 text-xs">
             <div className="flex items-center justify-between font-semibold text-stone-800">
