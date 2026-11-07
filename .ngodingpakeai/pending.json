@@ -1,6 +1,6 @@
 {
   "repo": "ngodingpakeai-project",
-  "generatedForCommit": "8c36d856d467436d85001ed8da6c5c396aa46b1a",
+  "generatedForCommit": "a80689da442d5e868fd6ce50d6d36f55cddf5a4f",
   "files": [
     {
       "path": ".codex/skills/ngodingpakeai/SKILL.md",
@@ -70,9 +70,15 @@
     },
     {
       "path": "src/app/api/care/feed/route.ts",
-      "reason": "new",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 1905
+    },
+    {
+      "path": "src/app/api/care/hygiene/route.ts",
+      "reason": "new",
+      "language": "typescript",
+      "size": 2371
     },
     {
       "path": "src/app/api/room/assets/route.ts",
@@ -148,7 +154,7 @@
     },
     {
       "path": "src/lib/care-repository.ts",
-      "reason": "new",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 4753
     },
