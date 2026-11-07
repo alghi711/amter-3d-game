@@ -5,7 +5,7 @@ import { AdaptiveDpr, ContactShadows, OrbitControls, PerformanceMonitor, Perspec
 import { QUALITY_PROFILES, detectQuality, stepQuality, type QualityLevel } from "@/lib/quality";
 import CatHouse, { HOUSE_SPOTS, type HouseSpot } from "./CatHouse";
 import { useEffect, useRef, useState } from "react";
-import { MOUSE, TOUCH, type Group } from "three";
+import { MathUtils, MOUSE, TOUCH, type Group } from "three";
 import { resolveAnimState, type CatAnimState } from "@/lib/cat-animation";
 import { CAMERA_CONTROL_PRESETS, useInputKind } from "@/lib/use-input-kind";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -124,6 +124,8 @@ function Cat({
   };
   const body = useRef<Group>(null);
   const tail = useRef<Group>(null);
+  // jadwal perilaku idle & nilai yang di-damp antar frame
+  const idleRef = useRef({ nextBlink: 2, blinkUntil: 0, nextLook: 3, lookYaw: 0, tailPhase: 0, tailAmp: 0.4 });
 
   useFrame(({ clock }, delta) => {
     const t = clock.getElapsedTime();
@@ -141,12 +143,12 @@ function Cat({
         p.z += (dz / dist) * step;
         p.y = Math.abs(Math.sin(t * 10)) * 0.05; // langkah memantul
         const want = Math.atan2(dx, dz);
-        root.current.rotation.y += (want - root.current.rotation.y) * Math.min(1, delta * 8);
+        const diff = Math.atan2(Math.sin(want - root.current.rotation.y), Math.cos(want - root.current.rotation.y));
+        root.current.rotation.y += diff * Math.min(1, delta * 8);
       } else {
-        p.y = 0;
+        p.y = MathUtils.damp(p.y, 0, 12, delta);
       }
     }
-    if (body.current) body.current.scale.y = 1 + Math.sin(t * 2) * 0.02; // napas
     const r = reaction.current;
     const age = r ? performance.now() / 1000 - r.start : Infinity;
     if (r && age > 1.6) reaction.current = null;
@@ -157,36 +159,64 @@ function Cat({
       animState.current = next;
       onAnimState?.(next);
     }
-    const petting = r?.kind === "elus" && !annoyed;
-    const touched = r?.kind === "sentuh";
+    // ---- transisi halus: semua target di-"damp" (independen FPS) agar perpindahan state tidak patah ----
+    const petting = next === "dielus";
+    const touched = next === "kaget";
     const k = r?.intensity ?? 0;
-    // ekor: makin cepat sesuai intensitas elusan; menyabet keras saat kesal
-    if (tail.current) {
-      const speed = annoyed ? 14 : petting ? 4 + k * 8 : 3;
-      const amp = annoyed ? 0.9 : petting ? 0.4 + k * 0.3 : 0.4;
-      tail.current.rotation.z = Math.sin(t * speed) * amp;
+    const d = (cur: number, want: number, lambda = 8) => MathUtils.damp(cur, want, lambda, delta);
+    const idle = idleRef.current;
+
+    // idle: kedip berkala & sesekali menoleh melihat sekitar
+    if (t > idle.nextBlink) {
+      idle.blinkUntil = t + 0.12;
+      idle.nextBlink = t + 2.5 + Math.random() * 3;
     }
-    // badan: condong mengikuti arah usapan
+    if (t > idle.nextLook) {
+      idle.lookYaw = next === "diam" ? (Math.random() - 0.5) * 0.9 : 0;
+      idle.nextLook = t + 2 + Math.random() * 4;
+    }
+
+    // ekor: fase diakumulasi supaya ganti kecepatan tidak membuat ekor "loncat"
+    const tailSpeed = next === "kesal" ? 14 : petting ? 4 + k * 8 : next === "tidur" ? 0.8 : next === "main" ? 7 : 3;
+    const tailAmp = next === "kesal" ? 0.9 : petting ? 0.4 + k * 0.3 : next === "tidur" ? 0.1 : 0.4;
+    idle.tailPhase += delta * tailSpeed;
+    idle.tailAmp = d(idle.tailAmp, tailAmp, 5);
+    if (tail.current) tail.current.rotation.z = Math.sin(idle.tailPhase) * idle.tailAmp;
+
+    // badan: napas, condong saat dielus, rebah saat tidur, lompat kecil saat kaget
     if (body.current) {
+      const sleeping = next === "tidur";
+      const breath = Math.sin(t * (sleeping ? 1.2 : 2)) * (sleeping ? 0.035 : 0.02);
+      body.current.scale.y = d(body.current.scale.y, (sleeping ? 0.8 : 1) + breath, 10);
       const lean = petting ? -(r?.lean ?? 0) * 0.15 : 0;
-      body.current.rotation.z += (lean - body.current.rotation.z) * 0.15;
+      body.current.rotation.z = d(body.current.rotation.z, lean, 6);
+      const hop = touched && age < 0.4 ? Math.sin((age / 0.4) * Math.PI) * 0.15 : 0;
+      const bob = next === "main" ? Math.abs(Math.sin(t * 7)) * 0.06 : 0;
+      body.current.position.y = d(body.current.position.y, hop + bob, 25);
     }
-    // kepala: miring penasaran saat disentuh, menyundul pelan saat dielus
+
+    // kepala: miring saat kaget, geleng saat kesal, menyundul saat dielus, menunduk saat makan/minum
     if (head.current) {
       const tilt = touched ? Math.sin(Math.min(age, 1) * Math.PI) * 0.35 : 0;
-      const shake = annoyed ? Math.sin(t * 20) * 0.12 : 0;
-      const nuzzle = petting ? Math.sin(t * 6) * (0.04 + k * 0.08) : 0;
-      head.current.rotation.y += (shake - head.current.rotation.y) * 0.3;
-      head.current.rotation.z += (tilt - head.current.rotation.z) * 0.2;
-      head.current.rotation.x += (nuzzle - head.current.rotation.x) * 0.2;
+      const yaw = next === "kesal" ? Math.sin(t * 20) * 0.12 : next === "diam" ? idle.lookYaw : 0;
+      const eating = next === "makan" || next === "minum";
+      const pitch = eating
+        ? 0.45 + Math.sin(t * 8) * 0.06
+        : petting
+          ? Math.sin(t * 6) * (0.04 + k * 0.08)
+          : next === "tidur"
+            ? 0.25
+            : 0;
+      head.current.rotation.y = d(head.current.rotation.y, yaw, next === "kesal" ? 20 : 4);
+      head.current.rotation.z = d(head.current.rotation.z, tilt, 10);
+      head.current.rotation.x = d(head.current.rotation.x, pitch, 8);
     }
-    // mata: merem keenakan saat dielus
+
+    // mata: kedip, merem saat dielus/tidur
     if (eyes.current) {
-      const want = petting ? 0.15 : 1;
-      eyes.current.scale.y += (want - eyes.current.scale.y) * 0.25;
+      const closed = petting || next === "tidur" || t < idle.blinkUntil;
+      eyes.current.scale.y = d(eyes.current.scale.y, closed ? 0.12 : 1, closed ? 30 : 14);
     }
-    // badan: lompat kecil kaget saat disentuh
-    if (body.current) body.current.position.y = touched && age < 0.4 ? Math.sin((age / 0.4) * Math.PI) * 0.15 : 0;
   });
 
   return (
