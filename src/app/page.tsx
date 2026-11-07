@@ -11,6 +11,7 @@ import { SPOT_LABELS, type HouseSpot } from "@/components/room/CatHouse";
 import CarePanel from "@/components/care/CarePanel";
 import CareStatusPanel from "@/components/care/CareStatusPanel";
 import { FloatingGentleReminder } from "@/components/mood/GentleReminderBanner";
+import { CompactGrowthBadge } from "@/components/growth/ExperienceStageIndicator";
 import GrowthSheet from "@/components/growth/GrowthSheet";
 import MoodRoutineSheet from "@/components/mood/MoodRoutineSheet";
 import { computeGrowthProgress, type GrowthStage } from "@/lib/mock-growth";
@@ -227,20 +228,16 @@ export default function Home() {
               {deriveCatMood(stats, simulatedHour, moodOverride).label} ›
             </button>
           </div>
-          <button
-            type="button"
+          <CompactGrowthBadge
+            experience={experience}
+            closeness={closeness}
+            stageOverride={stageOverride}
             onClick={() => {
               setShowStatus(false);
               setShowMoodSheet(false);
               setShowGrowthSheet((v) => !v);
             }}
-            className="mt-0.5 flex items-center gap-1 text-left text-xs text-stone-600 hover:text-amber-800"
-          >
-            <span>
-              {growth.stageDef.icon} Tahap {growth.stage} · Level {growth.level} · Kedekatan {Math.round(closeness)}%
-            </span>
-            <span className="font-semibold text-amber-700">›</span>
-          </button>
+          />
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
             <span className="font-medium text-amber-700" aria-live="polite">
               ● {ANIM_LABELS[anim]}

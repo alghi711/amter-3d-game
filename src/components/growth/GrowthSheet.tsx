@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import ExperienceStageIndicator from "./ExperienceStageIndicator";
 import {
   CLOSENESS_TIERS,
   computeGrowthProgress,
-  GROWTH_STAGES,
   MOCK_ACHIEVEMENTS,
   resolveClosenessTier,
   type GrowthStage,
@@ -90,75 +90,13 @@ export default function GrowthSheet({
 
       {/* Tab 1: Tahap Pertumbuhan */}
       {tab === "tahap" && (
-        <div className="mt-3 space-y-3 text-xs">
-          <div className="rounded-2xl bg-amber-50/90 p-3">
-            <div className="flex items-center justify-between font-semibold text-stone-800">
-              <span>Progres Level {growth.level}</span>
-              <span className="tabular-nums text-amber-800">
-                {growth.currentLevelXp} / {growth.xpForNextLevel} XP ({growth.xpProgressPercent}%)
-              </span>
-            </div>
-            <div className="mt-1.5 h-2.5 w-full overflow-hidden rounded-full bg-amber-200/60">
-              <div
-                className="h-full rounded-full bg-amber-500 transition-all duration-500"
-                style={{ width: `${growth.xpProgressPercent}%` }}
-              />
-            </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] text-stone-600">
-              <span>{growth.stageDef.description}</span>
-              {onBoostGrowth && (
-                <button
-                  type="button"
-                  onClick={onBoostGrowth}
-                  className="ml-2 shrink-0 rounded-full bg-amber-500 px-2.5 py-1 font-semibold text-white shadow-sm hover:bg-amber-600 active:scale-95"
-                >
-                  +Latih XP
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between text-stone-500">
-              <span>Pratinjau tahap tubuh 3D:</span>
-              {stageOverride && (
-                <button
-                  type="button"
-                  onClick={() => onSelectStage(null)}
-                  className="font-medium text-amber-700 underline"
-                >
-                  Ikuti level asli
-                </button>
-              )}
-            </div>
-            <div className="mt-1.5 grid grid-cols-2 gap-2">
-              {(["anak", "dewasa"] as GrowthStage[]).map((st) => {
-                const def = GROWTH_STAGES[st];
-                const active = growth.stage === st;
-                return (
-                  <button
-                    key={st}
-                    type="button"
-                    onClick={() => onSelectStage(stageOverride === st ? null : st)}
-                    className={`flex flex-col items-start rounded-2xl border p-2.5 text-left transition ${
-                      active
-                        ? "border-amber-400 bg-amber-100/70 text-stone-900 shadow-sm"
-                        : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
-                    }`}
-                  >
-                    <div className="flex w-full items-center justify-between">
-                      <span className="text-lg">{def.icon}</span>
-                      <span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
-                        Lv.{def.minLevel}+
-                      </span>
-                    </div>
-                    <p className="mt-1 font-bold">{def.title}</p>
-                    <p className="text-[11px] text-stone-500">{def.perks[0]}</p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+        <div className="mt-3">
+          <ExperienceStageIndicator
+            experience={experience}
+            stageOverride={stageOverride}
+            onSelectStage={onSelectStage}
+            onBoostGrowth={onBoostGrowth}
+          />
         </div>
       )}
 
