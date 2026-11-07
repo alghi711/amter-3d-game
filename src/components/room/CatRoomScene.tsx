@@ -59,31 +59,50 @@ function Cat({
   const head = useRef<Group>(null);
   const eyes = useRef<Group>(null);
   // reaksi aktif: jenis + waktu mulai (detik jam three)
-  const reaction = useRef<{ kind: CatTouch["kind"]; start: number } | null>(null);
+  // intensity 0..1 mengikuti kecepatan usapan; lean = arah usapan (-1 kiri .. 1 kanan)
+  const reaction = useRef<{ kind: CatTouch["kind"]; part: CatPart; start: number; intensity: number; lean: number } | null>(
+    null,
+  );
   const [hearts, setHearts] = useState<number[]>([]);
   const react = (kind: CatTouch["kind"], part: CatPart, now: number) => {
-    reaction.current = { kind, start: now };
-    if (kind === "elus") setHearts((h) => [...h.slice(-4), now]);
+    reaction.current = { kind, part, start: now, intensity: kind === "elus" ? 0.5 : 1, lean: 0 };
+    if (kind === "elus" && part !== "ekor") setHearts((h) => [...h.slice(-4), now]);
     onTouch?.({ kind, part });
   };
-  const stroke = useRef<{ x: number; y: number; dist: number; part: CatPart; pet: boolean } | null>(null);
+  const stroke = useRef<{ x: number; y: number; dist: number; part: CatPart; pet: boolean; nextHeart: number } | null>(
+    null,
+  );
 
   const onDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
-    stroke.current = { x: e.clientX, y: e.clientY, dist: 0, part: partOf(e.object.name), pet: false };
+    stroke.current = { x: e.clientX, y: e.clientY, dist: 0, part: partOf(e.object.name), pet: false, nextHeart: 300 };
     onPettingChange?.(true); // matikan kamera selama menyentuh kucing
   };
   const onMove = (e: ThreeEvent<PointerEvent>) => {
     const st = stroke.current;
     if (!st) return;
     e.stopPropagation();
-    st.dist += Math.hypot(e.clientX - st.x, e.clientY - st.y);
+    const dx = e.clientX - st.x;
+    const moved = Math.hypot(dx, e.clientY - st.y);
+    st.dist += moved;
     st.x = e.clientX;
     st.y = e.clientY;
     st.part = partOf(e.object.name);
     if (!st.pet && st.dist > 40) {
       st.pet = true;
       react("elus", st.part, performance.now() / 1000);
+    } else if (st.pet && reaction.current?.kind === "elus") {
+      // usapan berlanjut: perpanjang reaksi, sesuaikan intensitas & arah condong badan
+      const r = reaction.current;
+      r.start = performance.now() / 1000;
+      r.part = st.part;
+      r.intensity += (Math.min(1, moved / 25) - r.intensity) * 0.3;
+      r.lean += (Math.sign(dx) * Math.min(1, Math.abs(dx) / 20) - r.lean) * 0.2;
+      if (st.dist > st.nextHeart && st.part !== "ekor") {
+        st.nextHeart += 300;
+        const now = r.start;
+        setHearts((h) => [...h.slice(-4), now]);
+      }
     }
   };
   const end = () => {
@@ -119,14 +138,27 @@ function Cat({
     const r = reaction.current;
     const age = r ? performance.now() / 1000 - r.start : Infinity;
     if (r && age > 1.6) reaction.current = null;
-    const petting = r?.kind === "elus";
+    const annoyed = r?.kind === "elus" && r.part === "ekor"; // ekor dielus = kesal
+    const petting = r?.kind === "elus" && !annoyed;
     const touched = r?.kind === "sentuh";
-    // ekor: lebih cepat saat dielus
-    if (tail.current) tail.current.rotation.z = Math.sin(t * (petting ? 9 : 3)) * (petting ? 0.6 : 0.4);
+    const k = r?.intensity ?? 0;
+    // ekor: makin cepat sesuai intensitas elusan; menyabet keras saat kesal
+    if (tail.current) {
+      const speed = annoyed ? 14 : petting ? 4 + k * 8 : 3;
+      const amp = annoyed ? 0.9 : petting ? 0.4 + k * 0.3 : 0.4;
+      tail.current.rotation.z = Math.sin(t * speed) * amp;
+    }
+    // badan: condong mengikuti arah usapan
+    if (body.current) {
+      const lean = petting ? -(r?.lean ?? 0) * 0.15 : 0;
+      body.current.rotation.z += (lean - body.current.rotation.z) * 0.15;
+    }
     // kepala: miring penasaran saat disentuh, menyundul pelan saat dielus
     if (head.current) {
       const tilt = touched ? Math.sin(Math.min(age, 1) * Math.PI) * 0.35 : 0;
-      const nuzzle = petting ? Math.sin(t * 6) * 0.08 : 0;
+      const shake = annoyed ? Math.sin(t * 20) * 0.12 : 0;
+      const nuzzle = petting ? Math.sin(t * 6) * (0.04 + k * 0.08) : 0;
+      head.current.rotation.y += (shake - head.current.rotation.y) * 0.3;
       head.current.rotation.z += (tilt - head.current.rotation.z) * 0.2;
       head.current.rotation.x += (nuzzle - head.current.rotation.x) * 0.2;
     }
