@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import DailyRoutineSchedule from "./DailyRoutineSchedule";
+import GentleReminderBanner from "./GentleReminderBanner";
+import type { CareAction } from "@/lib/use-care";
 import MoodExpressionPicker from "./MoodExpressionPicker";
 import type { HouseSpot } from "@/components/room/CatHouse";
 import type { CatStats } from "@/lib/mock-cat";
@@ -24,6 +26,7 @@ export default function MoodRoutineSheet({
   simulatedHour,
   onChangeHour,
   moodHistory = [],
+  onQuickCare,
   onGoToSpot,
   onClose,
 }: {
@@ -34,6 +37,7 @@ export default function MoodRoutineSheet({
   simulatedHour: number;
   onChangeHour: (h: number) => void;
   moodHistory?: MoodTransition[];
+  onQuickCare?: (action: CareAction) => void;
   onGoToSpot?: (spot: HouseSpot | null, label: string) => void;
   onClose: () => void;
 }) {
@@ -122,21 +126,13 @@ export default function MoodRoutineSheet({
           )}
 
           {/* Pengingat Lembut */}
-          <div className="space-y-1.5">
-            <p className="text-xs font-semibold text-stone-600">🔔 Pengingat Lembut</p>
-            {reminders.slice(0, 2).map((rem) => (
-              <div
-                key={rem.id}
-                className="flex items-start gap-2 rounded-2xl border border-amber-200/70 bg-amber-50/50 px-3 py-2 text-xs"
-              >
-                <span className="text-base leading-none">{rem.icon}</span>
-                <div>
-                  <p className="font-semibold text-stone-800">{rem.title}</p>
-                  <p className="text-stone-600">{rem.message}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <GentleReminderBanner
+            reminders={reminders}
+            onQuickAction={(a) => {
+              onQuickCare?.(a);
+              onClose();
+            }}
+          />
         </div>
       )}
 

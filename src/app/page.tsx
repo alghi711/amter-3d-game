@@ -10,8 +10,9 @@ import { ANIM_LABELS, type CatAnimState } from "@/lib/cat-animation";
 import { SPOT_LABELS, type HouseSpot } from "@/components/room/CatHouse";
 import CarePanel from "@/components/care/CarePanel";
 import CareStatusPanel from "@/components/care/CareStatusPanel";
+import { FloatingGentleReminder } from "@/components/mood/GentleReminderBanner";
 import MoodRoutineSheet from "@/components/mood/MoodRoutineSheet";
-import { deriveCatMood, evaluateMoodShift, getActiveRoutine, type CatMood, type MoodTransition } from "@/lib/mock-mood";
+import { buildGentleReminders, deriveCatMood, evaluateMoodShift, getActiveRoutine, type CatMood, type MoodTransition } from "@/lib/mock-mood";
 import { CARE_ACTIONS, getRefusalReason, MEAL_ITEMS, TOY_ITEMS, useCare, type CareAction, type MealItem, type ToyItem } from "@/lib/use-care";
 
 const CatRoomScene = dynamic(() => import("@/components/room/CatRoomScene"), {
@@ -262,11 +263,19 @@ export default function Home() {
         </div>
       </header>
 
-      {toast && (
-        <div className="pointer-events-none absolute inset-x-0 top-24 flex justify-center px-4">
+      <div className="pointer-events-none absolute inset-x-0 top-24 flex flex-col items-center gap-2 px-4">
+        {toast ? (
           <span className="rounded-full bg-amber-500/90 px-4 py-2 text-sm font-medium text-white shadow-lg">{toast}</span>
-        </div>
-      )}
+        ) : (
+          !showMoodSheet &&
+          !showStatus && (
+            <FloatingGentleReminder
+              reminders={buildGentleReminders(stats, cat.name, simulatedHour)}
+              onQuickAction={doCare}
+            />
+          )
+        )}
+      </div>
 
       <footer className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-2 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <p className="text-center text-[11px] text-stone-500">
@@ -287,6 +296,7 @@ export default function Home() {
               if (rt.spot) setSpot(rt.spot);
             }}
             moodHistory={moodHistory}
+            onQuickCare={doCare}
             onGoToSpot={(s, title) => {
               setSpot(s);
               setShowMoodSheet(false);
