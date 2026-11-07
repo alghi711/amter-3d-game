@@ -21,7 +21,7 @@ export default function Home() {
       </div>
 
       {/* Header info kucing */}
-      <header className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-4">
+      <header className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6">
         <div className="pointer-events-auto rounded-2xl bg-white/80 px-4 py-3 shadow-md backdrop-blur">
           <h1 className="text-lg font-bold">
             {cat.name} {moodEmoji[cat.mood]}
@@ -35,7 +35,7 @@ export default function Home() {
         </span>
       </header>
 
-      <p className="pointer-events-none absolute inset-x-0 bottom-4 text-center text-xs text-stone-500">
+      <p className="pointer-events-none absolute inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] px-4 text-center text-xs text-stone-500">
         Geser untuk memutar kamera · cubit / scroll untuk memperbesar
       </p>
     </main>

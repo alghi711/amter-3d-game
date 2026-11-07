@@ -1,7 +1,7 @@
 "use client";
 
-import { Canvas, useFrame } from "@react-three/fiber";
-import { ContactShadows, OrbitControls, RoundedBox } from "@react-three/drei";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { ContactShadows, OrbitControls, PerspectiveCamera, RoundedBox } from "@react-three/drei";
 import { useRef } from "react";
 import type { Group } from "three";
 
@@ -96,9 +96,23 @@ function Room() {
   );
 }
 
+/** Sesuaikan FOV & jarak kamera dengan rasio layar agar kucing tetap terlihat di HP (potret). */
+function ResponsiveCamera() {
+  const size = useThree((state) => state.size);
+  const aspect = size.width / size.height;
+  const fov = aspect < 0.8 ? 60 : aspect < 1.2 ? 52 : 45;
+  return <PerspectiveCamera makeDefault position={[3.5, 3, 5]} fov={fov} />;
+}
+
 export default function CatRoomScene({ furColor }: { furColor: string }) {
   return (
-    <Canvas shadows camera={{ position: [3.5, 3, 5], fov: 45 }} dpr={[1, 2]}>
+    <Canvas
+      shadows
+      dpr={[1, 2]}
+      className="!touch-none"
+      style={{ width: "100%", height: "100%" }}
+    >
+      <ResponsiveCamera />
       <color attach="background" args={["#fff6ef"]} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[4, 6, 3]} intensity={1.2} castShadow shadow-mapSize={[1024, 1024]} />
