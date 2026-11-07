@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CatStats } from "@/lib/mock-cat";
 import { MOCK_PERSONALITY_TRAITS, type PersonalityTrait } from "@/lib/mock-mood";
 import type { CareLogEntry } from "@/lib/use-care";
@@ -118,7 +118,23 @@ export default function PersonalitySummaryPanel({
   history?: CareLogEntry[];
 }) {
   const [pattern, setPattern] = useState<CarePatternPreset>("seimbang");
-  const traits = derivePersonalityTraits(stats, history, pattern);
+  const [serverTraits, setServerTraits] = useState<PersonalityTrait[] | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/cat/personality")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { traits?: PersonalityTrait[] } | null) => {
+        if (active && Array.isArray(data?.traits) && data.traits.length > 0) {
+          setServerTraits(data.traits);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [stats, history.length]);
+  const traits = pattern === "seimbang" && serverTraits ? serverTraits : derivePersonalityTraits(stats, history, pattern);
   const dominant = traits[0];
   const activePreset = CARE_PATTERN_PRESETS[pattern];
 
