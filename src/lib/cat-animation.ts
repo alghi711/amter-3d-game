@@ -1,7 +1,7 @@
 import type { HouseSpot } from "@/components/room/CatHouse";
 
 /** Semua state animasi kucing. Model glTF nanti memetakan tiap state ke satu klip animasi. */
-export type CatAnimState = "diam" | "jalan" | "makan" | "minum" | "main" | "tidur" | "garuk" | "pup" | "dielus" | "kaget" | "kesal";
+export type CatAnimState = "diam" | "jalan" | "makan" | "minum" | "main" | "tidur" | "garuk" | "pup" | "mandi" | "dielus" | "kaget" | "kesal";
 
 /** Aktivitas yang dimulai begitu kucing tiba di sebuah benda. */
 export const SPOT_ACTIVITY: Record<HouseSpot, CatAnimState> = {
@@ -23,6 +23,7 @@ export const ANIM_LABELS: Record<CatAnimState, string> = {
   tidur: "Tidur siang",
   garuk: "Menggaruk tiang",
   pup: "Di kotak pasir",
+  mandi: "Sedang mandi sabun 🫧",
   dielus: "Dielus-elus",
   kaget: "Kaget!",
   kesal: "Kesal",
@@ -35,10 +36,12 @@ export type AnimInputs = {
   spot: HouseSpot | null;
   /** reaksi sentuhan aktif (prioritas tertinggi) */
   reaction: "sentuh" | "elus" | "kesal" | null;
+  bathing?: boolean;
 };
 
 /** Tentukan state animasi dari kondisi saat ini. Urutan prioritas: reaksi > jalan > aktivitas > diam. */
-export function resolveAnimState({ moving, spot, reaction }: AnimInputs): CatAnimState {
+export function resolveAnimState({ moving, spot, reaction, bathing }: AnimInputs): CatAnimState {
+  if (bathing) return "mandi";
   if (reaction === "kesal") return "kesal";
   if (reaction === "elus") return "dielus";
   if (reaction === "sentuh") return "kaget";

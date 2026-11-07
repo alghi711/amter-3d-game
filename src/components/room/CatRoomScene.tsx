@@ -12,6 +12,32 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 /** Kucing sederhana dari primitif — placeholder sebelum model glTF tersedia. */
 /** Hati melayang ke atas lalu hilang — umpan balik saat kucing dielus. */
+/** Gelembung sabun melayang saat kucing dimandikan. */
+function SoapBubbles() {
+  const group = useRef<Group>(null);
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    if (!group.current) return;
+    group.current.children.forEach((c, i) => {
+      const phase = (t * 0.9 + i * 0.35) % 1.4;
+      const angle = i * 1.3 + t * 1.2;
+      const radius = 0.32 + (i % 2) * 0.18;
+      c.position.set(Math.cos(angle) * radius, 0.35 + phase * 1.1, Math.sin(angle) * radius);
+      c.scale.setScalar(Math.sin((phase / 1.4) * Math.PI) * 0.9);
+    });
+  });
+  return (
+    <group ref={group}>
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <mesh key={i}>
+          <sphereGeometry args={[0.09, 12, 12]} />
+          <meshStandardMaterial color="#e0f2fe" emissive="#bae6fd" emissiveIntensity={0.4} transparent opacity={0.78} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 function Heart({ onDone }: { onDone: () => void }) {
   const ref = useRef<Group>(null);
   const age = useRef(0);
@@ -72,8 +98,10 @@ function Cat({
   onPettingChange,
   onAnimState,
   anim,
+  bathing = false,
 }: {
   anim: QualityProfile["anim"];
+  bathing?: boolean;
   color: string;
   spot: HouseSpot | null;
   onAnimState?: (s: CatAnimState) => void;
@@ -176,7 +204,7 @@ function Cat({
     if (r && age > 1.6) reaction.current = null;
     const annoyed = r?.kind === "elus" && r.part === "ekor"; // ekor dielus = kesal
     // state animasi terpusat — dilaporkan ke UI hanya saat berubah
-    const next = resolveAnimState({ moving, spot, reaction: annoyed ? "kesal" : (r?.kind ?? null) });
+    const next = resolveAnimState({ moving, spot: bathing ? null : spot, reaction: annoyed ? "kesal" : (r?.kind ?? null), bathing });
     if (next !== animState.current) {
       animState.current = next;
       onAnimState?.(next);
@@ -233,7 +261,7 @@ function Cat({
     // kepala: miring saat kaget, geleng saat kesal, menyundul saat dielus, menunduk saat makan/minum
     if (head.current) {
       const tilt = touched ? Math.sin(Math.min(age, 1) * Math.PI) * 0.35 : 0;
-      const yaw = next === "kesal" ? Math.sin(t * 20) * 0.12 : next === "diam" ? idle.lookYaw : 0;
+      const yaw = next === "kesal" ? Math.sin(t * 20) * 0.12 : next === "mandi" ? Math.sin(t * 14) * 0.25 : next === "diam" ? idle.lookYaw : 0;
       const eating = next === "makan" || next === "minum";
       const pitch = eating
         ? 0.45 + Math.sin(t * 8) * 0.06
@@ -301,6 +329,7 @@ function Cat({
         </group>
         </group>
       </group>
+      {bathing && <SoapBubbles />}
       {hearts.map((h) => (
         <Heart key={h} onDone={() => setHearts((all) => all.filter((x) => x !== h))} />
       ))}
@@ -403,6 +432,8 @@ export default function CatRoomScene({
   cameraReset = 0,
   foodBowlState,
   waterBowlState,
+  bathing = false,
+  litterDirty = false,
 }: {
   furColor: string;
   /** benda yang sedang dituju kucing; null = kembali ke karpet */
@@ -414,6 +445,8 @@ export default function CatRoomScene({
   cameraReset?: number;
   foodBowlState?: BowlState;
   waterBowlState?: BowlState;
+  bathing?: boolean;
+  litterDirty?: boolean;
 }) {
   const [petting, setPetting] = useState(false);
   // kualitas awal ditebak dari perangkat, lalu diturunkan otomatis bila FPS anjlok
@@ -438,8 +471,8 @@ export default function CatRoomScene({
       <color attach="background" args={["#fff6ef"]} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[4, 6, 3]} intensity={1.2} castShadow={q.shadows} shadow-mapSize={[q.shadowMapSize, q.shadowMapSize]} />
-      <CatHouse onUse={onUseObject} foodBowlState={foodBowlState} waterBowlState={waterBowlState} />
-      <Cat color={furColor} spot={catSpot} onAnimState={onAnimState} onTouch={onCatTouch} onPettingChange={setPetting} anim={q.anim} />
+      <CatHouse onUse={onUseObject} foodBowlState={foodBowlState} waterBowlState={waterBowlState} litterDirty={litterDirty} />
+      <Cat color={furColor} spot={catSpot} onAnimState={onAnimState} onTouch={onCatTouch} onPettingChange={setPetting} anim={q.anim} bathing={bathing} />
       {q.contactShadows && (
         <ContactShadows position={[0, 0.01, 0]} opacity={0.35} blur={2} far={3} resolution={256} />
       )}

@@ -39,11 +39,27 @@ export default function Home() {
   const [showStatus, setShowStatus] = useState(false);
   const [foodFill, setFoodFill] = useState(MEAL_ITEMS.makan[0].fillColor);
   const [waterFill, setWaterFill] = useState(MEAL_ITEMS.minum[0].fillColor);
+  const [bathing, setBathing] = useState(false);
+  const [litterDirty, setLitterDirty] = useState(true);
+
+  useEffect(() => {
+    if (!bathing) return;
+    const id = setTimeout(() => setBathing(false), 2600);
+    return () => clearTimeout(id);
+  }, [bathing]);
 
   const doCare = (a: CareAction) => {
     const def = CARE_ACTIONS[a];
     perform(a);
-    if (def.spot) setSpot(def.spot);
+    if (a === "mandi") {
+      setSpot(null);
+      setBathing(true);
+    } else if (a === "bersihkan") {
+      setLitterDirty(false);
+      setSpot("litterBox");
+    } else if (def.spot) {
+      setSpot(def.spot);
+    }
     setToast(`${cat.name} ${def.message}`);
   };
 
@@ -70,13 +86,17 @@ export default function Home() {
       serveMeal(MEAL_ITEMS.minum[0]);
       return;
     }
+    if (s === "litterBox" && litterDirty) {
+      doCare("bersihkan");
+      return;
+    }
     setSpot(s);
     setToast(`${cat.name} menuju ${SPOT_LABELS[s].toLowerCase()}`);
   };
   return (
     <main className="relative h-dvh w-full overflow-hidden bg-[#fff6ef] text-stone-800">
       <div className="absolute inset-0">
-        <CatRoomScene furColor={cat.furColor} catSpot={spot} onAnimState={setAnim} onUseObject={useObject} onCatTouch={touchCat} cameraReset={cameraReset} foodBowlState={{ level: stats.hunger / 100, fill: foodFill }} waterBowlState={{ level: stats.thirst / 100, fill: waterFill }} />
+        <CatRoomScene furColor={cat.furColor} catSpot={spot} onAnimState={setAnim} onUseObject={useObject} onCatTouch={touchCat} cameraReset={cameraReset} foodBowlState={{ level: stats.hunger / 100, fill: foodFill }} waterBowlState={{ level: stats.thirst / 100, fill: waterFill }} bathing={bathing} litterDirty={litterDirty || stats.hygiene < 65} />
       </div>
 
       {/* Header info kucing */}

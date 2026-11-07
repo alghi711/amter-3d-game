@@ -76,10 +76,12 @@ export default function CatHouse({
   onUse,
   foodBowlState,
   waterBowlState,
+  litterDirty = false,
 }: {
   onUse?: (spot: HouseSpot) => void;
   foodBowlState?: BowlState;
   waterBowlState?: BowlState;
+  litterDirty?: boolean;
 }) {
   return (
     <group>
@@ -146,8 +148,22 @@ export default function CatHouse({
         </RoundedBox>
         <mesh position={[0, 0.29, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[0.85, 0.65]} />
-          <meshStandardMaterial color="#efe2c0" />
+          <meshStandardMaterial color={litterDirty ? "#d4c39c" : "#f5ecd5"} />
         </mesh>
+        {litterDirty && (
+          <group position={[0, 0.31, 0]}>
+            {[
+              [-0.18, -0.1],
+              [0.14, 0.08],
+              [0.02, -0.15],
+            ].map(([cx, cz], i) => (
+              <mesh key={i} position={[cx, 0.03, cz]} castShadow>
+                <sphereGeometry args={[0.055, 10, 10]} />
+                <meshStandardMaterial color="#8b6b4a" />
+              </mesh>
+            ))}
+          </group>
+        )}
       </Usable>
 
       {/* tiang garuk */}
