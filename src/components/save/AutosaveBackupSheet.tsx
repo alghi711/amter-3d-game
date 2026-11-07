@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import BackupRestorePanel from "./BackupRestorePanel";
 import type { CatStats } from "@/lib/mock-cat";
 import type { GrowthStage } from "@/lib/mock-growth";
 import type { CatMood } from "@/lib/mock-mood";
 import {
-  decodeBackupSnapshot,
-  encodeBackupSnapshot,
   MOCK_SAVE_SLOTS,
   type AutosaveState,
   type GameSaveSnapshot,
@@ -94,43 +93,7 @@ export default function AutosaveBackupSheet({
   onRestoreSnapshot: (snap: Partial<GameSaveSnapshot>, label: string) => void;
   onClose: () => void;
 }) {
-  const [pasteCode, setPasteCode] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
-
-  const currentBackupCode = encodeBackupSnapshot({
-    id: "save-manual",
-    catId: "cat-mochi",
-    catName,
-    stage,
-    level,
-    experience,
-    closeness,
-    mood,
-    stats,
-    savedAtLabel: lastSavedLabel,
-    savedAtMs: 0,
-    deviceLabel: "Browser Perangkat Ini",
-  });
-
-  const handleCopyCode = async () => {
-    try {
-      await navigator.clipboard.writeText(currentBackupCode);
-      setFeedback("Kode cadangan berhasil disalin! Simpan di catatanmu.");
-    } catch {
-      setFeedback("Salin kode dari kotak di bawah secara manual.");
-    }
-  };
-
-  const handleRestoreFromCode = () => {
-    const decoded = decodeBackupSnapshot(pasteCode);
-    if (!decoded) {
-      setFeedback("Kode cadangan tidak dikenali. Pastikan diawali MOCHI1-");
-      return;
-    }
-    onRestoreSnapshot(decoded, "Kode Cadangan");
-    setFeedback("Progres berhasil dipulihkan dari kode cadangan!");
-    setPasteCode("");
-  };
 
   return (
     <div
@@ -206,44 +169,19 @@ export default function AutosaveBackupSheet({
         ))}
       </div>
 
-      {/* Ekspor & Impor Kode Cadangan */}
-      <div className="mt-3 space-y-2 rounded-2xl border border-stone-200/80 bg-stone-50/70 p-3 text-xs">
-        <div className="flex items-center justify-between">
-          <span className="font-semibold text-stone-700">📦 Cadangkan / Pindah Perangkat</span>
-          <button
-            type="button"
-            onClick={handleCopyCode}
-            className="rounded-full bg-stone-800 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-stone-700"
-          >
-            Salin Kode Cadangan
-          </button>
-        </div>
-        <input
-          type="text"
-          readOnly
-          value={currentBackupCode}
-          aria-label="Kode cadangan progres saat ini"
-          className="w-full rounded-xl border border-stone-200 bg-white px-2.5 py-1 font-mono text-[10px] text-stone-600"
-        />
-        <div className="flex gap-1.5">
-          <input
-            type="text"
-            value={pasteCode}
-            onChange={(e) => setPasteCode(e.target.value)}
-            placeholder="Tempel kode MOCHI1-... untuk memulihkan"
-            aria-label="Tempel kode cadangan"
-            className="min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-2.5 py-1 text-[11px] text-stone-700"
-          />
-          <button
-            type="button"
-            onClick={handleRestoreFromCode}
-            className="shrink-0 rounded-xl bg-amber-500 px-3 py-1 text-[11px] font-semibold text-white hover:bg-amber-600"
-          >
-            Pulihkan
-          </button>
-        </div>
-        {feedback && <p className="text-[11px] font-medium text-emerald-700">{feedback}</p>}
-      </div>
+      {feedback && <p className="mt-2 text-xs font-medium text-emerald-700">{feedback}</p>}
+
+      <BackupRestorePanel
+        catName={catName}
+        stage={stage}
+        level={level}
+        experience={experience}
+        closeness={closeness}
+        mood={mood}
+        stats={stats}
+        lastSavedLabel={lastSavedLabel}
+        onRestoreSnapshot={onRestoreSnapshot}
+      />
     </div>
   );
 }
