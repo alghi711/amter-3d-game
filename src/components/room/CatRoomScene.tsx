@@ -148,10 +148,12 @@ function Cat({
   anim,
   bathing = false,
   mood = "senang",
+  growthScale = 1,
 }: {
   anim: QualityProfile["anim"];
   bathing?: boolean;
   mood?: CatMood;
+  growthScale?: number;
   color: string;
   spot: HouseSpot | null;
   onAnimState?: (s: CatAnimState) => void;
@@ -382,6 +384,7 @@ function Cat({
       onPointerOver={() => (document.body.style.cursor = "grab")}
       onPointerOut={() => (document.body.style.cursor = "auto")}
     >
+      <group scale={growthScale}>
       <group ref={body}>
         <mesh ref={chest} name="badan" position={[0, 0.45, 0]} castShadow>
           <sphereGeometry args={[0.5, seg, seg]} />
@@ -427,6 +430,7 @@ function Cat({
       ))}
       <group ref={tail} position={[0, 0.35, -0.45]} rotation={[-0.5, 0, 0]}>
         <TailSegment index={0} color={color} count={anim.tailSegments} />
+      </group>
       </group>
     </group>
   );
@@ -529,6 +533,7 @@ export default function CatRoomScene({
   toyColor = "#ffd166",
   playingToy = false,
   mood = "senang",
+  growthScale = 1,
 }: {
   furColor: string;
   /** benda yang sedang dituju kucing; null = kembali ke karpet */
@@ -545,6 +550,7 @@ export default function CatRoomScene({
   toyColor?: string;
   playingToy?: boolean;
   mood?: CatMood;
+  growthScale?: number;
 }) {
   const [petting, setPetting] = useState(false);
   // kualitas awal ditebak dari perangkat, lalu diturunkan otomatis bila FPS anjlok
@@ -570,7 +576,7 @@ export default function CatRoomScene({
       <ambientLight intensity={0.6} />
       <directionalLight position={[4, 6, 3]} intensity={1.2} castShadow={q.shadows} shadow-mapSize={[q.shadowMapSize, q.shadowMapSize]} />
       <CatHouse onUse={onUseObject} foodBowlState={foodBowlState} waterBowlState={waterBowlState} litterDirty={litterDirty} toyColor={toyColor} playingToy={playingToy} />
-      <Cat color={furColor} spot={catSpot} onAnimState={onAnimState} onTouch={onCatTouch} onPettingChange={setPetting} anim={q.anim} bathing={bathing} mood={mood} />
+      <Cat color={furColor} spot={catSpot} onAnimState={onAnimState} onTouch={onCatTouch} onPettingChange={setPetting} anim={q.anim} bathing={bathing} mood={mood} growthScale={growthScale} />
       {q.contactShadows && (
         <ContactShadows position={[0, 0.01, 0]} opacity={0.35} blur={2} far={3} resolution={256} />
       )}

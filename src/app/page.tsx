@@ -11,7 +11,9 @@ import { SPOT_LABELS, type HouseSpot } from "@/components/room/CatHouse";
 import CarePanel from "@/components/care/CarePanel";
 import CareStatusPanel from "@/components/care/CareStatusPanel";
 import { FloatingGentleReminder } from "@/components/mood/GentleReminderBanner";
+import GrowthSheet from "@/components/growth/GrowthSheet";
 import MoodRoutineSheet from "@/components/mood/MoodRoutineSheet";
+import { computeGrowthProgress, type GrowthStage } from "@/lib/mock-growth";
 import { buildGentleReminders, deriveCatMood, evaluateMoodShift, getActiveRoutine, type CatMood, type MoodTransition } from "@/lib/mock-mood";
 import { CARE_ACTIONS, getRefusalReason, MEAL_ITEMS, TOY_ITEMS, useCare, type CareAction, type MealItem, type ToyItem } from "@/lib/use-care";
 
@@ -42,6 +44,11 @@ export default function Home() {
   const [moodOverride, setMoodOverride] = useState<CatMood | null>(null);
   const [simulatedHour, setSimulatedHour] = useState<number>(9);
   const [moodHistory, setMoodHistory] = useState<MoodTransition[]>([]);
+  const [showGrowthSheet, setShowGrowthSheet] = useState(false);
+  const [experience, setExperience] = useState<number>(cat.experience + (cat.level - 1) * 50);
+  const [closeness, setCloseness] = useState<number>(cat.closeness);
+  const [stageOverride, setStageOverride] = useState<GrowthStage | null>(null);
+  const growth = computeGrowthProgress(experience, stageOverride);
   const [foodFill, setFoodFill] = useState(MEAL_ITEMS.makan[0].fillColor);
   const [waterFill, setWaterFill] = useState(MEAL_ITEMS.minum[0].fillColor);
   const [bathing, setBathing] = useState(false);
@@ -79,6 +86,8 @@ export default function Home() {
       catName: cat.name,
     });
     setMoodOverride(null);
+    setExperience((xp) => xp + 8);
+    setCloseness((c) => Math.min(100, c + 2));
     if (shift.changed) {
       setMoodHistory((prev) => [
         {
@@ -197,7 +206,7 @@ export default function Home() {
   return (
     <main className="relative h-dvh w-full overflow-hidden bg-[#fff6ef] text-stone-800">
       <div className="absolute inset-0">
-        <CatRoomScene furColor={cat.furColor} catSpot={spot} onAnimState={setAnim} onUseObject={useObject} onCatTouch={touchCat} cameraReset={cameraReset} foodBowlState={{ level: stats.hunger / 100, fill: foodFill }} waterBowlState={{ level: stats.thirst / 100, fill: waterFill }} bathing={bathing} litterDirty={litterDirty || stats.hygiene < 65} toyColor={toyColor} playingToy={anim === "main"} mood={deriveCatMood(stats, simulatedHour, moodOverride).mood} />
+        <CatRoomScene furColor={cat.furColor} catSpot={spot} onAnimState={setAnim} onUseObject={useObject} onCatTouch={touchCat} cameraReset={cameraReset} foodBowlState={{ level: stats.hunger / 100, fill: foodFill }} waterBowlState={{ level: stats.thirst / 100, fill: waterFill }} bathing={bathing} litterDirty={litterDirty || stats.hygiene < 65} toyColor={toyColor} playingToy={anim === "main"} mood={deriveCatMood(stats, simulatedHour, moodOverride).mood} growthScale={growth.stageDef.scale3d} />
       </div>
 
       {/* Header info kucing */}
@@ -218,9 +227,20 @@ export default function Home() {
               {deriveCatMood(stats, simulatedHour, moodOverride).label} ›
             </button>
           </div>
-          <p className="text-xs text-stone-500">
-            Tahap {cat.stage} · Level {cat.level} · Kedekatan {cat.closeness}%
-          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setShowStatus(false);
+              setShowMoodSheet(false);
+              setShowGrowthSheet((v) => !v);
+            }}
+            className="mt-0.5 flex items-center gap-1 text-left text-xs text-stone-600 hover:text-amber-800"
+          >
+            <span>
+              {growth.stageDef.icon} Tahap {growth.stage} · Level {growth.level} · Kedekatan {Math.round(closeness)}%
+            </span>
+            <span className="font-semibold text-amber-700">›</span>
+          </button>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
             <span className="font-medium text-amber-700" aria-live="polite">
               ● {ANIM_LABELS[anim]}
@@ -254,11 +274,23 @@ export default function Home() {
             type="button"
             onClick={() => {
               setShowStatus(false);
+              setShowGrowthSheet(false);
               setShowMoodSheet((v) => !v);
             }}
             className="rounded-full bg-white/80 px-3 py-1.5 text-xs font-medium text-amber-800 shadow backdrop-blur transition hover:bg-white active:scale-95"
           >
             😺 Mood & Rutinitas
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowStatus(false);
+              setShowMoodSheet(false);
+              setShowGrowthSheet((v) => !v);
+            }}
+            className="rounded-full bg-white/80 px-3 py-1.5 text-xs font-medium text-emerald-800 shadow backdrop-blur transition hover:bg-white active:scale-95"
+          >
+            🌱 Tumbuh Besar
           </button>
         </div>
       </header>
@@ -268,6 +300,7 @@ export default function Home() {
           <span className="rounded-full bg-amber-500/90 px-4 py-2 text-sm font-medium text-white shadow-lg">{toast}</span>
         ) : (
           !showMoodSheet &&
+          !showGrowthSheet &&
           !showStatus && (
             <FloatingGentleReminder
               reminders={buildGentleReminders(stats, cat.name, simulatedHour)}
@@ -283,7 +316,21 @@ export default function Home() {
             ? "Ketuk benda untuk dipakai · geser 1 jari memutar kamera · cubit untuk zoom"
             : "Klik benda untuk dipakai · seret mouse memutar kamera · scroll untuk zoom"}
         </p>
-        {showMoodSheet ? (
+        {showGrowthSheet ? (
+          <GrowthSheet
+            name={cat.name}
+            experience={experience}
+            closeness={closeness}
+            stageOverride={stageOverride}
+            onSelectStage={setStageOverride}
+            onBoostGrowth={() => {
+              setExperience((xp) => xp + 25);
+              setCloseness((c) => Math.min(100, c + 4));
+              setToast(`${cat.name} bertambah pintar & makin dekat denganmu! 🌟`);
+            }}
+            onClose={() => setShowGrowthSheet(false)}
+          />
+        ) : showMoodSheet ? (
           <MoodRoutineSheet
             name={cat.name}
             stats={stats}
