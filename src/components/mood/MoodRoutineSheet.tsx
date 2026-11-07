@@ -1,15 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import DailyRoutineSchedule from "./DailyRoutineSchedule";
 import MoodExpressionPicker from "./MoodExpressionPicker";
 import type { HouseSpot } from "@/components/room/CatHouse";
 import type { CatStats } from "@/lib/mock-cat";
 import {
   buildGentleReminders,
   deriveCatMood,
-  getActiveRoutine,
   MOCK_PERSONALITY_TRAITS,
-  MOCK_ROUTINES,
   MOOD_DEFINITIONS,
   type CatMood,
   type MoodTransition,
@@ -40,7 +39,6 @@ export default function MoodRoutineSheet({
 }) {
   const [tab, setTab] = useState<TabKey>("mood");
   const moodInfo = deriveCatMood(stats, simulatedHour, moodOverride);
-  const activeRoutine = getActiveRoutine(simulatedHour);
   const reminders = buildGentleReminders(stats, name, simulatedHour);
 
   return (
@@ -144,60 +142,13 @@ export default function MoodRoutineSheet({
 
       {/* Isi Tab: Rutinitas Harian */}
       {tab === "rutinitas" && (
-        <div className="mt-3 space-y-3">
-          <div className="flex items-center justify-between rounded-2xl bg-amber-50 px-3 py-2 text-xs">
-            <div>
-              <span className="text-stone-500">Jam permainan: </span>
-              <strong className="text-stone-800">{String(simulatedHour).padStart(2, "0")}:00</strong>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={23}
-              value={simulatedHour}
-              onChange={(e) => onChangeHour(Number(e.target.value))}
-              aria-label="Simulasi jam harian"
-              className="w-36 accent-amber-500"
-            />
-          </div>
-
-          <ul className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
-            {MOCK_ROUTINES.map((r) => {
-              const isCurrent = r.id === activeRoutine.id;
-              return (
-                <li
-                  key={r.id}
-                  className={`flex items-center justify-between gap-2 rounded-2xl border px-3 py-2 text-xs ${
-                    isCurrent
-                      ? "border-amber-400 bg-amber-50/90 text-stone-900"
-                      : "border-stone-100 bg-stone-50/60 text-stone-600"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{r.icon}</span>
-                    <div>
-                      <p className="font-semibold">
-                        {r.title}{" "}
-                        <span className="font-normal text-stone-400">
-                          ({String(r.startHour).padStart(2, "0")}:00–{String(r.endHour).padStart(2, "0")}:00)
-                        </span>
-                      </p>
-                      <p className="text-[11px] text-stone-500">{r.description}</p>
-                    </div>
-                  </div>
-                  {isCurrent && (
-                    <button
-                      type="button"
-                      onClick={() => onGoToSpot?.(r.spot, r.title)}
-                      className="shrink-0 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm hover:bg-amber-600"
-                    >
-                      Jalankan
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+        <div className="mt-3">
+          <DailyRoutineSchedule
+            name={name}
+            simulatedHour={simulatedHour}
+            onChangeHour={onChangeHour}
+            onTriggerRoutine={onGoToSpot}
+          />
         </div>
       )}
 
