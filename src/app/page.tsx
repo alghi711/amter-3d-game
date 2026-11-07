@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { mockCat } from "@/lib/mock-cat";
 import { useInputKind } from "@/lib/use-input-kind";
 import { pickReaction } from "@/lib/cat-reactions";
@@ -12,9 +12,11 @@ import CarePanel from "@/components/care/CarePanel";
 import CareStatusPanel from "@/components/care/CareStatusPanel";
 import { FloatingGentleReminder } from "@/components/mood/GentleReminderBanner";
 import { CompactGrowthBadge } from "@/components/growth/ExperienceStageIndicator";
+import { evaluateAchievementBadges } from "@/components/growth/BadgeCollectionGallery";
+import BadgeUnlockToast from "@/components/growth/BadgeUnlockToast";
 import GrowthSheet from "@/components/growth/GrowthSheet";
 import MoodRoutineSheet from "@/components/mood/MoodRoutineSheet";
-import { computeGrowthProgress, type GrowthStage } from "@/lib/mock-growth";
+import { computeGrowthProgress, type GrowthStage, type MockAchievement } from "@/lib/mock-growth";
 import { buildGentleReminders, deriveCatMood, evaluateMoodShift, getActiveRoutine, type CatMood, type MoodTransition } from "@/lib/mock-mood";
 import { CARE_ACTIONS, getRefusalReason, MEAL_ITEMS, TOY_ITEMS, useCare, type CareAction, type MealItem, type ToyItem } from "@/lib/use-care";
 
@@ -50,6 +52,27 @@ export default function Home() {
   const [closeness, setCloseness] = useState<number>(cat.closeness);
   const [stageOverride, setStageOverride] = useState<GrowthStage | null>(null);
   const growth = computeGrowthProgress(experience, stageOverride);
+  const [unlockedToastBadge, setUnlockedToastBadge] = useState<MockAchievement | null>(null);
+  const seenBadgesRef = useRef<Set<string> | null>(null);
+
+  useEffect(() => {
+    const currentBadges = evaluateAchievementBadges({ experience, closeness, stats, history });
+    const unlockedNow = currentBadges.filter((b) => b.unlocked);
+    if (!seenBadgesRef.current) {
+      seenBadgesRef.current = new Set(unlockedNow.map((b) => b.id));
+      return;
+    }
+    const newlyUnlocked = unlockedNow.find((b) => !seenBadgesRef.current?.has(b.id));
+    if (newlyUnlocked) {
+      seenBadgesRef.current.add(newlyUnlocked.id);
+      const timer = setTimeout(() => setUnlockedToastBadge(newlyUnlocked), 50);
+      const hideTimer = setTimeout(() => setUnlockedToastBadge(null), 5000);
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(hideTimer);
+      };
+    }
+  }, [experience, closeness, stats, history]);
   const [foodFill, setFoodFill] = useState(MEAL_ITEMS.makan[0].fillColor);
   const [waterFill, setWaterFill] = useState(MEAL_ITEMS.minum[0].fillColor);
   const [bathing, setBathing] = useState(false);
@@ -293,6 +316,18 @@ export default function Home() {
       </header>
 
       <div className="pointer-events-none absolute inset-x-0 top-24 flex flex-col items-center gap-2 px-4">
+        {unlockedToastBadge && (
+          <BadgeUnlockToast
+            badge={unlockedToastBadge}
+            onViewCollection={() => {
+              setUnlockedToastBadge(null);
+              setShowStatus(false);
+              setShowMoodSheet(false);
+              setShowGrowthSheet(true);
+            }}
+            onDismiss={() => setUnlockedToastBadge(null)}
+          />
+        )}
         {toast ? (
           <span className="rounded-full bg-amber-500/90 px-4 py-2 text-sm font-medium text-white shadow-lg">{toast}</span>
         ) : (
