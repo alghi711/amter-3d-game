@@ -1,9 +1,10 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { ContactShadows, OrbitControls, PerspectiveCamera } from "@react-three/drei";
+import { AdaptiveDpr, ContactShadows, OrbitControls, PerformanceMonitor, PerspectiveCamera } from "@react-three/drei";
+import { QUALITY_PROFILES, detectQuality, stepQuality, type QualityLevel } from "@/lib/quality";
 import CatHouse, { type HouseSpot } from "./CatHouse";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { Group } from "three";
 
 /** Kucing sederhana dari primitif — placeholder sebelum model glTF tersedia. */
@@ -94,26 +95,40 @@ export default function CatRoomScene({
   catTarget: readonly [number, number];
   onUseObject: (spot: HouseSpot) => void;
 }) {
+  // kualitas awal ditebak dari perangkat, lalu diturunkan otomatis bila FPS anjlok
+  const [quality, setQuality] = useState<QualityLevel>(() => detectQuality());
+  const q = QUALITY_PROFILES[quality];
   return (
     <Canvas
-      shadows
-      dpr={[1, 2]}
+      shadows={q.shadows}
+      dpr={q.dpr}
+      gl={{ antialias: q.antialias, powerPreference: "high-performance" }}
+      performance={{ min: 0.5 }}
       className="!touch-none"
       style={{ width: "100%", height: "100%" }}
     >
+      <PerformanceMonitor
+        onDecline={() => setQuality((cur) => stepQuality(cur, -1))}
+        flipflops={3}
+        onFallback={() => setQuality("rendah")}
+      />
+      <AdaptiveDpr pixelated />
       <ResponsiveCamera />
       <color attach="background" args={["#fff6ef"]} />
       <ambientLight intensity={0.6} />
-      <directionalLight position={[4, 6, 3]} intensity={1.2} castShadow shadow-mapSize={[1024, 1024]} />
+      <directionalLight position={[4, 6, 3]} intensity={1.2} castShadow={q.shadows} shadow-mapSize={[q.shadowMapSize, q.shadowMapSize]} />
       <CatHouse onUse={onUseObject} />
       <Cat color={furColor} target={catTarget} />
-      <ContactShadows position={[0, 0.01, 0]} opacity={0.35} blur={2} far={3} />
+      {q.contactShadows && (
+        <ContactShadows position={[0, 0.01, 0]} opacity={0.35} blur={2} far={3} resolution={256} />
+      )}
       <OrbitControls
         target={[0, 0.8, 0]}
         enablePan={false}
         minDistance={3}
         maxDistance={9}
         maxPolarAngle={Math.PI / 2.1}
+        regress
       />
     </Canvas>
   );
