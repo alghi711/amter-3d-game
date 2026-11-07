@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import ClosenessLevelPanel from "./ClosenessLevelPanel";
 import ExperienceStageIndicator from "./ExperienceStageIndicator";
 import {
-  CLOSENESS_TIERS,
   computeGrowthProgress,
   MOCK_ACHIEVEMENTS,
   resolveClosenessTier,
@@ -102,49 +102,12 @@ export default function GrowthSheet({
 
       {/* Tab 2: Tingkat Kedekatan */}
       {tab === "kedekatan" && (
-        <div className="mt-3 space-y-2.5 text-xs">
-          <div className="rounded-2xl bg-rose-50/80 p-3">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-rose-900">
-                {closenessTier.icon} {closenessTier.label}
-              </span>
-              <span className="rounded-full bg-rose-200/80 px-2.5 py-0.5 font-bold text-rose-900">
-                {Math.round(closeness)}%
-              </span>
-            </div>
-            <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-rose-200/60">
-              <div
-                className="h-full rounded-full bg-rose-400 transition-all duration-500"
-                style={{ width: `${Math.min(100, Math.max(0, closeness))}%` }}
-              />
-            </div>
-            <p className="mt-1.5 text-[11px] text-stone-600">{closenessTier.description}</p>
-          </div>
-
-          <ul className="space-y-1.5">
-            {CLOSENESS_TIERS.map((tier) => {
-              const reached = closeness >= tier.minScore;
-              return (
-                <li
-                  key={tier.id}
-                  className={`flex items-center justify-between rounded-2xl border px-3 py-2 ${
-                    reached ? "border-rose-200 bg-white text-stone-800" : "border-stone-100 bg-stone-50 text-stone-400"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">{tier.icon}</span>
-                    <div>
-                      <p className="font-semibold">{tier.label}</p>
-                      <p className="text-[11px] text-stone-500">{tier.description}</p>
-                    </div>
-                  </div>
-                  <span className="shrink-0 text-[10px] font-semibold">
-                    {reached ? "✓ Tercapai" : `${tier.minScore}%`}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+        <div className="mt-3">
+          <ClosenessLevelPanel
+            name={name}
+            closeness={closeness}
+            onPetBond={onBoostGrowth}
+          />
         </div>
       )}
 
