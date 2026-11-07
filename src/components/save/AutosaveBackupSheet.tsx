@@ -16,15 +16,17 @@ import {
 export function AutosaveStatusPill({
   status,
   lastSavedLabel,
+  justSaved = false,
   onClick,
 }: {
   status: AutosaveState;
   lastSavedLabel: string;
+  justSaved?: boolean;
   onClick?: () => void;
 }) {
   const dotColor =
     status === "menyimpan"
-      ? "bg-amber-400 animate-pulse"
+      ? "bg-amber-400 animate-ping"
       : status === "tersimpan"
         ? "bg-emerald-500"
         : status === "lokal"
@@ -33,21 +35,32 @@ export function AutosaveStatusPill({
 
   const label =
     status === "menyimpan"
-      ? "Menyimpan…"
-      : status === "tersimpan"
-        ? `Tersimpan · ${lastSavedLabel}`
-        : status === "lokal"
-          ? "Tersimpan di perangkat"
-          : "Gagal simpan";
+      ? "Menyimpan progres…"
+      : justSaved
+        ? "✓ Progres tersimpan"
+        : status === "tersimpan"
+          ? `Tersimpan · ${lastSavedLabel}`
+          : status === "lokal"
+            ? "Tersimpan di perangkat"
+            : "Gagal simpan";
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-1.5 rounded-full bg-white/85 px-3 py-1.5 text-xs font-medium text-stone-700 shadow backdrop-blur transition hover:bg-white active:scale-95"
+      aria-live="polite"
+      className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium shadow backdrop-blur transition-all duration-300 active:scale-95 ${
+        status === "menyimpan"
+          ? "bg-amber-50/90 text-amber-800 ring-1 ring-amber-300"
+          : justSaved
+            ? "bg-emerald-50/95 text-emerald-800 ring-1 ring-emerald-300"
+            : "bg-white/85 text-stone-700 hover:bg-white"
+      }`}
       aria-label="Buka pengaturan simpan otomatis dan cadangan"
     >
-      <span className={`h-2 w-2 rounded-full ${dotColor}`} aria-hidden />
+      <span className="relative flex h-2 w-2 items-center justify-center" aria-hidden>
+        <span className={`h-2 w-2 rounded-full ${dotColor}`} />
+      </span>
       <span>💾 {label}</span>
     </button>
   );

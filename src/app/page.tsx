@@ -63,7 +63,7 @@ export default function Home() {
     setCloseness(saved.closeness);
   }, []);
 
-  const { autosaveStatus, lastSavedLabel, saveNow: triggerManualSave } = useAutosave(
+  const { autosaveStatus, lastSavedLabel, justSaved, saveNow: triggerManualSave } = useAutosave(
     {
       catId: cat.id,
       catName: cat.name,
@@ -304,6 +304,7 @@ export default function Home() {
           <AutosaveStatusPill
             status={autosaveStatus}
             lastSavedLabel={lastSavedLabel}
+            justSaved={justSaved}
             onClick={() => {
               setShowStatus(false);
               setShowMoodSheet(false);

@@ -35,6 +35,7 @@ export function useAutosave(
 ) {
   const [status, setStatus] = useState<AutosaveState>("tersimpan");
   const [lastSavedLabel, setLastSavedLabel] = useState<string>("Baru saja");
+  const [justSaved, setJustSaved] = useState(false);
   const hydratedRef = useRef(false);
   const latestInputRef = useRef(input);
 
@@ -84,7 +85,11 @@ export function useAutosave(
     setTimeout(() => {
       setStatus("tersimpan");
       setLastSavedLabel(customLabel);
+      setJustSaved(true);
     }, 300);
+    setTimeout(() => {
+      setJustSaved(false);
+    }, 2200);
   }, []);
 
   // Debounce autosave setiap kali state permainan berubah
@@ -120,6 +125,7 @@ export function useAutosave(
   return {
     autosaveStatus: status,
     lastSavedLabel,
+    justSaved,
     saveNow: () => performSave("Baru saja"),
   };
 }
