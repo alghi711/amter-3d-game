@@ -9,8 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
+    "drizzle-orm": "^0.45.4",
     "next": "16.4.5",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -22,6 +24,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "^0.187.0",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.5",
     "tailwindcss": "^4",
