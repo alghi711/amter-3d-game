@@ -175,7 +175,7 @@ function Cat({
   const tail = useRef<Group>(null);
   const chest = useRef<Mesh>(null);
   // jadwal perilaku idle & nilai yang di-damp antar frame
-  const idleRef = useRef({ nextBlink: 2, blinkUntil: 0, nextLook: 3, lookYaw: 0, tailPhase: 0, tailAmp: 0.4 });
+  const idleRef = useRef({ nextBlink: 2, blinkUntil: 0, nextLook: 3, lookYaw: 0, tailPhase: 0, tailAmp: 0.4, stateEnteredAt: 0 });
 
   useFrame(({ clock }, delta) => {
     const t = clock.getElapsedTime();
@@ -197,6 +197,10 @@ function Cat({
         root.current.rotation.y += diff * Math.min(1, delta * 8);
       } else {
         p.y = MathUtils.damp(p.y, 0, 12, delta);
+        // saat sudah sampai di benda (atau kembali ke tengah), hadapkan badan ke arah benda/kamera dengan halus
+        const want = spot ? Math.atan2(dx, dz) : 0;
+        const diff = Math.atan2(Math.sin(want - root.current.rotation.y), Math.cos(want - root.current.rotation.y));
+        root.current.rotation.y += diff * Math.min(1, delta * 5);
       }
     }
     const r = reaction.current;
@@ -206,7 +210,13 @@ function Cat({
     // state animasi terpusat — dilaporkan ke UI hanya saat berubah
     const next = resolveAnimState({ moving, spot: bathing ? null : spot, reaction: annoyed ? "kesal" : (r?.kind ?? null), bathing });
     if (next !== animState.current) {
+      const prev = animState.current;
       animState.current = next;
+      idleRef.current.stateEnteredAt = t;
+      // munculkan hati saat baru mulai makan/minum/main atau baru selesai mandi
+      if (next === "makan" || next === "minum" || next === "main" || (prev === "mandi" && next === "diam")) {
+        setHearts((h) => [...h.slice(-(anim.maxHearts - 1)), performance.now() / 1000]);
+      }
       onAnimState?.(next);
     }
     // ---- transisi halus: semua target di-"damp" (independen FPS) agar perpindahan state tidak patah ----
@@ -253,9 +263,18 @@ function Cat({
       if (chest.current) chest.current.scale.set(1 + breath, 1 + breath * 0.5, 1 + breath);
       const lean = petting && anim.secondary ? -(r?.lean ?? 0) * 0.15 : 0;
       body.current.rotation.z = d(body.current.rotation.z, lean, 6);
+      const stateAge = t - idle.stateEnteredAt;
+      const settleHop = stateAge < 0.25 && next !== "jalan" ? Math.sin((stateAge / 0.25) * Math.PI) * 0.05 : 0;
       const hop = touched && age < 0.4 ? Math.sin((age / 0.4) * Math.PI) * 0.15 : 0;
-      const bob = next === "main" ? Math.abs(Math.sin(t * 7)) * 0.06 : 0;
-      body.current.position.y = d(body.current.position.y, hop + bob, 25);
+      const bob =
+        next === "main"
+          ? Math.abs(Math.sin(t * 7)) * 0.06
+          : next === "garuk"
+            ? Math.abs(Math.sin(t * 11)) * 0.045
+            : 0;
+      const pitchBody = next === "garuk" ? -0.18 + Math.sin(t * 11) * 0.05 : next === "makan" || next === "minum" ? 0.08 : 0;
+      body.current.rotation.x = d(body.current.rotation.x, pitchBody, 8);
+      body.current.position.y = d(body.current.position.y, hop + bob + settleHop, 25);
     }
 
     // kepala: miring saat kaget, geleng saat kesal, menyundul saat dielus, menunduk saat makan/minum

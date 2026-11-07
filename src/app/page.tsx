@@ -45,9 +45,21 @@ export default function Home() {
 
   useEffect(() => {
     if (!bathing) return;
-    const id = setTimeout(() => setBathing(false), 2600);
+    const id = setTimeout(() => {
+      setBathing(false);
+      setToast(`${cat.name} menggoyangkan bulu — sekarang bersih dan wangi! ✨`);
+    }, 2600);
     return () => clearTimeout(id);
-  }, [bathing]);
+  }, [bathing, cat.name]);
+
+  // Setelah selesai beraktivitas di suatu benda (kecuali tidur), kembali santai ke karpet tengah
+  useEffect(() => {
+    if (!spot || spot === "bed" || anim === "jalan") return;
+    const id = setTimeout(() => {
+      setSpot(null);
+    }, 4500);
+    return () => clearTimeout(id);
+  }, [spot, anim]);
 
   const doCare = (a: CareAction) => {
     const refusal = getRefusalReason(a, stats, cat.name, litterDirty || stats.hygiene < 65);
