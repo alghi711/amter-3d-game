@@ -10,6 +10,8 @@ import { ANIM_LABELS, type CatAnimState } from "@/lib/cat-animation";
 import { SPOT_LABELS, type HouseSpot } from "@/components/room/CatHouse";
 import CarePanel from "@/components/care/CarePanel";
 import CareStatusPanel from "@/components/care/CareStatusPanel";
+import AutosaveBackupSheet, { AutosaveStatusPill } from "@/components/save/AutosaveBackupSheet";
+import { encodeBackupSnapshot, readLocalAutosave, writeLocalAutosave, type AutosaveState, type GameSaveSnapshot } from "@/lib/mock-saves";
 import { FloatingGentleReminder } from "@/components/mood/GentleReminderBanner";
 import { CompactGrowthBadge } from "@/components/growth/ExperienceStageIndicator";
 import { evaluateAchievementBadges } from "@/components/growth/BadgeCollectionGallery";
@@ -48,12 +50,55 @@ export default function Home() {
   const [simulatedHour, setSimulatedHour] = useState<number>(9);
   const [moodHistory, setMoodHistory] = useState<MoodTransition[]>([]);
   const [showGrowthSheet, setShowGrowthSheet] = useState(false);
+  const [showSaveSheet, setShowSaveSheet] = useState(false);
+  const [autosaveStatus, setAutosaveStatus] = useState<AutosaveState>("tersimpan");
+  const [lastSavedLabel, setLastSavedLabel] = useState<string>("Baru saja");
   const [experience, setExperience] = useState<number>(cat.experience + (cat.level - 1) * 50);
   const [closeness, setCloseness] = useState<number>(cat.closeness);
   const [stageOverride, setStageOverride] = useState<GrowthStage | null>(null);
   const growth = computeGrowthProgress(experience, stageOverride);
   const [unlockedToastBadge, setUnlockedToastBadge] = useState<MockAchievement | null>(null);
   const seenBadgesRef = useRef<Set<string> | null>(null);
+
+  // Muat simpanan lokal saat pertama kali membuka halaman
+  useEffect(() => {
+    const saved = readLocalAutosave();
+    if (!saved) return;
+    const t = setTimeout(() => {
+      setExperience(saved.experience);
+      setCloseness(saved.closeness);
+      setLastSavedLabel(saved.savedAtLabel || "Dari sesi terakhir");
+    }, 20);
+    return () => clearTimeout(t);
+  }, []);
+
+  const triggerManualSave = () => {
+    setAutosaveStatus("menyimpan");
+    const currentMood = deriveCatMood(stats, simulatedHour, moodOverride).mood;
+    const baseSnap = {
+      id: "save-auto-latest",
+      catId: cat.id,
+      catName: cat.name,
+      stage: growth.stage,
+      level: growth.level,
+      experience,
+      closeness,
+      mood: currentMood,
+      stats,
+      savedAtLabel: "Baru saja",
+      savedAtMs: 0,
+      deviceLabel: "Browser Perangkat Ini",
+    };
+    const snap: GameSaveSnapshot = {
+      ...baseSnap,
+      backupCode: encodeBackupSnapshot(baseSnap),
+    };
+    writeLocalAutosave(snap);
+    setTimeout(() => {
+      setAutosaveStatus("tersimpan");
+      setLastSavedLabel("Baru saja");
+    }, 350);
+  };
 
   useEffect(() => {
     const currentBadges = evaluateAchievementBadges({ experience, closeness, stats, history });
@@ -279,9 +324,16 @@ export default function Home() {
           </div>
         </div>
         <div className="pointer-events-auto flex flex-col items-end gap-2">
-          <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-amber-700 shadow backdrop-blur">
-            MOCHI
-          </span>
+          <AutosaveStatusPill
+            status={autosaveStatus}
+            lastSavedLabel={lastSavedLabel}
+            onClick={() => {
+              setShowStatus(false);
+              setShowMoodSheet(false);
+              setShowGrowthSheet(false);
+              setShowSaveSheet((v) => !v);
+            }}
+          />
           <button
             type="button"
             onClick={() => setCameraReset((n) => n + 1)}
@@ -333,6 +385,7 @@ export default function Home() {
         ) : (
           !showMoodSheet &&
           !showGrowthSheet &&
+          !showSaveSheet &&
           !showStatus && (
             <FloatingGentleReminder
               reminders={buildGentleReminders(stats, cat.name, simulatedHour)}
@@ -348,7 +401,29 @@ export default function Home() {
             ? "Ketuk benda untuk dipakai · geser 1 jari memutar kamera · cubit untuk zoom"
             : "Klik benda untuk dipakai · seret mouse memutar kamera · scroll untuk zoom"}
         </p>
-        {showGrowthSheet ? (
+        {showSaveSheet ? (
+          <AutosaveBackupSheet
+            catName={cat.name}
+            stage={growth.stage}
+            level={growth.level}
+            experience={experience}
+            closeness={closeness}
+            mood={deriveCatMood(stats, simulatedHour, moodOverride).mood}
+            stats={stats}
+            autosaveStatus={autosaveStatus}
+            lastSavedLabel={lastSavedLabel}
+            onSaveNow={triggerManualSave}
+            onRestoreSnapshot={(snap, label) => {
+              if (typeof snap.experience === "number") setExperience(snap.experience);
+              if (typeof snap.closeness === "number") setCloseness(snap.closeness);
+              if (snap.stage) setStageOverride(snap.stage);
+              if (snap.mood) setMoodOverride(snap.mood);
+              setShowSaveSheet(false);
+              setToast(`Progres ${cat.name} dipulihkan dari ${label} 💾`);
+            }}
+            onClose={() => setShowSaveSheet(false)}
+          />
+        ) : showGrowthSheet ? (
           <GrowthSheet
             name={cat.name}
             experience={experience}

@@ -1,6 +1,6 @@
 {
   "repo": "ngodingpakeai-project",
-  "generatedForCommit": "b55e1e140fc0e83003a5227a35649b4fe8b47f00",
+  "generatedForCommit": "e5149fa5aadd8c1dcbd185473243940531f867d9",
   "files": [
     {
       "path": ".codex/skills/ngodingpakeai/SKILL.md",
@@ -150,7 +150,7 @@
       "path": "src/app/page.tsx",
       "reason": "changed",
       "language": "typescript",
-      "size": 14897
+      "size": 16398
     },
     {
       "path": "src/components/care/CarePanel.tsx",
@@ -166,9 +166,15 @@
     },
     {
       "path": "src/components/growth/BadgeCollectionGallery.tsx",
-      "reason": "new",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 6860
+    },
+    {
+      "path": "src/components/growth/BadgeUnlockToast.tsx",
+      "reason": "new",
+      "language": "typescript",
+      "size": 1933
     },
     {
       "path": "src/components/growth/ClosenessLevelPanel.tsx",
@@ -184,7 +190,7 @@
     },
     {
       "path": "src/components/growth/GrowthSheet.tsx",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 4047
     },
