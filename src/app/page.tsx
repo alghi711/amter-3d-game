@@ -10,6 +10,8 @@ import { ANIM_LABELS, type CatAnimState } from "@/lib/cat-animation";
 import { SPOT_LABELS, type HouseSpot } from "@/components/room/CatHouse";
 import CarePanel from "@/components/care/CarePanel";
 import CareStatusPanel from "@/components/care/CareStatusPanel";
+import MoodRoutineSheet from "@/components/mood/MoodRoutineSheet";
+import { deriveCatMood, getActiveRoutine, type CatMood } from "@/lib/mock-mood";
 import { CARE_ACTIONS, getRefusalReason, MEAL_ITEMS, TOY_ITEMS, useCare, type CareAction, type MealItem, type ToyItem } from "@/lib/use-care";
 
 const CatRoomScene = dynamic(() => import("@/components/room/CatRoomScene"), {
@@ -18,8 +20,6 @@ const CatRoomScene = dynamic(() => import("@/components/room/CatRoomScene"), {
     <div className="flex h-full items-center justify-center text-amber-700">Menyiapkan rumah Mochi…</div>
   ),
 });
-
-const moodEmoji = { senang: "😺", lapar: "🍽️", bosan: "😿", ngantuk: "😴" } as const;
 
 export default function Home() {
   const cat = mockCat;
@@ -37,6 +37,9 @@ export default function Home() {
 
   const { stats, lastDeltas, history, perform } = useCare();
   const [showStatus, setShowStatus] = useState(false);
+  const [showMoodSheet, setShowMoodSheet] = useState(false);
+  const [moodOverride, setMoodOverride] = useState<CatMood | null>(null);
+  const [simulatedHour, setSimulatedHour] = useState<number>(9);
   const [foodFill, setFoodFill] = useState(MEAL_ITEMS.makan[0].fillColor);
   const [waterFill, setWaterFill] = useState(MEAL_ITEMS.minum[0].fillColor);
   const [bathing, setBathing] = useState(false);
@@ -145,16 +148,41 @@ export default function Home() {
 
       {/* Header info kucing */}
       <header className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6">
-        <div className="pointer-events-auto rounded-2xl bg-white/80 px-4 py-3 shadow-md backdrop-blur">
-          <h1 className="text-lg font-bold">
-            {cat.name} {moodEmoji[cat.mood]}
-          </h1>
+        <div className="pointer-events-auto rounded-2xl bg-white/85 px-4 py-3 shadow-md backdrop-blur">
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold">
+              {cat.name} {deriveCatMood(stats, simulatedHour, moodOverride).emoji}
+            </h1>
+            <button
+              type="button"
+              onClick={() => {
+                setShowStatus(false);
+                setShowMoodSheet((v) => !v);
+              }}
+              className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition ${deriveCatMood(stats, simulatedHour, moodOverride).badgeColor}`}
+            >
+              {deriveCatMood(stats, simulatedHour, moodOverride).label} ›
+            </button>
+          </div>
           <p className="text-xs text-stone-500">
             Tahap {cat.stage} · Level {cat.level} · Kedekatan {cat.closeness}%
           </p>
-          <p className="mt-1 text-xs font-medium text-amber-700" aria-live="polite">
-            ● {ANIM_LABELS[anim]}
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+            <span className="font-medium text-amber-700" aria-live="polite">
+              ● {ANIM_LABELS[anim]}
+            </span>
+            <span className="text-stone-400">·</span>
+            <button
+              type="button"
+              onClick={() => {
+                setShowStatus(false);
+                setShowMoodSheet(true);
+              }}
+              className="text-stone-600 hover:text-amber-700"
+            >
+              {getActiveRoutine(simulatedHour).icon} {getActiveRoutine(simulatedHour).title}
+            </button>
+          </div>
         </div>
         <div className="pointer-events-auto flex flex-col items-end gap-2">
           <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-amber-700 shadow backdrop-blur">
@@ -167,6 +195,16 @@ export default function Home() {
             aria-label="Kembalikan kamera"
           >
             🎥 Reset kamera
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowStatus(false);
+              setShowMoodSheet((v) => !v);
+            }}
+            className="rounded-full bg-white/80 px-3 py-1.5 text-xs font-medium text-amber-800 shadow backdrop-blur transition hover:bg-white active:scale-95"
+          >
+            😺 Mood & Rutinitas
           </button>
         </div>
       </header>
@@ -183,7 +221,22 @@ export default function Home() {
             ? "Ketuk benda untuk dipakai · geser 1 jari memutar kamera · cubit untuk zoom"
             : "Klik benda untuk dipakai · seret mouse memutar kamera · scroll untuk zoom"}
         </p>
-        {showStatus ? (
+        {showMoodSheet ? (
+          <MoodRoutineSheet
+            name={cat.name}
+            stats={stats}
+            moodOverride={moodOverride}
+            onSelectMood={setMoodOverride}
+            simulatedHour={simulatedHour}
+            onChangeHour={setSimulatedHour}
+            onGoToSpot={(s, title) => {
+              setSpot(s);
+              setShowMoodSheet(false);
+              setToast(`${cat.name} menjalani rutinitas: ${title}`);
+            }}
+            onClose={() => setShowMoodSheet(false)}
+          />
+        ) : showStatus ? (
           <CareStatusPanel
             stats={stats}
             deltas={lastDeltas}
