@@ -1,7 +1,8 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { ContactShadows, OrbitControls, PerspectiveCamera, RoundedBox } from "@react-three/drei";
+import { ContactShadows, OrbitControls, PerspectiveCamera } from "@react-three/drei";
+import CatHouse from "./CatHouse";
 import { useRef } from "react";
 import type { Group } from "three";
 
@@ -58,44 +59,6 @@ function Cat({ color }: { color: string }) {
   );
 }
 
-/** Rumah 3D: lantai, dua dinding, kasur, mangkuk, dan mainan. */
-function Room() {
-  return (
-    <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[8, 8]} />
-        <meshStandardMaterial color="#e9d8c4" />
-      </mesh>
-      <mesh position={[0, 2, -4]} receiveShadow>
-        <planeGeometry args={[8, 4]} />
-        <meshStandardMaterial color="#fde7e1" />
-      </mesh>
-      <mesh position={[-4, 2, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
-        <planeGeometry args={[8, 4]} />
-        <meshStandardMaterial color="#fbeee0" />
-      </mesh>
-      {/* kasur kucing */}
-      <RoundedBox args={[1.6, 0.3, 1.2]} radius={0.12} position={[-2.2, 0.15, -2.2]} castShadow>
-        <meshStandardMaterial color="#9ec9e8" />
-      </RoundedBox>
-      {/* mangkuk makan & minum */}
-      <mesh position={[1.6, 0.1, 0.8]} castShadow>
-        <cylinderGeometry args={[0.3, 0.22, 0.2, 24]} />
-        <meshStandardMaterial color="#f08080" />
-      </mesh>
-      <mesh position={[2.3, 0.1, 0.8]} castShadow>
-        <cylinderGeometry args={[0.3, 0.22, 0.2, 24]} />
-        <meshStandardMaterial color="#7fb3f0" />
-      </mesh>
-      {/* bola mainan */}
-      <mesh position={[-1.2, 0.18, 1.4]} castShadow>
-        <sphereGeometry args={[0.18, 24, 24]} />
-        <meshStandardMaterial color="#ffd166" />
-      </mesh>
-    </group>
-  );
-}
-
 /** Sesuaikan FOV & jarak kamera dengan rasio layar agar kucing tetap terlihat di HP (potret). */
 function ResponsiveCamera() {
   const size = useThree((state) => state.size);
@@ -116,7 +79,7 @@ export default function CatRoomScene({ furColor }: { furColor: string }) {
       <color attach="background" args={["#fff6ef"]} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[4, 6, 3]} intensity={1.2} castShadow shadow-mapSize={[1024, 1024]} />
-      <Room />
+      <CatHouse />
       <Cat color={furColor} />
       <ContactShadows position={[0, 0.01, 0]} opacity={0.35} blur={2} far={3} />
       <OrbitControls
