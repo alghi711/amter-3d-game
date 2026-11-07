@@ -8,6 +8,8 @@ import { pickReaction } from "@/lib/cat-reactions";
 import type { CatTouch } from "@/components/room/CatRoomScene";
 import { ANIM_LABELS, type CatAnimState } from "@/lib/cat-animation";
 import { SPOT_LABELS, type HouseSpot } from "@/components/room/CatHouse";
+import CarePanel from "@/components/care/CarePanel";
+import { CARE_ACTIONS, useCare, type CareAction } from "@/lib/use-care";
 
 const CatRoomScene = dynamic(() => import("@/components/room/CatRoomScene"), {
   ssr: false,
@@ -31,6 +33,15 @@ export default function Home() {
     const id = setTimeout(() => setToast(null), 2200);
     return () => clearTimeout(id);
   }, [toast]);
+
+  const { stats, perform } = useCare();
+
+  const doCare = (a: CareAction) => {
+    const def = CARE_ACTIONS[a];
+    perform(a);
+    if (def.spot) setSpot(def.spot);
+    setToast(`${cat.name} ${def.message}`);
+  };
 
   const touchCat = (t: CatTouch) => setToast(pickReaction(t, cat.name));
 
@@ -78,11 +89,14 @@ export default function Home() {
         </div>
       )}
 
-      <p className="pointer-events-none absolute inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] px-4 text-center text-xs text-stone-500">
-        {input === "sentuh"
-          ? "Ketuk benda untuk dipakai · geser 1 jari memutar kamera · cubit untuk zoom"
-          : "Klik benda untuk dipakai · seret mouse memutar kamera · scroll untuk zoom"}
-      </p>
+      <footer className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-2 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <p className="text-center text-[11px] text-stone-500">
+          {input === "sentuh"
+            ? "Ketuk benda untuk dipakai · geser 1 jari memutar kamera · cubit untuk zoom"
+            : "Klik benda untuk dipakai · seret mouse memutar kamera · scroll untuk zoom"}
+        </p>
+        <CarePanel stats={stats} onAction={doCare} />
+      </footer>
     </main>
   );
 }
