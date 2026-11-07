@@ -53,15 +53,18 @@ function Usable({ spot, onUse, children }: { spot: HouseSpot; onUse?: (s: HouseS
   );
 }
 
-function Bowl({ color, fill }: { color: string; fill: string }) {
+export type BowlState = { level: number; fill: string };
+
+function Bowl({ color, fill, level = 0.7 }: { color: string; fill: string; level?: number }) {
+  const clamped = Math.max(0.05, Math.min(1, level));
   return (
     <group>
       <mesh position={[0, 0.1, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[0.3, 0.22, 0.2, 24]} />
         <meshStandardMaterial color={color} />
       </mesh>
-      <mesh position={[0, 0.19, 0]}>
-        <cylinderGeometry args={[0.25, 0.25, 0.02, 24]} />
+      <mesh position={[0, 0.05 + clamped * 0.14, 0]}>
+        <cylinderGeometry args={[0.21 + clamped * 0.04, 0.21, 0.03, 24]} />
         <meshStandardMaterial color={fill} />
       </mesh>
     </group>
@@ -69,7 +72,15 @@ function Bowl({ color, fill }: { color: string; fill: string }) {
 }
 
 /** Rumah kucing 3D: lantai kayu, dinding, jendela, karpet, kasur, mangkuk, mainan, pasir, tiang garuk. */
-export default function CatHouse({ onUse }: { onUse?: (spot: HouseSpot) => void }) {
+export default function CatHouse({
+  onUse,
+  foodBowlState,
+  waterBowlState,
+}: {
+  onUse?: (spot: HouseSpot) => void;
+  foodBowlState?: BowlState;
+  waterBowlState?: BowlState;
+}) {
   return (
     <group>
       {/* lantai */}
@@ -114,10 +125,10 @@ export default function CatHouse({ onUse }: { onUse?: (spot: HouseSpot) => void 
       </Usable>
 
       <Usable spot="foodBowl" onUse={onUse}>
-        <Bowl color="#f08080" fill="#a0522d" />
+        <Bowl color="#f08080" fill={foodBowlState?.fill ?? "#a0522d"} level={foodBowlState?.level ?? 0.7} />
       </Usable>
       <Usable spot="waterBowl" onUse={onUse}>
-        <Bowl color="#7fb3f0" fill="#cdeaff" />
+        <Bowl color="#7fb3f0" fill={waterBowlState?.fill ?? "#cdeaff"} level={waterBowlState?.level ?? 0.7} />
       </Usable>
 
       {/* bola mainan */}

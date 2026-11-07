@@ -3,7 +3,7 @@
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { AdaptiveDpr, ContactShadows, OrbitControls, PerformanceMonitor, PerspectiveCamera } from "@react-three/drei";
 import { QUALITY_PROFILES, detectQuality, stepQuality, type QualityLevel, type QualityProfile } from "@/lib/quality";
-import CatHouse, { HOUSE_SPOTS, type HouseSpot } from "./CatHouse";
+import CatHouse, { HOUSE_SPOTS, type BowlState, type HouseSpot } from "./CatHouse";
 import { useEffect, useRef, useState } from "react";
 import { MathUtils, MOUSE, TOUCH, type Group, type Mesh, type Object3D } from "three";
 import { resolveAnimState, type CatAnimState } from "@/lib/cat-animation";
@@ -401,6 +401,8 @@ export default function CatRoomScene({
   onUseObject,
   onCatTouch,
   cameraReset = 0,
+  foodBowlState,
+  waterBowlState,
 }: {
   furColor: string;
   /** benda yang sedang dituju kucing; null = kembali ke karpet */
@@ -410,6 +412,8 @@ export default function CatRoomScene({
   onCatTouch?: (t: CatTouch) => void;
   /** Naikkan angkanya untuk mengembalikan kamera ke posisi awal. */
   cameraReset?: number;
+  foodBowlState?: BowlState;
+  waterBowlState?: BowlState;
 }) {
   const [petting, setPetting] = useState(false);
   // kualitas awal ditebak dari perangkat, lalu diturunkan otomatis bila FPS anjlok
@@ -434,7 +438,7 @@ export default function CatRoomScene({
       <color attach="background" args={["#fff6ef"]} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[4, 6, 3]} intensity={1.2} castShadow={q.shadows} shadow-mapSize={[q.shadowMapSize, q.shadowMapSize]} />
-      <CatHouse onUse={onUseObject} />
+      <CatHouse onUse={onUseObject} foodBowlState={foodBowlState} waterBowlState={waterBowlState} />
       <Cat color={furColor} spot={catSpot} onAnimState={onAnimState} onTouch={onCatTouch} onPettingChange={setPetting} anim={q.anim} />
       {q.contactShadows && (
         <ContactShadows position={[0, 0.01, 0]} opacity={0.35} blur={2} far={3} resolution={256} />

@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import type { CatStats } from "@/lib/mock-cat";
 import { careScore, careStatus } from "./CareStatusPanel";
-import { CARE_ACTIONS, STAT_LABELS, type CareAction } from "@/lib/use-care";
+import { CARE_ACTIONS, MEAL_ITEMS, STAT_LABELS, type CareAction, type MealItem } from "@/lib/use-care";
 
 /** Bilah kondisi ringkas (5 kebutuhan). */
 export function StatBars({ stats }: { stats: CatStats }) {
@@ -27,21 +28,34 @@ export function StatBars({ stats }: { stats: CatStats }) {
   );
 }
 
-/** Panel rawat di bawah layar: kondisi + tombol aksi perawatan. */
+/** Panel rawat di bawah layar: kondisi + tombol aksi perawatan + pilihan sajian makan/minum. */
 export default function CarePanel({
   stats,
   onAction,
+  onServeMeal,
   busy,
   onOpenStatus,
 }: {
   stats: CatStats;
   onAction: (a: CareAction) => void;
+  onServeMeal?: (item: MealItem) => void;
   busy?: boolean;
   /** buka panel detail kondisi perawatan */
   onOpenStatus?: () => void;
 }) {
+  const [mealMenu, setMealMenu] = useState<"makan" | "minum" | null>(null);
   const score = careScore(stats);
   const status = careStatus(score);
+
+  const handleClick = (a: CareAction) => {
+    if ((a === "makan" || a === "minum") && onServeMeal) {
+      setMealMenu((cur) => (cur === a ? null : a));
+      return;
+    }
+    setMealMenu(null);
+    onAction(a);
+  };
+
   return (
     <section
       aria-label="Rawat kucing"
@@ -61,21 +75,49 @@ export default function CarePanel({
         </span>
       </button>
       <StatBars stats={stats} />
+
+      {mealMenu && (
+        <div className="mt-2.5 flex items-center gap-2 rounded-2xl bg-amber-100/80 p-2" role="group" aria-label={`Pilih ${mealMenu}`}>
+          {MEAL_ITEMS[mealMenu].map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                onServeMeal?.(item);
+                setMealMenu(null);
+              }}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white px-2 py-1.5 text-xs font-medium text-stone-700 shadow-sm transition hover:bg-amber-50 active:scale-95"
+            >
+              <span className="text-base" aria-hidden>
+                {item.icon}
+              </span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="mt-3 grid grid-cols-5 gap-2">
-        {(Object.keys(CARE_ACTIONS) as CareAction[]).map((a) => (
-          <button
-            key={a}
-            type="button"
-            disabled={busy}
-            onClick={() => onAction(a)}
-            className="flex flex-col items-center gap-0.5 rounded-2xl bg-amber-50 py-2 text-xs font-medium text-stone-700 shadow-sm transition hover:bg-amber-100 active:scale-95 disabled:opacity-50"
-          >
-            <span className="text-xl" aria-hidden>
-              {CARE_ACTIONS[a].icon}
-            </span>
-            {CARE_ACTIONS[a].label}
-          </button>
-        ))}
+        {(Object.keys(CARE_ACTIONS) as CareAction[]).map((a) => {
+          const active = mealMenu === a;
+          return (
+            <button
+              key={a}
+              type="button"
+              disabled={busy}
+              aria-pressed={active}
+              onClick={() => handleClick(a)}
+              className={`flex flex-col items-center gap-0.5 rounded-2xl py-2 text-xs font-medium shadow-sm transition active:scale-95 disabled:opacity-50 ${
+                active ? "bg-amber-400 text-white" : "bg-amber-50 text-stone-700 hover:bg-amber-100"
+              }`}
+            >
+              <span className="text-xl" aria-hidden>
+                {CARE_ACTIONS[a].icon}
+              </span>
+              {CARE_ACTIONS[a].label}
+            </button>
+          );
+        })}
       </div>
     </section>
   );

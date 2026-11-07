@@ -7,6 +7,28 @@ import { mockCat, type CatStats } from "@/lib/mock-cat";
 /** Aksi perawatan yang bisa dilakukan pemain. */
 export type CareAction = "makan" | "minum" | "mandi" | "bersihkan" | "main";
 
+export type MealItem = {
+  id: string;
+  action: "makan" | "minum";
+  label: string;
+  icon: string;
+  fillColor: string;
+  effect: Partial<CatStats>;
+  message: string;
+};
+
+export const MEAL_ITEMS: Record<"makan" | "minum", MealItem[]> = {
+  makan: [
+    { id: "kibble", action: "makan", label: "Biskuit Ikan", icon: "🐟", fillColor: "#a0522d", effect: { hunger: 25, happiness: 5 }, message: "melahap biskuit ikan dengan lahap" },
+    { id: "salmon", action: "makan", label: "Salmon Segar", icon: "🍣", fillColor: "#fa8072", effect: { hunger: 40, happiness: 15 }, message: "sangat senang makan salmon segar!" },
+    { id: "snack", action: "makan", label: "Camilan Krim", icon: "🍮", fillColor: "#fde68a", effect: { hunger: 15, happiness: 20 }, message: "menjilat camilan krim sampai habis" },
+  ],
+  minum: [
+    { id: "water", action: "minum", label: "Air Segar", icon: "💧", fillColor: "#93c5fd", effect: { thirst: 30 }, message: "minum air segar" },
+    { id: "milk", action: "minum", label: "Susu Kucing", icon: "🥛", fillColor: "#fffbeb", effect: { thirst: 35, hunger: 10, happiness: 12 }, message: "minum susu kucing hangat dengan nikmat" },
+  ],
+};
+
 export const CARE_ACTIONS: Record<
   CareAction,
   { label: string; icon: string; spot: HouseSpot | null; effect: Partial<CatStats>; message: string }
@@ -28,9 +50,12 @@ export const STAT_LABELS: Record<keyof CatStats, { label: string; icon: string }
 
 const clamp = (n: number) => Math.max(0, Math.min(100, n));
 
-function reducer(stats: CatStats, action: CareAction): CatStats {
+type CareDispatch = CareAction | { effect: Partial<CatStats> };
+
+function reducer(stats: CatStats, input: CareDispatch): CatStats {
   const next = { ...stats };
-  for (const [k, v] of Object.entries(CARE_ACTIONS[action].effect) as [keyof CatStats, number][]) {
+  const effect = typeof input === "string" ? CARE_ACTIONS[input].effect : input.effect;
+  for (const [k, v] of Object.entries(effect) as [keyof CatStats, number][]) {
     next[k] = clamp(next[k] + v);
   }
   return next;
