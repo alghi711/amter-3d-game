@@ -6,6 +6,7 @@ import { QUALITY_PROFILES, detectQuality, stepQuality, type QualityLevel } from 
 import CatHouse, { HOUSE_SPOTS, type HouseSpot } from "./CatHouse";
 import { useEffect, useRef, useState } from "react";
 import { MOUSE, TOUCH, type Group } from "three";
+import { resolveAnimState, type CatAnimState } from "@/lib/cat-animation";
 import { CAMERA_CONTROL_PRESETS, useInputKind } from "@/lib/use-input-kind";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
@@ -42,21 +43,28 @@ function Heart({ onDone }: { onDone: () => void }) {
 export type CatPart = "kepala" | "badan" | "ekor";
 export type CatTouch = { kind: "sentuh" | "elus"; part: CatPart };
 
+/** Posisi santai kucing di tengah karpet. */
+const HOME_SPOT: readonly [number, number] = [0, 0.6];
+
 /** Nama mesh → bagian tubuh; dipakai untuk tahu bagian mana yang disentuh. */
 const partOf = (name: string): CatPart => (name === "ekor" ? "ekor" : name === "badan" ? "badan" : "kepala");
 
 function Cat({
   color,
-  target,
+  spot,
   onTouch,
   onPettingChange,
+  onAnimState,
 }: {
   color: string;
-  target: readonly [number, number];
+  spot: HouseSpot | null;
+  onAnimState?: (s: CatAnimState) => void;
   onTouch?: (t: CatTouch) => void;
   onPettingChange?: (petting: boolean) => void;
 }) {
   const root = useRef<Group>(null);
+  const animState = useRef<CatAnimState>("diam");
+  const target: readonly [number, number] = spot ? [HOUSE_SPOTS[spot][0], HOUSE_SPOTS[spot][2]] : HOME_SPOT;
   // jejak gesekan: jarak geser (px) selama jari/mouse ditekan di atas kucing
   const head = useRef<Group>(null);
   const eyes = useRef<Group>(null);
@@ -120,12 +128,14 @@ function Cat({
   useFrame(({ clock }, delta) => {
     const t = clock.getElapsedTime();
     // berjalan menuju objek yang dipilih, berhenti sedikit di depannya
+    let moving = false;
     if (root.current) {
       const p = root.current.position;
       const dx = target[0] - p.x;
       const dz = target[1] - p.z;
       const dist = Math.hypot(dx, dz);
       if (dist > 0.75) {
+        moving = true;
         const step = Math.min(dist - 0.75, delta * 1.6);
         p.x += (dx / dist) * step;
         p.z += (dz / dist) * step;
@@ -141,6 +151,12 @@ function Cat({
     const age = r ? performance.now() / 1000 - r.start : Infinity;
     if (r && age > 1.6) reaction.current = null;
     const annoyed = r?.kind === "elus" && r.part === "ekor"; // ekor dielus = kesal
+    // state animasi terpusat — dilaporkan ke UI hanya saat berubah
+    const next = resolveAnimState({ moving, spot, reaction: annoyed ? "kesal" : (r?.kind ?? null) });
+    if (next !== animState.current) {
+      animState.current = next;
+      onAnimState?.(next);
+    }
     const petting = r?.kind === "elus" && !annoyed;
     const touched = r?.kind === "sentuh";
     const k = r?.intensity ?? 0;
@@ -318,13 +334,16 @@ function CameraRig({ enabled, resetSignal }: { enabled: boolean; resetSignal: nu
 
 export default function CatRoomScene({
   furColor,
-  catTarget,
+  catSpot,
+  onAnimState,
   onUseObject,
   onCatTouch,
   cameraReset = 0,
 }: {
   furColor: string;
-  catTarget: readonly [number, number];
+  /** benda yang sedang dituju kucing; null = kembali ke karpet */
+  catSpot: HouseSpot | null;
+  onAnimState?: (s: CatAnimState) => void;
   onUseObject: (spot: HouseSpot) => void;
   onCatTouch?: (t: CatTouch) => void;
   /** Naikkan angkanya untuk mengembalikan kamera ke posisi awal. */
@@ -354,7 +373,7 @@ export default function CatRoomScene({
       <ambientLight intensity={0.6} />
       <directionalLight position={[4, 6, 3]} intensity={1.2} castShadow={q.shadows} shadow-mapSize={[q.shadowMapSize, q.shadowMapSize]} />
       <CatHouse onUse={onUseObject} />
-      <Cat color={furColor} target={catTarget} onTouch={onCatTouch} onPettingChange={setPetting} />
+      <Cat color={furColor} spot={catSpot} onAnimState={onAnimState} onTouch={onCatTouch} onPettingChange={setPetting} />
       {q.contactShadows && (
         <ContactShadows position={[0, 0.01, 0]} opacity={0.35} blur={2} far={3} resolution={256} />
       )}

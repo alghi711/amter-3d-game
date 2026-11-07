@@ -6,7 +6,8 @@ import { mockCat } from "@/lib/mock-cat";
 import { useInputKind } from "@/lib/use-input-kind";
 import { pickReaction } from "@/lib/cat-reactions";
 import type { CatTouch } from "@/components/room/CatRoomScene";
-import { HOUSE_SPOTS, SPOT_LABELS, type HouseSpot } from "@/components/room/CatHouse";
+import { ANIM_LABELS, type CatAnimState } from "@/lib/cat-animation";
+import { SPOT_LABELS, type HouseSpot } from "@/components/room/CatHouse";
 
 const CatRoomScene = dynamic(() => import("@/components/room/CatRoomScene"), {
   ssr: false,
@@ -23,7 +24,7 @@ export default function Home() {
   const input = useInputKind();
   const [cameraReset, setCameraReset] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
-  const target: readonly [number, number] = spot ? [HOUSE_SPOTS[spot][0], HOUSE_SPOTS[spot][2]] : [0, 0.6];
+  const [anim, setAnim] = useState<CatAnimState>("diam");
 
   useEffect(() => {
     if (!toast) return;
@@ -40,7 +41,7 @@ export default function Home() {
   return (
     <main className="relative h-dvh w-full overflow-hidden bg-[#fff6ef] text-stone-800">
       <div className="absolute inset-0">
-        <CatRoomScene furColor={cat.furColor} catTarget={target} onUseObject={useObject} onCatTouch={touchCat} cameraReset={cameraReset} />
+        <CatRoomScene furColor={cat.furColor} catSpot={spot} onAnimState={setAnim} onUseObject={useObject} onCatTouch={touchCat} cameraReset={cameraReset} />
       </div>
 
       {/* Header info kucing */}
@@ -51,6 +52,9 @@ export default function Home() {
           </h1>
           <p className="text-xs text-stone-500">
             Tahap {cat.stage} · Level {cat.level} · Kedekatan {cat.closeness}%
+          </p>
+          <p className="mt-1 text-xs font-medium text-amber-700" aria-live="polite">
+            ● {ANIM_LABELS[anim]}
           </p>
         </div>
         <div className="pointer-events-auto flex flex-col items-end gap-2">
