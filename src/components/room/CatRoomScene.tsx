@@ -14,6 +14,53 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 /** Kucing sederhana dari primitif — placeholder sebelum model glTF tersedia. */
 /** Hati melayang ke atas lalu hilang — umpan balik saat kucing dielus. */
 /** Gelembung sabun melayang saat kucing dimandikan. */
+/** Efek visual rutinitas: gelembung tidur (tidur), remah makanan (makan/minum), atau kilau bintang (main/garuk). */
+function RoutineEffect({ state }: { state: CatAnimState }) {
+  const group = useRef<Group>(null);
+  const mode =
+    state === "tidur"
+      ? "sleep"
+      : state === "makan" || state === "minum"
+        ? "eat"
+        : state === "main" || state === "garuk"
+          ? "play"
+          : null;
+
+  useFrame(({ clock }) => {
+    if (!group.current || !mode) return;
+    const t = clock.getElapsedTime();
+    group.current.children.forEach((c, i) => {
+      if (mode === "sleep") {
+        const phase = (t * 0.45 + i * 0.33) % 1;
+        c.position.set(0.2 + phase * 0.35, 1.15 + phase * 0.75, 0.2);
+        c.scale.setScalar((0.4 + phase * 0.7) * (1 - phase * 0.5));
+      } else if (mode === "eat") {
+        const phase = (t * 2.2 + i * 0.25) % 1;
+        const angle = (i - 1) * 0.65;
+        c.position.set(Math.sin(angle) * (0.15 + phase * 0.25), 0.55 + Math.sin(phase * Math.PI) * 0.28, 0.55 + phase * 0.2);
+        c.scale.setScalar(1 - phase * 0.7);
+      } else {
+        const angle = t * 3.5 + i * ((Math.PI * 2) / 3);
+        c.position.set(Math.cos(angle) * 0.52, 0.95 + Math.sin(t * 5 + i) * 0.18, Math.sin(angle) * 0.52);
+        c.scale.setScalar(0.75 + Math.sin(t * 8 + i) * 0.25);
+      }
+    });
+  });
+
+  if (!mode) return null;
+  const color = mode === "sleep" ? "#a5b4fc" : mode === "eat" ? "#f59e0b" : "#fbbf24";
+  return (
+    <group ref={group}>
+      {[0, 1, 2].map((i) => (
+        <mesh key={i}>
+          <octahedronGeometry args={[0.075, mode === "sleep" ? 2 : 0]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.45} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 function SoapBubbles() {
   const group = useRef<Group>(null);
   useFrame(({ clock }) => {
@@ -127,6 +174,7 @@ function Cat({
     null,
   );
   const [hearts, setHearts] = useState<number[]>([]);
+  const [activeRoutineAnim, setActiveRoutineAnim] = useState<CatAnimState>("diam");
   const react = (kind: CatTouch["kind"], part: CatPart, now: number) => {
     reaction.current = { kind, part, start: now, intensity: kind === "elus" ? 0.5 : 1, lean: 0 };
     if (kind === "elus" && part !== "ekor") setHearts((h) => [...h.slice(-(anim.maxHearts - 1)), now]);
@@ -221,6 +269,7 @@ function Cat({
       if (next === "makan" || next === "minum" || next === "main" || (prev === "mandi" && next === "diam")) {
         setHearts((h) => [...h.slice(-(anim.maxHearts - 1)), performance.now() / 1000]);
       }
+      setActiveRoutineAnim(next);
       onAnimState?.(next);
     }
     // ---- transisi halus: semua target di-"damp" (independen FPS) agar perpindahan state tidak patah ----
@@ -273,13 +322,24 @@ function Cat({
       const hop = touched && age < 0.4 ? Math.sin((age / 0.4) * Math.PI) * 0.15 : 0;
       const bob =
         next === "main"
-          ? Math.abs(Math.sin(t * 7)) * 0.06
+          ? Math.abs(Math.sin(t * 8.5)) * 0.11
           : next === "garuk"
-            ? Math.abs(Math.sin(t * 11)) * 0.045
-            : 0;
-      const pitchBody = next === "garuk" ? -0.18 + Math.sin(t * 11) * 0.05 : next === "makan" || next === "minum" ? 0.08 : 0;
+            ? Math.abs(Math.sin(t * 11)) * 0.055
+            : next === "makan" || next === "minum"
+              ? Math.abs(Math.sin(t * 9)) * 0.025
+              : 0;
+      const pitchBody =
+        next === "garuk"
+          ? -0.18 + Math.sin(t * 11) * 0.05
+          : next === "makan" || next === "minum"
+            ? 0.14 + Math.sin(t * 9) * 0.04
+            : next === "main"
+              ? Math.sin(t * 8.5) * 0.12
+              : sleeping
+                ? 0.06
+                : 0;
       body.current.rotation.x = d(body.current.rotation.x, pitchBody, 8);
-      body.current.position.y = d(body.current.position.y, hop + bob + settleHop, 25);
+      body.current.position.y = d(body.current.position.y, (sleeping ? -0.08 : 0) + hop + bob + settleHop, 25);
     }
 
     // kepala: miring saat kaget, geleng saat kesal, menyundul saat dielus, menunduk saat makan/minum
@@ -361,6 +421,7 @@ function Cat({
         </group>
       </group>
       {bathing && <SoapBubbles />}
+      <RoutineEffect state={activeRoutineAnim} />
       {hearts.map((h) => (
         <Heart key={h} onDone={() => setHearts((all) => all.filter((x) => x !== h))} />
       ))}

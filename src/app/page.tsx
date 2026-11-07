@@ -281,7 +281,11 @@ export default function Home() {
             moodOverride={moodOverride}
             onSelectMood={setMoodOverride}
             simulatedHour={simulatedHour}
-            onChangeHour={setSimulatedHour}
+            onChangeHour={(h) => {
+              setSimulatedHour(h);
+              const rt = getActiveRoutine(h);
+              if (rt.spot) setSpot(rt.spot);
+            }}
             moodHistory={moodHistory}
             onGoToSpot={(s, title) => {
               setSpot(s);
