@@ -1,6 +1,8 @@
 "use client";
 
 import { RoundedBox } from "@react-three/drei";
+import type { ThreeEvent } from "@react-three/fiber";
+import { useState, type ReactNode } from "react";
 
 /** Posisi benda rumah — dipakai ulang oleh interaksi (makan, minum, main, tidur). */
 export const HOUSE_SPOTS = {
@@ -12,10 +14,48 @@ export const HOUSE_SPOTS = {
   scratchPost: [-3.1, 0, 0.6],
 } as const satisfies Record<string, [number, number, number]>;
 
-function Bowl({ position, color, fill }: { position: readonly number[]; color: string; fill: string }) {
-  const [x, , z] = position;
+export type HouseSpot = keyof typeof HOUSE_SPOTS;
+
+/** Label & aksi tiap objek — ditampilkan di UI saat objek dipakai. */
+export const SPOT_LABELS: Record<HouseSpot, string> = {
+  bed: "Kasur — waktunya tidur siang",
+  foodBowl: "Mangkuk makan",
+  waterBowl: "Mangkuk minum",
+  toy: "Bola mainan",
+  litterBox: "Kotak pasir",
+  scratchPost: "Tiang garuk",
+};
+
+/** Bungkus objek agar bisa disentuh: kursor pointer + membesar sedikit saat disorot. */
+function Usable({ spot, onUse, children }: { spot: HouseSpot; onUse?: (s: HouseSpot) => void; children: ReactNode }) {
+  const [hover, setHover] = useState(false);
+  const [x, , z] = HOUSE_SPOTS[spot];
   return (
-    <group position={[x, 0, z]}>
+    <group
+      position={[x, 0, z]}
+      scale={hover ? 1.06 : 1}
+      onPointerOver={(e: ThreeEvent<PointerEvent>) => {
+        e.stopPropagation();
+        setHover(true);
+        document.body.style.cursor = "pointer";
+      }}
+      onPointerOut={() => {
+        setHover(false);
+        document.body.style.cursor = "auto";
+      }}
+      onClick={(e: ThreeEvent<MouseEvent>) => {
+        e.stopPropagation();
+        onUse?.(spot);
+      }}
+    >
+      {children}
+    </group>
+  );
+}
+
+function Bowl({ color, fill }: { color: string; fill: string }) {
+  return (
+    <group>
       <mesh position={[0, 0.1, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[0.3, 0.22, 0.2, 24]} />
         <meshStandardMaterial color={color} />
@@ -29,8 +69,7 @@ function Bowl({ position, color, fill }: { position: readonly number[]; color: s
 }
 
 /** Rumah kucing 3D: lantai kayu, dinding, jendela, karpet, kasur, mangkuk, mainan, pasir, tiang garuk. */
-export default function CatHouse() {
-  const { bed, foodBowl, waterBowl, toy, litterBox, scratchPost } = HOUSE_SPOTS;
+export default function CatHouse({ onUse }: { onUse?: (spot: HouseSpot) => void }) {
   return (
     <group>
       {/* lantai */}
@@ -65,26 +104,32 @@ export default function CatHouse() {
       </group>
 
       {/* kasur kucing */}
-      <group position={[bed[0], 0, bed[2]]}>
+      <Usable spot="bed" onUse={onUse}>
         <RoundedBox args={[1.6, 0.3, 1.2]} radius={0.12} position={[0, 0.15, 0]} castShadow receiveShadow>
           <meshStandardMaterial color="#9ec9e8" />
         </RoundedBox>
         <RoundedBox args={[1.3, 0.12, 0.9]} radius={0.06} position={[0, 0.33, 0]}>
           <meshStandardMaterial color="#f5f0e6" />
         </RoundedBox>
-      </group>
+      </Usable>
 
-      <Bowl position={foodBowl} color="#f08080" fill="#a0522d" />
-      <Bowl position={waterBowl} color="#7fb3f0" fill="#cdeaff" />
+      <Usable spot="foodBowl" onUse={onUse}>
+        <Bowl color="#f08080" fill="#a0522d" />
+      </Usable>
+      <Usable spot="waterBowl" onUse={onUse}>
+        <Bowl color="#7fb3f0" fill="#cdeaff" />
+      </Usable>
 
       {/* bola mainan */}
-      <mesh position={[toy[0], 0.18, toy[2]]} castShadow>
-        <sphereGeometry args={[0.18, 24, 24]} />
-        <meshStandardMaterial color="#ffd166" />
-      </mesh>
+      <Usable spot="toy" onUse={onUse}>
+        <mesh position={[0, 0.18, 0]} castShadow>
+          <sphereGeometry args={[0.18, 24, 24]} />
+          <meshStandardMaterial color="#ffd166" />
+        </mesh>
+      </Usable>
 
       {/* kotak pasir */}
-      <group position={[litterBox[0], 0, litterBox[2]]}>
+      <Usable spot="litterBox" onUse={onUse}>
         <RoundedBox args={[1, 0.3, 0.8]} radius={0.05} position={[0, 0.15, 0]} castShadow>
           <meshStandardMaterial color="#b8d8ba" />
         </RoundedBox>
@@ -92,10 +137,10 @@ export default function CatHouse() {
           <planeGeometry args={[0.85, 0.65]} />
           <meshStandardMaterial color="#efe2c0" />
         </mesh>
-      </group>
+      </Usable>
 
       {/* tiang garuk */}
-      <group position={[scratchPost[0], 0, scratchPost[2]]}>
+      <Usable spot="scratchPost" onUse={onUse}>
         <mesh position={[0, 0.05, 0]} castShadow receiveShadow>
           <boxGeometry args={[0.8, 0.1, 0.8]} />
           <meshStandardMaterial color="#c49a6c" />
@@ -108,7 +153,7 @@ export default function CatHouse() {
           <boxGeometry args={[0.6, 0.1, 0.6]} />
           <meshStandardMaterial color="#c49a6c" />
         </mesh>
-      </group>
+      </Usable>
     </group>
   );
 }

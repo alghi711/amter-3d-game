@@ -2,23 +2,41 @@
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, OrbitControls, PerspectiveCamera } from "@react-three/drei";
-import CatHouse from "./CatHouse";
+import CatHouse, { type HouseSpot } from "./CatHouse";
 import { useRef } from "react";
 import type { Group } from "three";
 
 /** Kucing sederhana dari primitif — placeholder sebelum model glTF tersedia. */
-function Cat({ color }: { color: string }) {
+function Cat({ color, target }: { color: string; target: readonly [number, number] }) {
+  const root = useRef<Group>(null);
   const body = useRef<Group>(null);
   const tail = useRef<Group>(null);
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock }, delta) => {
     const t = clock.getElapsedTime();
+    // berjalan menuju objek yang dipilih, berhenti sedikit di depannya
+    if (root.current) {
+      const p = root.current.position;
+      const dx = target[0] - p.x;
+      const dz = target[1] - p.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist > 0.75) {
+        const step = Math.min(dist - 0.75, delta * 1.6);
+        p.x += (dx / dist) * step;
+        p.z += (dz / dist) * step;
+        p.y = Math.abs(Math.sin(t * 10)) * 0.05; // langkah memantul
+        const want = Math.atan2(dx, dz);
+        root.current.rotation.y += (want - root.current.rotation.y) * Math.min(1, delta * 8);
+      } else {
+        p.y = 0;
+      }
+    }
     if (body.current) body.current.scale.y = 1 + Math.sin(t * 2) * 0.02; // napas
     if (tail.current) tail.current.rotation.z = Math.sin(t * 3) * 0.4; // ekor bergoyang
   });
 
   return (
-    <group position={[0, 0, 0.6]}>
+    <group ref={root} position={[0, 0, 0.6]}>
       <group ref={body}>
         <mesh position={[0, 0.45, 0]} castShadow>
           <sphereGeometry args={[0.5, 32, 32]} />
@@ -67,7 +85,15 @@ function ResponsiveCamera() {
   return <PerspectiveCamera makeDefault position={[3.5, 3, 5]} fov={fov} />;
 }
 
-export default function CatRoomScene({ furColor }: { furColor: string }) {
+export default function CatRoomScene({
+  furColor,
+  catTarget,
+  onUseObject,
+}: {
+  furColor: string;
+  catTarget: readonly [number, number];
+  onUseObject: (spot: HouseSpot) => void;
+}) {
   return (
     <Canvas
       shadows
@@ -79,8 +105,8 @@ export default function CatRoomScene({ furColor }: { furColor: string }) {
       <color attach="background" args={["#fff6ef"]} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[4, 6, 3]} intensity={1.2} castShadow shadow-mapSize={[1024, 1024]} />
-      <CatHouse />
-      <Cat color={furColor} />
+      <CatHouse onUse={onUseObject} />
+      <Cat color={furColor} target={catTarget} />
       <ContactShadows position={[0, 0.01, 0]} opacity={0.35} blur={2} far={3} />
       <OrbitControls
         target={[0, 0.8, 0]}
