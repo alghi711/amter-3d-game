@@ -9,6 +9,7 @@ import type { CatTouch } from "@/components/room/CatRoomScene";
 import { ANIM_LABELS, type CatAnimState } from "@/lib/cat-animation";
 import { SPOT_LABELS, type HouseSpot } from "@/components/room/CatHouse";
 import CarePanel from "@/components/care/CarePanel";
+import CareStatusPanel from "@/components/care/CareStatusPanel";
 import { CARE_ACTIONS, useCare, type CareAction } from "@/lib/use-care";
 
 const CatRoomScene = dynamic(() => import("@/components/room/CatRoomScene"), {
@@ -35,6 +36,7 @@ export default function Home() {
   }, [toast]);
 
   const { stats, perform } = useCare();
+  const [showStatus, setShowStatus] = useState(false);
 
   const doCare = (a: CareAction) => {
     const def = CARE_ACTIONS[a];
@@ -95,7 +97,11 @@ export default function Home() {
             ? "Ketuk benda untuk dipakai · geser 1 jari memutar kamera · cubit untuk zoom"
             : "Klik benda untuk dipakai · seret mouse memutar kamera · scroll untuk zoom"}
         </p>
-        <CarePanel stats={stats} onAction={doCare} />
+        {showStatus ? (
+          <CareStatusPanel stats={stats} name={cat.name} onClose={() => setShowStatus(false)} />
+        ) : (
+          <CarePanel stats={stats} onAction={doCare} onOpenStatus={() => setShowStatus(true)} />
+        )}
       </footer>
     </main>
   );

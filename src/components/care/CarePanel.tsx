@@ -1,6 +1,7 @@
 "use client";
 
 import type { CatStats } from "@/lib/mock-cat";
+import { careScore, careStatus } from "./CareStatusPanel";
 import { CARE_ACTIONS, STAT_LABELS, type CareAction } from "@/lib/use-care";
 
 /** Bilah kondisi ringkas (5 kebutuhan). */
@@ -31,16 +32,34 @@ export default function CarePanel({
   stats,
   onAction,
   busy,
+  onOpenStatus,
 }: {
   stats: CatStats;
   onAction: (a: CareAction) => void;
   busy?: boolean;
+  /** buka panel detail kondisi perawatan */
+  onOpenStatus?: () => void;
 }) {
+  const score = careScore(stats);
+  const status = careStatus(score);
   return (
     <section
       aria-label="Rawat kucing"
       className="pointer-events-auto mx-auto w-full max-w-md rounded-3xl bg-white/85 p-3 shadow-xl backdrop-blur sm:p-4"
     >
+      <button
+        type="button"
+        onClick={onOpenStatus}
+        className="mb-2 flex w-full items-center justify-between rounded-xl px-1 text-left text-xs hover:bg-amber-50"
+        aria-label="Lihat detail kondisi perawatan"
+      >
+        <span className={`font-semibold ${status.tone}`}>
+          {status.emoji} {status.label}
+        </span>
+        <span className="text-stone-500">
+          Skor {score} · Detail ›
+        </span>
+      </button>
       <StatBars stats={stats} />
       <div className="mt-3 grid grid-cols-5 gap-2">
         {(Object.keys(CARE_ACTIONS) as CareAction[]).map((a) => (
