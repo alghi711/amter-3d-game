@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { mockCat } from "@/lib/mock-cat";
+import { useInputKind } from "@/lib/use-input-kind";
 import { pickReaction } from "@/lib/cat-reactions";
 import type { CatTouch } from "@/components/room/CatRoomScene";
 import { HOUSE_SPOTS, SPOT_LABELS, type HouseSpot } from "@/components/room/CatHouse";
@@ -19,6 +20,7 @@ const moodEmoji = { senang: "😺", lapar: "🍽️", bosan: "😿", ngantuk: "�
 export default function Home() {
   const cat = mockCat;
   const [spot, setSpot] = useState<HouseSpot | null>(null);
+  const input = useInputKind();
   const [cameraReset, setCameraReset] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const target: readonly [number, number] = spot ? [HOUSE_SPOTS[spot][0], HOUSE_SPOTS[spot][2]] : [0, 0.6];
@@ -73,7 +75,9 @@ export default function Home() {
       )}
 
       <p className="pointer-events-none absolute inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] px-4 text-center text-xs text-stone-500">
-        Ketuk benda untuk dipakai · geser untuk memutar kamera · cubit / scroll untuk memperbesar
+        {input === "sentuh"
+          ? "Ketuk benda untuk dipakai · geser 1 jari memutar kamera · cubit untuk zoom"
+          : "Klik benda untuk dipakai · seret mouse memutar kamera · scroll untuk zoom"}
       </p>
     </main>
   );

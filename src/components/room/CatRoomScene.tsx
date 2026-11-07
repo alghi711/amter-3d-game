@@ -5,7 +5,8 @@ import { AdaptiveDpr, ContactShadows, OrbitControls, PerformanceMonitor, Perspec
 import { QUALITY_PROFILES, detectQuality, stepQuality, type QualityLevel } from "@/lib/quality";
 import CatHouse, { HOUSE_SPOTS, type HouseSpot } from "./CatHouse";
 import { useEffect, useRef, useState } from "react";
-import { TOUCH, type Group } from "three";
+import { MOUSE, TOUCH, type Group } from "three";
+import { CAMERA_CONTROL_PRESETS, useInputKind } from "@/lib/use-input-kind";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 /** Kucing sederhana dari primitif — placeholder sebelum model glTF tersedia. */
@@ -282,6 +283,8 @@ const CAMERA_HOME: [number, number, number] = [3.5, 3, 5];
 
 function CameraRig({ enabled, resetSignal }: { enabled: boolean; resetSignal: number }) {
   const controls = useRef<OrbitControlsImpl>(null);
+  const input = useInputKind();
+  const preset = CAMERA_CONTROL_PRESETS[input];
   useEffect(() => {
     const c = controls.current;
     if (resetSignal === 0 || !c) return;
@@ -296,17 +299,18 @@ function CameraRig({ enabled, resetSignal }: { enabled: boolean; resetSignal: nu
       enabled={enabled}
       target={[0, 0.8, 0]}
       enableDamping
-      dampingFactor={0.08}
-      rotateSpeed={0.7}
-      zoomSpeed={0.8}
+      dampingFactor={preset.dampingFactor}
+      rotateSpeed={preset.rotateSpeed}
+      zoomSpeed={preset.zoomSpeed}
       enablePan={false}
-      minDistance={2.5}
-      maxDistance={9}
+      minDistance={preset.minDistance}
+      maxDistance={preset.maxDistance}
       minPolarAngle={0.2}
       maxPolarAngle={Math.PI / 2.1}
       minAzimuthAngle={-0.35}
       maxAzimuthAngle={Math.PI / 2 + 0.35}
       touches={{ ONE: TOUCH.ROTATE, TWO: TOUCH.DOLLY_ROTATE }}
+      mouseButtons={{ LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.ROTATE }}
       regress
     />
   );
