@@ -170,10 +170,10 @@ export default function ExperienceStageIndicator({
                   </span>
                 </div>
                 <p className="mt-1 font-bold">{def.title}</p>
+                <p className="mt-0.5 text-[10px] font-medium text-amber-800">{def.appearance.bodyScaleLabel}</p>
                 <ul className="mt-1 space-y-0.5 text-[10px] text-stone-600">
-                  {def.perks.slice(0, 2).map((perk) => (
-                    <li key={perk}>• {perk}</li>
-                  ))}
+                  <li>• {def.appearance.collarLabel}</li>
+                  <li>• {def.appearance.stripeLabel}</li>
                 </ul>
               </button>
             );

@@ -7,6 +7,7 @@ import CatHouse, { HOUSE_SPOTS, type BowlState, type HouseSpot } from "./CatHous
 import { useEffect, useRef, useState } from "react";
 import { MathUtils, MOUSE, TOUCH, type Group, type Mesh, type Object3D } from "three";
 import { resolveAnimState, type CatAnimState } from "@/lib/cat-animation";
+import type { GrowthStage } from "@/lib/mock-growth";
 import type { CatMood } from "@/lib/mock-mood";
 import { CAMERA_CONTROL_PRESETS, useInputKind } from "@/lib/use-input-kind";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -149,11 +150,13 @@ function Cat({
   bathing = false,
   mood = "senang",
   growthScale = 1,
+  stage = "anak",
 }: {
   anim: QualityProfile["anim"];
   bathing?: boolean;
   mood?: CatMood;
   growthScale?: number;
+  stage?: GrowthStage;
   color: string;
   spot: HouseSpot | null;
   onAnimState?: (s: CatAnimState) => void;
@@ -227,6 +230,7 @@ function Cat({
   };
   const body = useRef<Group>(null);
   const tail = useRef<Group>(null);
+  const scaleGroup = useRef<Group>(null);
   const chest = useRef<Mesh>(null);
   // jadwal perilaku idle & nilai yang di-damp antar frame
   const idleRef = useRef({ nextBlink: 2, blinkUntil: 0, nextLook: 3, lookYaw: 0, tailPhase: 0, tailAmp: 0.4, stateEnteredAt: 0 });
@@ -367,6 +371,10 @@ function Cat({
       const openScale = mood === "ngantuk" ? 0.42 : mood === "bosan" ? 0.68 : mood === "lapar" ? 1.15 : 1;
       eyes.current.scale.y = d(eyes.current.scale.y, closed ? 0.12 : openScale, closed ? 30 : 14);
     }
+    if (scaleGroup.current) {
+      const nextScale = d(scaleGroup.current.scale.x, growthScale, 5);
+      scaleGroup.current.scale.setScalar(nextScale);
+    }
     if (ears.current) {
       const droop = mood === "bosan" || mood === "ngantuk" ? 0.22 : 0;
       ears.current.rotation.x = d(ears.current.rotation.x, droop, 6);
@@ -384,12 +392,29 @@ function Cat({
       onPointerOver={() => (document.body.style.cursor = "grab")}
       onPointerOut={() => (document.body.style.cursor = "auto")}
     >
-      <group scale={growthScale}>
+      <group ref={scaleGroup} scale={growthScale}>
       <group ref={body}>
         <mesh ref={chest} name="badan" position={[0, 0.45, 0]} castShadow>
           <sphereGeometry args={[0.5, seg, seg]} />
           <meshStandardMaterial color={color} />
         </mesh>
+        {/* Bulu dada putih lembut & kalung lonceng emas khusus tahap Kucing Dewasa */}
+        {stage === "dewasa" && (
+          <group>
+            <mesh position={[0, 0.56, 0.41]} scale={[0.9, 1.1, 0.45]}>
+              <sphereGeometry args={[0.22, 16, 16]} />
+              <meshStandardMaterial color="#fffbeb" />
+            </mesh>
+            <mesh position={[0, 0.77, 0.12]} rotation={[Math.PI / 2 + 0.15, 0, 0]}>
+              <torusGeometry args={[0.31, 0.032, 12, 24]} />
+              <meshStandardMaterial color="#ef4444" />
+            </mesh>
+            <mesh position={[0, 0.72, 0.44]} castShadow>
+              <sphereGeometry args={[0.055, 14, 14]} />
+              <meshStandardMaterial color="#fbbf24" metalness={0.6} roughness={0.25} />
+            </mesh>
+          </group>
+        )}
         <group ref={head} position={[0, 0.8, 0.1]}>
         <group position={[0, -0.8, -0.1]}>
         {/* kepala */}
@@ -420,6 +445,21 @@ function Cat({
           <sphereGeometry args={[0.03, 12, 12]} />
           <meshStandardMaterial color="#e88a9a" />
         </mesh>
+        {/* kumis & corak dahi lebih tegas saat dewasa */}
+        {stage === "dewasa" && (
+          <group>
+            {[-0.26, 0.26].map((wx) => (
+              <mesh key={wx} position={[wx, 0.99, 0.44]} rotation={[0, 0, Math.PI / 2 + (wx > 0 ? -0.08 : 0.08)]}>
+                <cylinderGeometry args={[0.006, 0.006, 0.22, 6]} />
+                <meshStandardMaterial color="#fffbeb" />
+              </mesh>
+            ))}
+            <mesh position={[0, 1.28, 0.43]}>
+              <boxGeometry args={[0.14, 0.04, 0.02]} />
+              <meshStandardMaterial color="#b45309" />
+            </mesh>
+          </group>
+        )}
         </group>
         </group>
       </group>
@@ -534,6 +574,7 @@ export default function CatRoomScene({
   playingToy = false,
   mood = "senang",
   growthScale = 1,
+  stage = "anak",
 }: {
   furColor: string;
   /** benda yang sedang dituju kucing; null = kembali ke karpet */
@@ -551,6 +592,7 @@ export default function CatRoomScene({
   playingToy?: boolean;
   mood?: CatMood;
   growthScale?: number;
+  stage?: GrowthStage;
 }) {
   const [petting, setPetting] = useState(false);
   // kualitas awal ditebak dari perangkat, lalu diturunkan otomatis bila FPS anjlok
@@ -576,7 +618,7 @@ export default function CatRoomScene({
       <ambientLight intensity={0.6} />
       <directionalLight position={[4, 6, 3]} intensity={1.2} castShadow={q.shadows} shadow-mapSize={[q.shadowMapSize, q.shadowMapSize]} />
       <CatHouse onUse={onUseObject} foodBowlState={foodBowlState} waterBowlState={waterBowlState} litterDirty={litterDirty} toyColor={toyColor} playingToy={playingToy} />
-      <Cat color={furColor} spot={catSpot} onAnimState={onAnimState} onTouch={onCatTouch} onPettingChange={setPetting} anim={q.anim} bathing={bathing} mood={mood} growthScale={growthScale} />
+      <Cat color={furColor} spot={catSpot} onAnimState={onAnimState} onTouch={onCatTouch} onPettingChange={setPetting} anim={q.anim} bathing={bathing} mood={mood} growthScale={growthScale} stage={stage} />
       {q.contactShadows && (
         <ContactShadows position={[0, 0.01, 0]} opacity={0.35} blur={2} far={3} resolution={256} />
       )}

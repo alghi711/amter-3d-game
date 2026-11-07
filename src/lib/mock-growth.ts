@@ -1,5 +1,14 @@
 export type GrowthStage = "anak" | "dewasa";
 
+export type StageAppearance = {
+  bodyScaleLabel: string;
+  earProportion: string;
+  collarLabel: string;
+  stripeLabel: string;
+  hasCollar: boolean;
+  hasAdultStripes: boolean;
+};
+
 export type GrowthStageDefinition = {
   stage: GrowthStage;
   title: string;
@@ -9,6 +18,7 @@ export type GrowthStageDefinition = {
   scale3d: number;
   description: string;
   perks: string[];
+  appearance: StageAppearance;
 };
 
 export const GROWTH_STAGES: Record<GrowthStage, GrowthStageDefinition> = {
@@ -21,6 +31,14 @@ export const GROWTH_STAGES: Record<GrowthStage, GrowthStageDefinition> = {
     scale3d: 0.88,
     description: "Tubuh masih mungil, langkah lincah, dan senang mengejar bola lonceng.",
     perks: ["Gerakan ekstra lincah", "Suara meong halus", "Cepat akrab saat dielus"],
+    appearance: {
+      bodyScaleLabel: "0.88x (Mungil & bulat)",
+      earProportion: "Telinga besar & mata bulat lebar",
+      collarLabel: "Belum memakai kalung lonceng",
+      stripeLabel: "Bulu halus polos hangat",
+      hasCollar: false,
+      hasAdultStripes: false,
+    },
   },
   dewasa: {
     stage: "dewasa",
@@ -31,6 +49,14 @@ export const GROWTH_STAGES: Record<GrowthStage, GrowthStageDefinition> = {
     scale3d: 1.12,
     description: "Tubuh tumbuh proporsional, bulu makin lebat, dan ikatan batin denganmu makin kuat.",
     perks: ["Postur tubuh lebih besar", "Ekor lebih panjang & anggun", "Stamina bermain lebih tahan lama"],
+    appearance: {
+      bodyScaleLabel: "1.12x (Tegap & proporsional)",
+      earProportion: "Telinga meruncing anggun & kumis panjang",
+      collarLabel: "Kalung merah dengan lonceng emas",
+      stripeLabel: "Corak belang dewasa & dada putih lebat",
+      hasCollar: true,
+      hasAdultStripes: true,
+    },
   },
 };
 
