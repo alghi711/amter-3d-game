@@ -2,7 +2,7 @@
 
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { AdaptiveDpr, ContactShadows, OrbitControls, PerformanceMonitor, PerspectiveCamera } from "@react-three/drei";
-import { QUALITY_PROFILES, detectQuality, stepQuality, type QualityLevel } from "@/lib/quality";
+import { QUALITY_PROFILES, detectQuality, stepQuality, type QualityLevel, type QualityProfile } from "@/lib/quality";
 import CatHouse, { HOUSE_SPOTS, type HouseSpot } from "./CatHouse";
 import { useEffect, useRef, useState } from "react";
 import { MathUtils, MOUSE, TOUCH, type Group, type Mesh, type Object3D } from "three";
@@ -40,11 +40,10 @@ function Heart({ onDone }: { onDone: () => void }) {
   );
 }
 
-const TAIL_SEGMENTS = 5;
 const SEG_LEN = 0.14;
 
 /** Ruas ekor rekursif: tiap ruas adalah anak dari ruas sebelumnya, makin ke ujung makin kecil. */
-function TailSegment({ index, color }: { index: number; color: string }) {
+function TailSegment({ index, color, count }: { index: number; color: string; count: number }) {
   const r = 0.075 - index * 0.008;
   return (
     <group position={[0, index === 0 ? 0 : SEG_LEN, 0]} userData={{ tailSegment: true }}>
@@ -52,7 +51,7 @@ function TailSegment({ index, color }: { index: number; color: string }) {
         <capsuleGeometry args={[r, SEG_LEN, 6, 12]} />
         <meshStandardMaterial color={color} />
       </mesh>
-      {index + 1 < TAIL_SEGMENTS && <TailSegment index={index + 1} color={color} />}
+      {index + 1 < count && <TailSegment index={index + 1} color={color} count={count} />}
     </group>
   );
 }
@@ -72,7 +71,9 @@ function Cat({
   onTouch,
   onPettingChange,
   onAnimState,
+  anim,
 }: {
+  anim: QualityProfile["anim"];
   color: string;
   spot: HouseSpot | null;
   onAnimState?: (s: CatAnimState) => void;
@@ -80,6 +81,9 @@ function Cat({
   onPettingChange?: (petting: boolean) => void;
 }) {
   const root = useRef<Group>(null);
+  const seg = anim.sphereSegments;
+  const eyeSeg = Math.max(8, seg / 2);
+  const frame = useRef(0);
   const animState = useRef<CatAnimState>("diam");
   const target: readonly [number, number] = spot ? [HOUSE_SPOTS[spot][0], HOUSE_SPOTS[spot][2]] : HOME_SPOT;
   // jejak gesekan: jarak geser (px) selama jari/mouse ditekan di atas kucing
@@ -93,7 +97,7 @@ function Cat({
   const [hearts, setHearts] = useState<number[]>([]);
   const react = (kind: CatTouch["kind"], part: CatPart, now: number) => {
     reaction.current = { kind, part, start: now, intensity: kind === "elus" ? 0.5 : 1, lean: 0 };
-    if (kind === "elus" && part !== "ekor") setHearts((h) => [...h.slice(-4), now]);
+    if (kind === "elus" && part !== "ekor") setHearts((h) => [...h.slice(-(anim.maxHearts - 1)), now]);
     onTouch?.({ kind, part });
   };
   const stroke = useRef<{ x: number; y: number; dist: number; part: CatPart; pet: boolean; nextHeart: number } | null>(
@@ -128,7 +132,7 @@ function Cat({
       if (st.dist > st.nextHeart && st.part !== "ekor") {
         st.nextHeart += 300;
         const now = r.start;
-        setHearts((h) => [...h.slice(-4), now]);
+        setHearts((h) => [...h.slice(-(anim.maxHearts - 1)), now]);
       }
     }
   };
@@ -183,13 +187,15 @@ function Cat({
     const k = r?.intensity ?? 0;
     const d = (cur: number, want: number, lambda = 8) => MathUtils.damp(cur, want, lambda, delta);
     const idle = idleRef.current;
+    // animasi sekunder dimatikan di kualitas rendah
+    const secondary = anim.secondary && frame.current++ % anim.secondaryEvery === 0;
 
     // idle: kedip berkala & sesekali menoleh melihat sekitar
-    if (t > idle.nextBlink) {
+    if (secondary && t > idle.nextBlink) {
       idle.blinkUntil = t + 0.12;
       idle.nextBlink = t + 2.5 + Math.random() * 3;
     }
-    if (t > idle.nextLook) {
+    if (secondary && t > idle.nextLook) {
       idle.lookYaw = next === "diam" ? (Math.random() - 0.5) * 0.9 : 0;
       idle.nextLook = t + 2 + Math.random() * 4;
     }
@@ -201,11 +207,12 @@ function Cat({
     idle.tailAmp = d(idle.tailAmp, tailAmp, 5);
     // ekor bersegmen: tiap ruas ikut bergoyang dengan jeda fase → gerak melambai seperti gelombang
     if (tail.current) {
-      let seg: Object3D | undefined = tail.current;
-      for (let i = 0; seg; i++) {
-        seg.rotation.z = Math.sin(idle.tailPhase - i * 0.7) * idle.tailAmp * (0.55 + i * 0.15);
-        if (i > 0) seg.rotation.x = -0.12 - (next === "tidur" ? 0 : Math.sin(idle.tailPhase * 0.5 - i) * 0.05);
-        seg = seg.children.find((c) => c.userData.tailSegment);
+      // kualitas rendah: hanya pangkal ekor yang bergoyang (ruas lain diam) → lebih sedikit update matriks
+      let node: Object3D | undefined = tail.current;
+      for (let i = 0; node; i++) {
+        node.rotation.z = Math.sin(idle.tailPhase - i * 0.7) * idle.tailAmp * (0.55 + i * 0.15);
+        if (i > 0) node.rotation.x = -0.12 - (next === "tidur" ? 0 : Math.sin(idle.tailPhase * 0.5 - i) * 0.05);
+        node = secondary ? node.children.find((c) => c.userData.tailSegment) : undefined;
       }
     }
 
@@ -216,7 +223,7 @@ function Cat({
       body.current.scale.y = d(body.current.scale.y, sleeping ? 0.8 : 1, 6);
       // napas: dada mengembang-mengempis (x/z) terpisah dari postur
       if (chest.current) chest.current.scale.set(1 + breath, 1 + breath * 0.5, 1 + breath);
-      const lean = petting ? -(r?.lean ?? 0) * 0.15 : 0;
+      const lean = petting && anim.secondary ? -(r?.lean ?? 0) * 0.15 : 0;
       body.current.rotation.z = d(body.current.rotation.z, lean, 6);
       const hop = touched && age < 0.4 ? Math.sin((age / 0.4) * Math.PI) * 0.15 : 0;
       const bob = next === "main" ? Math.abs(Math.sin(t * 7)) * 0.06 : 0;
@@ -260,14 +267,14 @@ function Cat({
     >
       <group ref={body}>
         <mesh ref={chest} name="badan" position={[0, 0.45, 0]} castShadow>
-          <sphereGeometry args={[0.5, 32, 32]} />
+          <sphereGeometry args={[0.5, seg, seg]} />
           <meshStandardMaterial color={color} />
         </mesh>
         <group ref={head} position={[0, 0.8, 0.1]}>
         <group position={[0, -0.8, -0.1]}>
         {/* kepala */}
         <mesh position={[0, 1.05, 0.15]} castShadow>
-          <sphereGeometry args={[0.38, 32, 32]} />
+          <sphereGeometry args={[0.38, seg, seg]} />
           <meshStandardMaterial color={color} />
         </mesh>
         {/* telinga */}
@@ -281,7 +288,7 @@ function Cat({
         <group ref={eyes} position={[0, 1.1, 0]}>
           {[-0.13, 0.13].map((x) => (
             <mesh key={x} position={[x, 0, 0.49]}>
-              <sphereGeometry args={[0.05, 16, 16]} />
+              <sphereGeometry args={[0.05, eyeSeg, eyeSeg]} />
               <meshStandardMaterial color="#222" />
             </mesh>
           ))}
@@ -298,7 +305,7 @@ function Cat({
         <Heart key={h} onDone={() => setHearts((all) => all.filter((x) => x !== h))} />
       ))}
       <group ref={tail} position={[0, 0.35, -0.45]} rotation={[-0.5, 0, 0]}>
-        <TailSegment index={0} color={color} />
+        <TailSegment index={0} color={color} count={anim.tailSegments} />
       </group>
     </group>
   );
@@ -428,7 +435,7 @@ export default function CatRoomScene({
       <ambientLight intensity={0.6} />
       <directionalLight position={[4, 6, 3]} intensity={1.2} castShadow={q.shadows} shadow-mapSize={[q.shadowMapSize, q.shadowMapSize]} />
       <CatHouse onUse={onUseObject} />
-      <Cat color={furColor} spot={catSpot} onAnimState={onAnimState} onTouch={onCatTouch} onPettingChange={setPetting} />
+      <Cat color={furColor} spot={catSpot} onAnimState={onAnimState} onTouch={onCatTouch} onPettingChange={setPetting} anim={q.anim} />
       {q.contactShadows && (
         <ContactShadows position={[0, 0.01, 0]} opacity={0.35} blur={2} far={3} resolution={256} />
       )}

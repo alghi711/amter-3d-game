@@ -7,12 +7,43 @@ export type QualityProfile = {
   shadowMapSize: number;
   contactShadows: boolean;
   antialias: boolean;
+  /** detail animasi & geometri kucing */
+  anim: {
+    sphereSegments: number;
+    tailSegments: number;
+    maxHearts: number;
+    /** animasi sekunder (kedip, menoleh, condong, gelombang ekor) */
+    secondary: boolean;
+    /** perbarui animasi sekunder tiap N frame */
+    secondaryEvery: number;
+  };
 };
 
 export const QUALITY_PROFILES: Record<QualityLevel, QualityProfile> = {
-  rendah: { dpr: [0.75, 1], shadows: false, shadowMapSize: 256, contactShadows: false, antialias: false },
-  sedang: { dpr: [1, 1.5], shadows: false, shadowMapSize: 512, contactShadows: true, antialias: true },
-  tinggi: { dpr: [1, 2], shadows: true, shadowMapSize: 1024, contactShadows: true, antialias: true },
+  rendah: {
+    dpr: [0.75, 1],
+    shadows: false,
+    shadowMapSize: 256,
+    contactShadows: false,
+    antialias: false,
+    anim: { sphereSegments: 14, tailSegments: 3, maxHearts: 2, secondary: false, secondaryEvery: 3 },
+  },
+  sedang: {
+    dpr: [1, 1.5],
+    shadows: false,
+    shadowMapSize: 512,
+    contactShadows: true,
+    antialias: true,
+    anim: { sphereSegments: 24, tailSegments: 4, maxHearts: 4, secondary: true, secondaryEvery: 1 },
+  },
+  tinggi: {
+    dpr: [1, 2],
+    shadows: true,
+    shadowMapSize: 1024,
+    contactShadows: true,
+    antialias: true,
+    anim: { sphereSegments: 32, tailSegments: 5, maxHearts: 5, secondary: true, secondaryEvery: 1 },
+  },
 };
 
 /** Tebak kualitas awal dari jumlah core, memori, dan apakah perangkat sentuh/kecil. */
