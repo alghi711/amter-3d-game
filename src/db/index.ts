@@ -2,6 +2,7 @@ import { createClient, type Client } from "@libsql/client";
 import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { MOCK_PERSONALITY_TRAITS, MOCK_ROUTINES } from "@/lib/mock-mood";
 import * as schema from "./schema";
 
 const DEFAULT_DB_FILE = ".data/mochi.db";
@@ -34,7 +35,7 @@ export function getDb(): LibSQLDatabase<typeof schema> {
   return cachedDb;
 }
 
-/** Jalankan migrasi skema kondisi perawatan secara idempoten + seed kucing awal bila kosong. */
+/** Jalankan migrasi skema kondisi perawatan, suasana hati, rutinitas, dan kepribadian secara idempoten. */
 export async function ensureCareSchema(): Promise<LibSQLDatabase<typeof schema>> {
   const client = getClient();
   const db = getDb();
@@ -78,11 +79,39 @@ export async function ensureCareSchema(): Promise<LibSQLDatabase<typeof schema>>
           created_at INTEGER NOT NULL
         )`,
         `CREATE INDEX IF NOT EXISTS idx_interactions_cat_created ON interactions(cat_id, created_at DESC)`,
+        `CREATE TABLE IF NOT EXISTS cat_moods (
+          cat_id TEXT PRIMARY KEY REFERENCES cats(id) ON DELETE CASCADE,
+          mood TEXT NOT NULL DEFAULT 'senang',
+          reason TEXT NOT NULL DEFAULT 'Semua kebutuhan harian terpenuhi dengan baik',
+          updated_at INTEGER NOT NULL
+        )`,
+        `CREATE TABLE IF NOT EXISTS cat_personality (
+          cat_id TEXT PRIMARY KEY REFERENCES cats(id) ON DELETE CASCADE,
+          traits_json TEXT NOT NULL DEFAULT '[]',
+          formed_by TEXT NOT NULL DEFAULT 'Perawatan harian yang penuh kasih',
+          updated_at INTEGER NOT NULL
+        )`,
+        `CREATE TABLE IF NOT EXISTS routines (
+          id TEXT PRIMARY KEY,
+          cat_id TEXT NOT NULL REFERENCES cats(id) ON DELETE CASCADE,
+          activity TEXT NOT NULL,
+          start_hour INTEGER NOT NULL,
+          end_hour INTEGER NOT NULL,
+          is_active INTEGER NOT NULL DEFAULT 1,
+          last_triggered_at INTEGER
+        )`,
+        `CREATE INDEX IF NOT EXISTS idx_routines_cat ON routines(cat_id, start_hour)`,
       ],
       "write",
     );
 
     const now = Date.now();
+    const routineSeeds = MOCK_ROUTINES.map((r) => ({
+      sql: `INSERT OR IGNORE INTO routines (id, cat_id, activity, start_hour, end_hour, is_active, last_triggered_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      args: [r.id, "cat-mochi", r.activity === "main" ? "bermain" : r.activity, r.startHour, r.endHour, 1, null],
+    }));
+
     await client.batch(
       [
         {
@@ -99,6 +128,22 @@ export async function ensureCareSchema(): Promise<LibSQLDatabase<typeof schema>>
                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
           args: ["cat-mochi", 70, 55, 80, 85, 60, now],
         },
+        {
+          sql: `INSERT OR IGNORE INTO cat_moods (cat_id, mood, reason, updated_at)
+                VALUES (?, ?, ?, ?)`,
+          args: ["cat-mochi", "senang", "Semua kebutuhan harian terpenuhi dengan baik", now],
+        },
+        {
+          sql: `INSERT OR IGNORE INTO cat_personality (cat_id, traits_json, formed_by, updated_at)
+                VALUES (?, ?, ?, ?)`,
+          args: [
+            "cat-mochi",
+            JSON.stringify(MOCK_PERSONALITY_TRAITS),
+            "Sering dielus dan diberi makan teratur",
+            now,
+          ],
+        },
+        ...routineSeeds,
       ],
       "write",
     );

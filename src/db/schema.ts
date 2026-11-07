@@ -48,3 +48,36 @@ export const interactions = sqliteTable("interactions", {
   value: real("value").notNull().default(0),
   createdAt: integer("created_at").notNull(),
 });
+
+/** Tabel suasana hati kucing (senang, lapar, bosan, ngantuk) beserta penyebabnya. */
+export const catMoods = sqliteTable("cat_moods", {
+  catId: text("cat_id")
+    .primaryKey()
+    .references(() => cats.id, { onDelete: "cascade" }),
+  mood: text("mood").notNull().default("senang"), // senang | lapar | bosan | ngantuk
+  reason: text("reason").notNull().default("Semua kebutuhan harian terpenuhi dengan baik"),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+/** Tabel kepribadian kucing (daftar sifat khas dalam JSON & penyebab terbentuknya). */
+export const catPersonality = sqliteTable("cat_personality", {
+  catId: text("cat_id")
+    .primaryKey()
+    .references(() => cats.id, { onDelete: "cascade" }),
+  traitsJson: text("traits_json").notNull().default("[]"),
+  formedBy: text("formed_by").notNull().default("Perawatan harian yang penuh kasih"),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+/** Tabel jadwal rutinitas harian kucing (tidur, makan, bermain). */
+export const routines = sqliteTable("routines", {
+  id: text("id").primaryKey(),
+  catId: text("cat_id")
+    .notNull()
+    .references(() => cats.id, { onDelete: "cascade" }),
+  activity: text("activity").notNull(), // tidur | makan | bermain
+  startHour: integer("start_hour").notNull(),
+  endHour: integer("end_hour").notNull(),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  lastTriggeredAt: integer("last_triggered_at"),
+});
