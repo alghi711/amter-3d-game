@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { mockCat } from "@/lib/mock-cat";
+import { pickReaction } from "@/lib/cat-reactions";
 import type { CatTouch } from "@/components/room/CatRoomScene";
 import { HOUSE_SPOTS, SPOT_LABELS, type HouseSpot } from "@/components/room/CatHouse";
 
@@ -27,9 +28,7 @@ export default function Home() {
     return () => clearTimeout(id);
   }, [toast]);
 
-  const touchCat = ({ kind, part }: CatTouch) => {
-    setToast(kind === "elus" ? `${cat.name} mendengkur… suka dielus di ${part} 💕` : `${cat.name} menoleh — kamu menyentuh ${part}nya`);
-  };
+  const touchCat = (t: CatTouch) => setToast(pickReaction(t, cat.name));
 
   const useObject = (s: HouseSpot) => {
     setSpot(s);
