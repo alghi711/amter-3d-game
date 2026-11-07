@@ -7,7 +7,7 @@ import { useInputKind } from "@/lib/use-input-kind";
 import { pickReaction } from "@/lib/cat-reactions";
 import type { CatTouch } from "@/components/room/CatRoomScene";
 import { ANIM_LABELS, type CatAnimState } from "@/lib/cat-animation";
-import { SPOT_LABELS, type HouseSpot } from "@/components/room/CatHouse";
+import { type HouseSpot } from "@/components/room/CatHouse";
 import CarePanel from "@/components/care/CarePanel";
 import CareStatusPanel from "@/components/care/CareStatusPanel";
 import AutosaveBackupSheet, { AutosaveStatusPill } from "@/components/save/AutosaveBackupSheet";
@@ -22,11 +22,13 @@ import MoodRoutineSheet from "@/components/mood/MoodRoutineSheet";
 import { computeGrowthProgress, type GrowthStage, type MockAchievement } from "@/lib/mock-growth";
 import { buildGentleReminders, deriveCatMood, evaluateMoodShift, getActiveRoutine, type CatMood, type MoodTransition } from "@/lib/mock-mood";
 import { CARE_ACTIONS, getRefusalReason, MEAL_ITEMS, TOY_ITEMS, useCare, type CareAction, type MealItem, type ToyItem } from "@/lib/use-care";
+import { playCatSound, playSoundForCareAction, setSoundEnabled, type SoundEffectType } from "@/lib/cat-audio";
+import { LIGHTING_PRESETS, type LightingMode } from "@/lib/procedural-textures";
 
 const CatRoomScene = dynamic(() => import("@/components/room/CatRoomScene"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full items-center justify-center text-amber-700">Menyiapkan rumah Mochi…</div>
+    <div className="flex h-full items-center justify-center text-amber-700 font-semibold">Menyiapkan rumah 3D Mochi…</div>
   ),
 });
 
@@ -37,12 +39,6 @@ export default function Home() {
   const [cameraReset, setCameraReset] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [anim, setAnim] = useState<CatAnimState>("diam");
-
-  useEffect(() => {
-    if (!toast) return;
-    const id = setTimeout(() => setToast(null), 2200);
-    return () => clearTimeout(id);
-  }, [toast]);
 
   const { stats, lastDeltas, history, perform, replaceStats } = useCare();
   const [showStatus, setShowStatus] = useState(false);
@@ -58,6 +54,41 @@ export default function Home() {
   const growth = computeGrowthProgress(experience, stageOverride);
   const [unlockedToastBadge, setUnlockedToastBadge] = useState<MockAchievement | null>(null);
   const seenBadgesRef = useRef<Set<string> | null>(null);
+
+  // Suasana Cahaya 3D, Suara Web Audio Synthesizer, Balon Suara 3D, & Tooltip
+  const [lightingMode, setLightingMode] = useState<LightingMode>("day");
+  const [soundActive, setSoundActive] = useState(true);
+  const [voiceBubble, setVoiceBubble] = useState<{ text: string; icon: string } | null>(null);
+  const [vocalizing, setVocalizing] = useState(false);
+  const [floatingReaction, setFloatingReaction] = useState<{ id: number; text: string } | null>(null);
+  const [hoverTooltip, setHoverTooltip] = useState<{ label: string; x: number; y: number } | null>(null);
+  const voiceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const triggerVoiceBubble = useCallback((text: string, icon = "🔊", durationMs = 2400) => {
+    if (voiceTimerRef.current) clearTimeout(voiceTimerRef.current);
+    setVoiceBubble({ text, icon });
+    setVocalizing(true);
+    voiceTimerRef.current = setTimeout(() => {
+      setVoiceBubble(null);
+      setVocalizing(false);
+    }, durationMs);
+  }, []);
+
+  const spawnFloatingReaction = useCallback((text: string) => {
+    setFloatingReaction({ id: Date.now(), text });
+  }, []);
+
+  useEffect(() => {
+    if (!floatingReaction) return;
+    const id = setTimeout(() => setFloatingReaction(null), 900);
+    return () => clearTimeout(id);
+  }, [floatingReaction]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const id = setTimeout(() => setToast(null), 2200);
+    return () => clearTimeout(id);
+  }, [toast]);
 
   const handleHydrateSave = useCallback(
     (saved: GameSaveSnapshot) => {
@@ -95,6 +126,7 @@ export default function Home() {
     const newlyUnlocked = unlockedNow.find((b) => !seenBadgesRef.current?.has(b.id));
     if (newlyUnlocked) {
       seenBadgesRef.current.add(newlyUnlocked.id);
+      playCatSound("chime", growth.stage === "anak");
       const timer = setTimeout(() => setUnlockedToastBadge(newlyUnlocked), 50);
       const hideTimer = setTimeout(() => setUnlockedToastBadge(null), 5000);
       return () => {
@@ -102,7 +134,8 @@ export default function Home() {
         clearTimeout(hideTimer);
       };
     }
-  }, [experience, closeness, stats, history]);
+  }, [experience, closeness, stats, history, growth.stage]);
+
   const [foodFill, setFoodFill] = useState(MEAL_ITEMS.makan[0].fillColor);
   const [waterFill, setWaterFill] = useState(MEAL_ITEMS.minum[0].fillColor);
   const [bathing, setBathing] = useState(false);
@@ -126,6 +159,8 @@ export default function Home() {
     }, 4500);
     return () => clearTimeout(id);
   }, [spot, anim]);
+
+  const isKitten = growth.stage === "anak";
 
   const recordMoodFromEffect = (effect: Partial<typeof stats>, trigger: string, fallbackToast: string) => {
     const nextStats = { ...stats };
@@ -162,19 +197,37 @@ export default function Home() {
   const doCare = (a: CareAction) => {
     const refusal = getRefusalReason(a, stats, cat.name, litterDirty || stats.hygiene < 65);
     if (refusal) {
+      playCatSound("meow", isKitten);
+      triggerVoiceBubble("Miuw~ Nanti dulu ya! 🐾", "🐱", 2200);
       setToast(refusal);
       return;
     }
     const def = CARE_ACTIONS[a];
     perform(a);
+    playSoundForCareAction(a, isKitten);
+
     if (a === "mandi") {
       setSpot(null);
       setBathing(true);
+      triggerVoiceBubble("Byuur~ Meong wangi! 🫧", "🔊", 2600);
+      spawnFloatingReaction("🫧 Bersih & Wangi! +Bersih · +8 XP");
     } else if (a === "bersihkan") {
       setLitterDirty(false);
       setSpot("litterBox");
-    } else if (def.spot) {
-      setSpot(def.spot);
+      triggerVoiceBubble("Srek srek~ Bersih! ✨", "🔊", 2400);
+      spawnFloatingReaction("🧹 Kamar Kinclong! +Bersih · +8 XP");
+    } else if (a === "makan") {
+      if (def.spot) setSpot(def.spot);
+      triggerVoiceBubble("Nyam nyam~ Meong! 🍗", "🔊", 2600);
+      spawnFloatingReaction("🍗 Nyam nyam! +Kenyang · +8 XP");
+    } else if (a === "minum") {
+      if (def.spot) setSpot(def.spot);
+      triggerVoiceBubble("Slurp slurp~ Segar! 💧", "🔊", 2500);
+      spawnFloatingReaction("💧 Segar sekali! +Minum · +8 XP");
+    } else if (a === "main") {
+      if (def.spot) setSpot(def.spot);
+      triggerVoiceBubble("Prrr-mew! Seru~ 🧶", "🎶", 2600);
+      spawnFloatingReaction("🧶 Seru banget! +Ceria · +8 XP");
     }
     recordMoodFromEffect(def.effect, def.label, `${cat.name} ${def.message}`);
   };
@@ -182,16 +235,22 @@ export default function Home() {
   const serveMeal = (item: MealItem) => {
     const refusal = getRefusalReason(item.action, stats, cat.name, litterDirty || stats.hygiene < 65);
     if (refusal) {
+      playCatSound("meow", isKitten);
       setToast(refusal);
       return;
     }
     perform({ effect: item.effect, label: item.label, icon: item.icon, action: item.action, itemType: item.id });
+    playSoundForCareAction(item.action, isKitten);
     if (item.action === "makan") {
       setFoodFill(item.fillColor);
       setSpot("foodBowl");
+      triggerVoiceBubble(`Nyam nyam~ ${item.label}! 🍗`, "🔊", 2600);
+      spawnFloatingReaction(`${item.icon} ${item.label}! +Kenyang · +8 XP`);
     } else {
       setWaterFill(item.fillColor);
       setSpot("waterBowl");
+      triggerVoiceBubble(`Slurp slurp~ ${item.label}! 💧`, "🔊", 2500);
+      spawnFloatingReaction(`${item.icon} ${item.label}! +Minum · +8 XP`);
     }
     recordMoodFromEffect(item.effect, item.label, `${cat.name} ${item.message}`);
   };
@@ -200,29 +259,69 @@ export default function Home() {
     const refusal = getRefusalReason("main", stats, cat.name, litterDirty || stats.hygiene < 65);
     if (refusal) {
       if (stats.energy < 15) setSpot("bed");
+      playCatSound("meow", isKitten);
       setToast(refusal);
       return;
     }
     perform({ effect: toy.effect, label: toy.label, icon: toy.icon, action: "main", itemType: toy.id });
+    playCatSound("chirp", isKitten);
     setToyColor(toy.color);
     setSpot(toy.spot);
+    triggerVoiceBubble(`Prrr-mew! Main ${toy.label}~ 🎶`, "🎶", 2600);
+    spawnFloatingReaction(`${toy.icon} +Ceria · +8 XP`);
     recordMoodFromEffect(toy.effect, toy.label, `${cat.name} ${toy.message}`);
   };
 
   const touchCat = (t: CatTouch) => {
     const reactionText = pickReaction(t, cat.name, closeness);
     if (t.part === "ekor") {
+      playCatSound("meow", isKitten);
+      triggerVoiceBubble("Meong?! Jangan tarik ekorku~ 😾", "😾", 2200);
       const eff = { happiness: -6 };
       perform({ effect: eff, label: "Sentuh ekor", icon: "😾" });
       recordMoodFromEffect(eff, "Sentuh ekor", reactionText);
     } else if (t.kind === "elus") {
+      playCatSound("purr_meow", isKitten);
+      triggerVoiceBubble("Prrrrr~ Meong sayang! 💕", "🔊", 2400);
+      spawnFloatingReaction("💞 Purrr~ +8 Ceria · +8 XP");
       const eff = { happiness: 8 };
       perform({ effect: eff, label: `Elus ${t.part}`, icon: "💕", action: "main", itemType: "elus" });
       recordMoodFromEffect(eff, `Elus ${t.part}`, reactionText);
     } else {
-      const eff = { happiness: 3 };
-      perform({ effect: eff, label: `Sentuh ${t.part}`, icon: "🐾" });
+      playCatSound("purr_meow", isKitten);
+      triggerVoiceBubble("Prrrrr~ Meong! 💕", "🔊", 2200);
+      spawnFloatingReaction("💞 Purrr~ +5 Ceria · +8 XP");
+      const eff = { happiness: 5 };
+      perform({ effect: eff, label: `Sentuh ${t.part}`, icon: "🐾", action: "main", itemType: "elus" });
       recordMoodFromEffect(eff, `Sentuh ${t.part}`, reactionText);
+    }
+  };
+
+  const callMochiVoice = () => {
+    const phrases: { sound: SoundEffectType; bubble: string; icon: string }[] = [
+      { sound: "meow", bubble: "Meong~ Halo! ♪", icon: "🐱" },
+      { sound: "chirp", bubble: "Prrr-mew! Ayo main~", icon: "🎶" },
+      { sound: "purr_meow", bubble: "Prrrrr~ Sayang kamu! 💕", icon: "💞" },
+    ];
+    const pick = phrases[Math.floor(Math.random() * phrases.length)];
+    playCatSound(pick.sound, isKitten);
+    triggerVoiceBubble(pick.bubble, pick.icon, 2500);
+    spawnFloatingReaction("🐾 Mochi menoleh & mendengkur~");
+    setSpot(null);
+  };
+
+  const cycleLightingMode = () => {
+    playCatSound("pop", isKitten);
+    setLightingMode((prev) => (prev === "day" ? "sunset" : prev === "sunset" ? "night" : "day"));
+  };
+
+  const toggleSound = () => {
+    const next = !soundActive;
+    setSoundActive(next);
+    setSoundEnabled(next);
+    if (next) {
+      playCatSound("meow", isKitten);
+      triggerVoiceBubble("Meong~ Suara aktif! ♪", "🔊", 2000);
     }
   };
 
@@ -235,7 +334,7 @@ export default function Home() {
       serveMeal(MEAL_ITEMS.minum[0]);
       return;
     }
-    if (s === "litterBox" && litterDirty) {
+    if (s === "litterBox") {
       doCare("bersihkan");
       return;
     }
@@ -248,35 +347,103 @@ export default function Home() {
       return;
     }
     if (s === "bed") {
+      playCatSound("sleep", isKitten);
+      triggerVoiceBubble("Huaah~ Prrrr... Zzz 💤", "🌙", 3200);
+      spawnFloatingReaction("💤 Energi Pulih! +30 Energi");
       const eff = { energy: 30, happiness: 5 };
       perform({ effect: eff, label: "Tidur siang", icon: "😴" });
       setSpot("bed");
       recordMoodFromEffect(eff, "Tidur di kasur", `${cat.name} meringkuk tidur di kasur 😴`);
       return;
     }
-    setSpot(s);
-    setToast(`${cat.name} menuju ${SPOT_LABELS[s].toLowerCase()}`);
   };
+
+  const handleHoverSpot = useCallback((label: string | null, clientX?: number, clientY?: number) => {
+    if (!label || clientX === undefined || clientY === undefined) {
+      setHoverTooltip(null);
+      return;
+    }
+    setHoverTooltip({ label, x: clientX, y: clientY });
+  }, []);
+
+  const currentLighting = LIGHTING_PRESETS[lightingMode];
+
   return (
-    <main className="relative h-dvh w-full overflow-hidden bg-[#fff6ef] text-stone-800">
+    <main className="relative h-dvh w-full overflow-hidden bg-[#eadaca] text-stone-800 select-none">
       <div className="absolute inset-0">
-        <CatRoomScene furColor={cat.furColor} catSpot={spot} onAnimState={setAnim} onUseObject={useObject} onCatTouch={touchCat} cameraReset={cameraReset} foodBowlState={{ level: stats.hunger / 100, fill: foodFill }} waterBowlState={{ level: stats.thirst / 100, fill: waterFill }} bathing={bathing} litterDirty={litterDirty || stats.hygiene < 65} toyColor={toyColor} playingToy={anim === "main"} mood={deriveCatMood(stats, simulatedHour, moodOverride).mood} growthScale={growth.stageDef.scale3d} stage={growth.stage} />
+        <CatRoomScene
+          furColor={cat.furColor}
+          catSpot={spot}
+          onAnimState={setAnim}
+          onUseObject={useObject}
+          onCatTouch={touchCat}
+          onHoverSpot={handleHoverSpot}
+          cameraReset={cameraReset}
+          foodBowlState={{ level: stats.hunger / 100, fill: foodFill }}
+          waterBowlState={{ level: stats.thirst / 100, fill: waterFill }}
+          bathing={bathing}
+          litterDirty={litterDirty || stats.hygiene < 65}
+          toyColor={toyColor}
+          playingToy={anim === "main"}
+          mood={deriveCatMood(stats, simulatedHour, moodOverride).mood}
+          growthScale={growth.stageDef.scale3d}
+          stage={growth.stage}
+          lightingMode={lightingMode}
+          vocalizing={vocalizing}
+        />
       </div>
 
-      {/* Header info kucing */}
-      <header className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6">
-        <div className="pointer-events-auto rounded-2xl bg-white/85 px-4 py-3 shadow-md backdrop-blur">
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold">
-              {cat.name} {deriveCatMood(stats, simulatedHour, moodOverride).emoji}
-            </h1>
+      {/* Tooltip Objek 3D saat Disorot Kursor */}
+      {hoverTooltip && (
+        <div
+          className="pointer-events-none fixed z-30 -translate-x-1/2 -translate-y-full rounded-full bg-stone-900/80 px-3 py-1.5 text-xs font-semibold text-white shadow-lg backdrop-blur-md transition-opacity duration-150"
+          style={{ left: hoverTooltip.x, top: hoverTooltip.y - 12 }}
+        >
+          {hoverTooltip.label}
+        </div>
+      )}
+
+      {/* Balon Suara 3D Melayang di Atas Kepala Mochi */}
+      <div
+        id="cat-voice-bubble"
+        className={`pointer-events-none fixed z-30 -translate-x-1/2 -translate-y-full transition-opacity duration-200 ${
+          voiceBubble ? "opacity-100" : "opacity-0"
+        }`}
+        style={{ left: "50%", top: "38%" }}
+      >
+        <div className="flex items-center gap-1.5 whitespace-nowrap rounded-2xl border-2 border-amber-300 bg-white/95 px-3.5 py-1.5 text-xs font-extrabold text-stone-800 shadow-lg backdrop-blur-md">
+          <span className="animate-bounce text-sm">{voiceBubble?.icon ?? "🔊"}</span>
+          <span>{voiceBubble?.text ?? "Meong~ ♪"}</span>
+        </div>
+        <div className="mx-auto -mt-1.5 h-3 w-3 rotate-45 border-b-2 border-r-2 border-amber-300 bg-white" />
+      </div>
+
+      {/* Teks Reaksi Melayang (Floating 2D Feedback) */}
+      {floatingReaction && (
+        <div
+          key={floatingReaction.id}
+          className="pointer-events-none fixed left-1/2 top-[42%] z-30 -translate-x-1/2 -translate-y-6 animate-bounce rounded-full border border-amber-200 bg-white/95 px-3.5 py-1 text-xs font-extrabold text-amber-700 shadow-md sm:text-sm"
+        >
+          {floatingReaction.text}
+        </div>
+      )}
+
+      {/* Header Info Kucing & Tombol Kontrol Kanan Atas */}
+      <header className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-5">
+        <div className="pointer-events-auto w-[305px] rounded-2xl border border-white/85 bg-[#fffdf9]/90 px-4 py-3 shadow-lg backdrop-blur-md sm:w-[345px]">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-lg font-extrabold tracking-tight text-stone-800">{cat.name}</h1>
+              <span className="text-lg">{deriveCatMood(stats, simulatedHour, moodOverride).emoji}</span>
+            </div>
             <button
               type="button"
               onClick={() => {
+                playCatSound("pop", isKitten);
                 setShowStatus(false);
                 setShowMoodSheet((v) => !v);
               }}
-              className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition ${deriveCatMood(stats, simulatedHour, moodOverride).badgeColor}`}
+              className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold transition ${deriveCatMood(stats, simulatedHour, moodOverride).badgeColor}`}
             >
               {deriveCatMood(stats, simulatedHour, moodOverride).label} ›
             </button>
@@ -286,19 +453,22 @@ export default function Home() {
             closeness={closeness}
             stageOverride={stageOverride}
             onClick={() => {
+              playCatSound("pop", isKitten);
               setShowStatus(false);
               setShowMoodSheet(false);
               setShowGrowthSheet((v) => !v);
             }}
           />
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
-            <span className="font-medium text-amber-700" aria-live="polite">
-              ● {ANIM_LABELS[anim]}
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs font-semibold">
+            <span className="flex items-center gap-1.5 text-amber-700" aria-live="polite">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
+              {ANIM_LABELS[anim]}
             </span>
-            <span className="text-stone-400">·</span>
+            <span className="text-stone-300">|</span>
             <button
               type="button"
               onClick={() => {
+                playCatSound("pop", isKitten);
                 setShowStatus(false);
                 setShowMoodSheet(true);
               }}
@@ -308,12 +478,14 @@ export default function Home() {
             </button>
           </div>
         </div>
-        <div className="pointer-events-auto flex flex-col items-end gap-2">
+
+        <div className="pointer-events-auto flex flex-col items-end gap-1.5">
           <AutosaveStatusPill
             status={autosaveStatus}
             lastSavedLabel={lastSavedLabel}
             justSaved={justSaved}
             onClick={() => {
+              playCatSound("pop", isKitten);
               setShowStatus(false);
               setShowMoodSheet(false);
               setShowGrowthSheet(false);
@@ -322,8 +494,11 @@ export default function Home() {
           />
           <button
             type="button"
-            onClick={() => setCameraReset((n) => n + 1)}
-            className="rounded-full bg-white/80 px-3 py-1.5 text-xs font-medium text-stone-700 shadow backdrop-blur transition hover:bg-white active:scale-95"
+            onClick={() => {
+              playCatSound("pop", isKitten);
+              setCameraReset((n) => n + 1);
+            }}
+            className="rounded-full border border-white/90 bg-white/90 px-3.5 py-1.5 text-xs font-bold text-stone-700 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
             aria-label="Kembalikan kamera"
           >
             🎥 Reset kamera
@@ -331,29 +506,82 @@ export default function Home() {
           <button
             type="button"
             onClick={() => {
+              playCatSound("pop", isKitten);
               setShowStatus(false);
               setShowGrowthSheet(false);
+              setShowSaveSheet(false);
               setShowMoodSheet((v) => !v);
             }}
-            className="rounded-full bg-white/80 px-3 py-1.5 text-xs font-medium text-amber-800 shadow backdrop-blur transition hover:bg-white active:scale-95"
+            className="rounded-full border border-white/90 bg-white/90 px-3.5 py-1.5 text-xs font-bold text-amber-800 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
           >
-            😺 Mood & Rutinitas
+            🦊 Mood & Rutinitas
           </button>
           <button
             type="button"
             onClick={() => {
+              playCatSound("pop", isKitten);
               setShowStatus(false);
               setShowMoodSheet(false);
+              setShowSaveSheet(false);
               setShowGrowthSheet((v) => !v);
             }}
-            className="rounded-full bg-white/80 px-3 py-1.5 text-xs font-medium text-emerald-800 shadow backdrop-blur transition hover:bg-white active:scale-95"
+            className="rounded-full border border-emerald-200 bg-white/90 px-3.5 py-1.5 text-xs font-bold text-emerald-800 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
           >
             🌱 Tumbuh Besar
           </button>
+          <button
+            type="button"
+            onClick={callMochiVoice}
+            className="rounded-full border border-rose-200 bg-white/90 px-3.5 py-1.5 text-xs font-bold text-rose-700 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
+          >
+            🐾 Panggil Mochi
+          </button>
+          <div className="mt-0.5 flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={cycleLightingMode}
+              className="rounded-full border border-white/90 bg-white/90 px-3 py-1.5 text-xs font-bold text-amber-800 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
+              title="Ganti Suasana Cahaya"
+            >
+              {currentLighting.icon} {currentLighting.label}
+            </button>
+            <button
+              type="button"
+              onClick={toggleSound}
+              className="rounded-full border border-white/90 bg-white/90 px-3 py-1.5 text-xs font-bold text-stone-700 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
+              title="Suara Kucing & Efek"
+            >
+              {soundActive ? "🔊 Suara: Aktif" : "🔇 Suara: Mati"}
+            </button>
+          </div>
         </div>
       </header>
 
-      <div className="pointer-events-none absolute inset-x-0 top-24 flex flex-col items-center gap-2 px-4">
+      {/* Tombol Kompas Kamera & Elus Cepat di Kiri Bawah */}
+      <div className="pointer-events-auto fixed bottom-4 left-4 z-20 hidden items-center gap-2 sm:flex">
+        <button
+          type="button"
+          onClick={() => {
+            playCatSound("pop", isKitten);
+            setCameraReset((n) => n + 1);
+          }}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-stone-900/90 text-sm font-extrabold text-white shadow-lg transition hover:scale-105 hover:bg-stone-800"
+          title="Kompas Kamera (Utara)"
+        >
+          N
+        </button>
+        <button
+          type="button"
+          onClick={() => touchCat({ kind: "elus", part: "kepala" })}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-amber-500/90 text-sm font-extrabold text-white shadow-lg transition hover:scale-105 hover:bg-amber-500"
+          title="Elus Mochi Sekarang!"
+        >
+          🐾
+        </button>
+      </div>
+
+      {/* Notifikasi Lencana & Pengingat Lembut di Tengah Atas */}
+      <div className="pointer-events-none absolute inset-x-0 top-24 flex flex-col items-center gap-2 px-4 sm:top-5">
         {unlockedToastBadge && (
           <BadgeUnlockToast
             badge={unlockedToastBadge}
@@ -367,7 +595,7 @@ export default function Home() {
           />
         )}
         {toast ? (
-          <span className="rounded-full bg-amber-500/90 px-4 py-2 text-sm font-medium text-white shadow-lg">{toast}</span>
+          <span className="rounded-full bg-amber-500/95 px-4 py-2 text-sm font-bold text-white shadow-lg">{toast}</span>
         ) : (
           !showMoodSheet &&
           !showGrowthSheet &&
@@ -381,93 +609,106 @@ export default function Home() {
         )}
       </div>
 
-      <footer className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-2 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <p className="text-center text-[11px] text-stone-500">
+      <footer className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-1.5 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <p className="rounded-full bg-white/55 px-3 py-0.5 text-center text-[11px] font-semibold text-stone-600 shadow-sm backdrop-blur-sm">
           {input === "sentuh"
             ? "Ketuk benda untuk dipakai · geser 1 jari memutar kamera · cubit untuk zoom"
             : "Klik benda untuk dipakai · seret mouse memutar kamera · scroll untuk zoom"}
         </p>
-        {showSaveSheet ? (
-          <AutosaveBackupSheet
-            catName={cat.name}
-            stage={growth.stage}
-            level={growth.level}
-            experience={experience}
-            closeness={closeness}
-            mood={deriveCatMood(stats, simulatedHour, moodOverride).mood}
-            stats={stats}
-            autosaveStatus={autosaveStatus}
-            lastSavedLabel={lastSavedLabel}
-            onSaveNow={triggerManualSave}
-            onRestoreSnapshot={(snap, label) => {
-              if (typeof snap.experience === "number") setExperience(snap.experience);
-              if (typeof snap.closeness === "number") setCloseness(snap.closeness);
-              if (snap.stats) replaceStats(snap.stats);
-              if (snap.stage) setStageOverride(snap.stage);
-              if (snap.mood) setMoodOverride(snap.mood);
-              setShowSaveSheet(false);
-              setToast(`Progres ${cat.name} dipulihkan dari ${label} 💾`);
-            }}
-            onClose={() => setShowSaveSheet(false)}
-          />
-        ) : showGrowthSheet ? (
-          <GrowthSheet
-            name={cat.name}
-            experience={experience}
-            closeness={closeness}
-            stats={stats}
-            history={history}
-            stageOverride={stageOverride}
-            onSelectStage={setStageOverride}
-            onBoostGrowth={() => {
-              setExperience((xp) => xp + 25);
-              setCloseness((c) => Math.min(100, c + 4));
-              setToast(`${cat.name} bertambah pintar & makin dekat denganmu! 🌟`);
-            }}
-            onClose={() => setShowGrowthSheet(false)}
-          />
-        ) : showMoodSheet ? (
-          <MoodRoutineSheet
-            name={cat.name}
-            stats={stats}
-            moodOverride={moodOverride}
-            onSelectMood={setMoodOverride}
-            simulatedHour={simulatedHour}
-            onChangeHour={(h) => {
-              setSimulatedHour(h);
-              const rt = getActiveRoutine(h);
-              if (rt.spot) setSpot(rt.spot);
-            }}
-            moodHistory={moodHistory}
-            careHistory={history}
-            onQuickCare={doCare}
-            onGoToSpot={(s, title) => {
-              setSpot(s);
-              setShowMoodSheet(false);
-              setToast(`${cat.name} menjalani rutinitas: ${title}`);
-            }}
-            onClose={() => setShowMoodSheet(false)}
-          />
-        ) : showStatus ? (
-          <CareStatusPanel
-            stats={stats}
-            deltas={lastDeltas}
-            history={history}
-            name={cat.name}
-            onAction={doCare}
-            onClose={() => setShowStatus(false)}
-          />
-        ) : (
-          <CarePanel
-            stats={stats}
-            deltas={lastDeltas}
-            onAction={doCare}
-            onServeMeal={serveMeal}
-            onPlayToy={playToy}
-            litterDirty={litterDirty || stats.hygiene < 65}
-            onOpenStatus={() => setShowStatus(true)}
-          />
-        )}
+        <div className="w-full">
+          {showSaveSheet ? (
+            <AutosaveBackupSheet
+              catName={cat.name}
+              stage={growth.stage}
+              level={growth.level}
+              experience={experience}
+              closeness={closeness}
+              mood={deriveCatMood(stats, simulatedHour, moodOverride).mood}
+              stats={stats}
+              autosaveStatus={autosaveStatus}
+              lastSavedLabel={lastSavedLabel}
+              onSaveNow={triggerManualSave}
+              onRestoreSnapshot={(snap, label) => {
+                if (typeof snap.experience === "number") setExperience(snap.experience);
+                if (typeof snap.closeness === "number") setCloseness(snap.closeness);
+                if (snap.stats) replaceStats(snap.stats);
+                if (snap.stage) setStageOverride(snap.stage);
+                if (snap.mood) setMoodOverride(snap.mood);
+                setShowSaveSheet(false);
+                setToast(`Progres ${cat.name} dipulihkan dari ${label} 💾`);
+              }}
+              onClose={() => setShowSaveSheet(false)}
+            />
+          ) : showGrowthSheet ? (
+            <GrowthSheet
+              name={cat.name}
+              experience={experience}
+              closeness={closeness}
+              stats={stats}
+              history={history}
+              stageOverride={stageOverride}
+              onSelectStage={(nextStage) => {
+                setStageOverride(nextStage);
+                playCatSound("meow", nextStage === "anak");
+                triggerVoiceBubble(
+                  nextStage === "anak"
+                    ? "Miuw~ Aku mode anak kucing! 🍼"
+                    : "Meong~ Aku kucing dewasa! 🐈",
+                  "🔊",
+                  2400,
+                );
+              }}
+              onBoostGrowth={() => {
+                playCatSound("chime", isKitten);
+                setExperience((xp) => xp + 25);
+                setCloseness((c) => Math.min(100, c + 4));
+                setToast(`${cat.name} bertambah pintar & makin dekat denganmu! 🌟`);
+              }}
+              onClose={() => setShowGrowthSheet(false)}
+            />
+          ) : showMoodSheet ? (
+            <MoodRoutineSheet
+              name={cat.name}
+              stats={stats}
+              moodOverride={moodOverride}
+              onSelectMood={setMoodOverride}
+              simulatedHour={simulatedHour}
+              onChangeHour={(h) => {
+                setSimulatedHour(h);
+                const rt = getActiveRoutine(h);
+                if (rt.spot) setSpot(rt.spot);
+              }}
+              moodHistory={moodHistory}
+              careHistory={history}
+              onQuickCare={doCare}
+              onGoToSpot={(s, title) => {
+                setSpot(s);
+                setShowMoodSheet(false);
+                setToast(`${cat.name} menjalani rutinitas: ${title}`);
+              }}
+              onClose={() => setShowMoodSheet(false)}
+            />
+          ) : showStatus ? (
+            <CareStatusPanel
+              stats={stats}
+              deltas={lastDeltas}
+              history={history}
+              name={cat.name}
+              onAction={doCare}
+              onClose={() => setShowStatus(false)}
+            />
+          ) : (
+            <CarePanel
+              stats={stats}
+              deltas={lastDeltas}
+              onAction={doCare}
+              onServeMeal={serveMeal}
+              onPlayToy={playToy}
+              litterDirty={litterDirty || stats.hygiene < 65}
+              onOpenStatus={() => setShowStatus(true)}
+            />
+          )}
+        </div>
       </footer>
     </main>
   );

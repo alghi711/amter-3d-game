@@ -1,20 +1,24 @@
 "use client";
 
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { AdaptiveDpr, ContactShadows, OrbitControls, PerformanceMonitor, PerspectiveCamera } from "@react-three/drei";
+import { AdaptiveDpr, OrbitControls, PerformanceMonitor, PerspectiveCamera } from "@react-three/drei";
 import { QUALITY_PROFILES, detectQuality, stepQuality, type QualityLevel, type QualityProfile } from "@/lib/quality";
 import CatHouse, { HOUSE_SPOTS, type BowlState, type HouseSpot } from "./CatHouse";
-import { useEffect, useRef, useState } from "react";
-import { MathUtils, MOUSE, TOUCH, type Group, type Mesh, type Object3D } from "three";
+import { useEffect, useMemo, useRef, useState } from "react";
+import * as THREE from "three";
+import { MathUtils, MOUSE, TOUCH, type Group, type Mesh } from "three";
 import { resolveAnimState, type CatAnimState } from "@/lib/cat-animation";
 import type { GrowthStage } from "@/lib/mock-growth";
 import type { CatMood } from "@/lib/mock-mood";
 import { CAMERA_CONTROL_PRESETS, useInputKind } from "@/lib/use-input-kind";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import {
+  createCatFurGradientTexture,
+  createContactShadowTexture,
+  LIGHTING_PRESETS,
+  type LightingMode,
+} from "@/lib/procedural-textures";
 
-/** Kucing sederhana dari primitif — placeholder sebelum model glTF tersedia. */
-/** Hati melayang ke atas lalu hilang — umpan balik saat kucing dielus. */
-/** Gelembung sabun melayang saat kucing dimandikan. */
 /** Efek visual rutinitas: gelembung tidur (tidur), remah makanan (makan/minum), atau kilau bintang (main/garuk). */
 function RoutineEffect({ state }: { state: CatAnimState }) {
   const group = useRef<Group>(null);
@@ -33,16 +37,16 @@ function RoutineEffect({ state }: { state: CatAnimState }) {
     group.current.children.forEach((c, i) => {
       if (mode === "sleep") {
         const phase = (t * 0.45 + i * 0.33) % 1;
-        c.position.set(0.2 + phase * 0.35, 1.15 + phase * 0.75, 0.2);
+        c.position.set(0.2 + phase * 0.35, 1.85 + phase * 0.75, 0.2);
         c.scale.setScalar((0.4 + phase * 0.7) * (1 - phase * 0.5));
       } else if (mode === "eat") {
         const phase = (t * 2.2 + i * 0.25) % 1;
         const angle = (i - 1) * 0.65;
-        c.position.set(Math.sin(angle) * (0.15 + phase * 0.25), 0.55 + Math.sin(phase * Math.PI) * 0.28, 0.55 + phase * 0.2);
+        c.position.set(Math.sin(angle) * (0.15 + phase * 0.25), 0.75 + Math.sin(phase * Math.PI) * 0.28, 0.65 + phase * 0.2);
         c.scale.setScalar(1 - phase * 0.7);
       } else {
         const angle = t * 3.5 + i * ((Math.PI * 2) / 3);
-        c.position.set(Math.cos(angle) * 0.52, 0.95 + Math.sin(t * 5 + i) * 0.18, Math.sin(angle) * 0.52);
+        c.position.set(Math.cos(angle) * 0.65, 1.35 + Math.sin(t * 5 + i) * 0.18, Math.sin(angle) * 0.65);
         c.scale.setScalar(0.75 + Math.sin(t * 8 + i) * 0.25);
       }
     });
@@ -54,7 +58,7 @@ function RoutineEffect({ state }: { state: CatAnimState }) {
     <group ref={group}>
       {[0, 1, 2].map((i) => (
         <mesh key={i}>
-          <octahedronGeometry args={[0.075, mode === "sleep" ? 2 : 0]} />
+          <octahedronGeometry args={[0.085, mode === "sleep" ? 2 : 0]} />
           <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.45} />
         </mesh>
       ))}
@@ -70,17 +74,25 @@ function SoapBubbles() {
     group.current.children.forEach((c, i) => {
       const phase = (t * 0.9 + i * 0.35) % 1.4;
       const angle = i * 1.3 + t * 1.2;
-      const radius = 0.32 + (i % 2) * 0.18;
-      c.position.set(Math.cos(angle) * radius, 0.35 + phase * 1.1, Math.sin(angle) * radius);
-      c.scale.setScalar(Math.sin((phase / 1.4) * Math.PI) * 0.9);
+      const radius = 0.42 + (i % 2) * 0.22;
+      c.position.set(Math.cos(angle) * radius, 0.5 + phase * 1.35, Math.sin(angle) * radius);
+      c.scale.setScalar(Math.sin((phase / 1.4) * Math.PI) * 1.05);
     });
   });
   return (
     <group ref={group}>
-      {[0, 1, 2, 3, 4, 5].map((i) => (
+      {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
         <mesh key={i}>
-          <sphereGeometry args={[0.09, 12, 12]} />
-          <meshStandardMaterial color="#e0f2fe" emissive="#bae6fd" emissiveIntensity={0.4} transparent opacity={0.78} />
+          <sphereGeometry args={[0.11, 14, 14]} />
+          <meshStandardMaterial
+            color="#d8f3ff"
+            emissive="#bae6fd"
+            emissiveIntensity={0.35}
+            roughness={0.1}
+            metalness={0.1}
+            transparent
+            opacity={0.78}
+          />
         </mesh>
       ))}
     </group>
@@ -90,43 +102,26 @@ function SoapBubbles() {
 function Heart({ onDone }: { onDone: () => void }) {
   const ref = useRef<Group>(null);
   const age = useRef(0);
-  const [x] = useState(() => (Math.random() - 0.5) * 0.6);
+  const [x] = useState(() => (Math.random() - 0.5) * 0.75);
   useFrame((_, delta) => {
     age.current += delta;
     if (!ref.current) return;
-    ref.current.position.set(x, 1.6 + age.current * 0.8, 0.2);
-    ref.current.scale.setScalar(Math.max(0, 1 - age.current / 1.2));
-    if (age.current > 1.2) onDone();
+    ref.current.position.set(x, 2.0 + age.current * 0.85, 0.25);
+    ref.current.scale.setScalar(Math.max(0, 1 - age.current / 1.25));
+    if (age.current > 1.25) onDone();
   });
   return (
     <group ref={ref}>
-      {/* hati dari dua bola + kerucut, tanpa font eksternal */}
       {[-0.06, 0.06].map((dx) => (
         <mesh key={dx} position={[dx, 0.04, 0]}>
-          <sphereGeometry args={[0.075, 12, 12]} />
-          <meshStandardMaterial color="#ff5c8a" emissive="#ff5c8a" emissiveIntensity={0.3} />
+          <sphereGeometry args={[0.08, 12, 12]} />
+          <meshStandardMaterial color="#ff5e7e" emissive="#ff5e7e" emissiveIntensity={0.35} />
         </mesh>
       ))}
       <mesh position={[0, -0.06, 0]} rotation={[0, 0, Math.PI]}>
-        <coneGeometry args={[0.13, 0.17, 16]} />
-        <meshStandardMaterial color="#ff5c8a" emissive="#ff5c8a" emissiveIntensity={0.3} />
+        <coneGeometry args={[0.14, 0.18, 16]} />
+        <meshStandardMaterial color="#ff5e7e" emissive="#ff5e7e" emissiveIntensity={0.35} />
       </mesh>
-    </group>
-  );
-}
-
-const SEG_LEN = 0.14;
-
-/** Ruas ekor rekursif: tiap ruas adalah anak dari ruas sebelumnya, makin ke ujung makin kecil. */
-function TailSegment({ index, color, count }: { index: number; color: string; count: number }) {
-  const r = 0.075 - index * 0.008;
-  return (
-    <group position={[0, index === 0 ? 0 : SEG_LEN, 0]} userData={{ tailSegment: true }}>
-      <mesh name="ekor" position={[0, SEG_LEN / 2, 0]} castShadow>
-        <capsuleGeometry args={[r, SEG_LEN, 6, 12]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      {index + 1 < count && <TailSegment index={index + 1} color={color} count={count} />}
     </group>
   );
 }
@@ -134,10 +129,19 @@ function TailSegment({ index, color, count }: { index: number; color: string; co
 export type CatPart = "kepala" | "badan" | "ekor";
 export type CatTouch = { kind: "sentuh" | "elus"; part: CatPart };
 
-/** Posisi santai kucing di tengah karpet. */
-const HOME_SPOT: readonly [number, number] = [0, 0.6];
+/** Posisi santai Mochi di tengah karpet rajut bundar. */
+const HOME_SPOT: readonly [number, number] = [0.35, 0.2];
 
-/** Nama mesh → bagian tubuh; dipakai untuk tahu bagian mana yang disentuh. */
+/** Posisi berdiri Mochi di depan tiap benda furnitur agar pas dan tidak menembus objek. */
+const SPOT_STAND_POS: Record<HouseSpot, readonly [number, number, number]> = {
+  bed: [-1.35, 0.22, -3.05],
+  foodBowl: [0.95, 0, 1.0],
+  waterBowl: [1.65, 0, 1.25],
+  toy: [-0.95, 0, 0.5],
+  litterBox: [2.25, 0, -0.35],
+  scratchPost: [-1.9, 0, -0.25],
+};
+
 const partOf = (name: string): CatPart => (name === "ekor" ? "ekor" : name === "badan" ? "badan" : "kepala");
 
 function Cat({
@@ -146,11 +150,14 @@ function Cat({
   onTouch,
   onPettingChange,
   onAnimState,
+  onHoverSpot,
   anim,
   bathing = false,
   mood = "senang",
   growthScale = 1,
-  stage = "anak",
+  stage = "dewasa",
+  vocalizing = false,
+  headScreenElementId = "cat-voice-bubble",
 }: {
   anim: QualityProfile["anim"];
   bathing?: boolean;
@@ -162,39 +169,65 @@ function Cat({
   onAnimState?: (s: CatAnimState) => void;
   onTouch?: (t: CatTouch) => void;
   onPettingChange?: (petting: boolean) => void;
+  onHoverSpot?: (label: string | null, clientX?: number, clientY?: number) => void;
+  vocalizing?: boolean;
+  headScreenElementId?: string;
 }) {
   const root = useRef<Group>(null);
-  const seg = anim.sphereSegments;
-  const eyeSeg = Math.max(8, seg / 2);
-  const frame = useRef(0);
+  const bodyGroup = useRef<Group>(null);
+  const torsoMesh = useRef<Mesh>(null);
+  const headGroup = useRef<Group>(null);
+  const leftEar = useRef<Group>(null);
+  const rightEar = useRef<Group>(null);
+  const leftEyeGroup = useRef<Group>(null);
+  const rightEyeGroup = useRef<Group>(null);
+  const openMouthMesh = useRef<Mesh>(null);
+  const tailPivot = useRef<Group>(null);
+  const scaleGroup = useRef<Group>(null);
+
+  const textures = useMemo(() => {
+    if (typeof document === "undefined") return null;
+    return {
+      fur: createCatFurGradientTexture(),
+      shadow: createContactShadowTexture(),
+    };
+  }, []);
+
+  const headWorldRef = useRef(new THREE.Vector3());
+
   const animState = useRef<CatAnimState>("diam");
-  const target: readonly [number, number] = spot ? [HOUSE_SPOTS[spot][0], HOUSE_SPOTS[spot][2]] : HOME_SPOT;
-  // jejak gesekan: jarak geser (px) selama jari/mouse ditekan di atas kucing
-  const head = useRef<Group>(null);
-  const eyes = useRef<Group>(null);
-  const ears = useRef<Group>(null);
-  // reaksi aktif: jenis + waktu mulai (detik jam three)
-  // intensity 0..1 mengikuti kecepatan usapan; lean = arah usapan (-1 kiri .. 1 kanan)
+  const target: readonly [number, number, number] = spot
+    ? SPOT_STAND_POS[spot]
+    : [HOME_SPOT[0], 0, HOME_SPOT[1]];
+  const lookTarget: readonly [number, number] = spot
+    ? spot === "bed"
+      ? [0, 2]
+      : [HOUSE_SPOTS[spot][0], HOUSE_SPOTS[spot][2]]
+    : [0.35, 4.0];
+
   const reaction = useRef<{ kind: CatTouch["kind"]; part: CatPart; start: number; intensity: number; lean: number } | null>(
     null,
   );
   const [hearts, setHearts] = useState<number[]>([]);
   const [activeRoutineAnim, setActiveRoutineAnim] = useState<CatAnimState>("diam");
+
   const react = (kind: CatTouch["kind"], part: CatPart, now: number) => {
-    reaction.current = { kind, part, start: now, intensity: kind === "elus" ? 0.5 : 1, lean: 0 };
-    if (kind === "elus" && part !== "ekor") setHearts((h) => [...h.slice(-(anim.maxHearts - 1)), now]);
+    reaction.current = { kind, part, start: now, intensity: kind === "elus" ? 0.6 : 1, lean: 0 };
+    if (part !== "ekor") setHearts((h) => [...h.slice(-(anim.maxHearts - 1)), now]);
     onTouch?.({ kind, part });
   };
+
   const stroke = useRef<{ x: number; y: number; dist: number; part: CatPart; pet: boolean; nextHeart: number } | null>(
     null,
   );
 
   const onDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
-    stroke.current = { x: e.clientX, y: e.clientY, dist: 0, part: partOf(e.object.name), pet: false, nextHeart: 300 };
-    onPettingChange?.(true); // matikan kamera selama menyentuh kucing
+    stroke.current = { x: e.clientX, y: e.clientY, dist: 0, part: partOf(e.object.name), pet: false, nextHeart: 260 };
+    onPettingChange?.(true);
   };
   const onMove = (e: ThreeEvent<PointerEvent>) => {
+    onHoverSpot?.("Mochi 🐱 · Klik / Usap untuk Mengelus", e.clientX, e.clientY);
     const st = stroke.current;
     if (!st) return;
     e.stopPropagation();
@@ -204,18 +237,17 @@ function Cat({
     st.x = e.clientX;
     st.y = e.clientY;
     st.part = partOf(e.object.name);
-    if (!st.pet && st.dist > 40) {
+    if (!st.pet && st.dist > 32) {
       st.pet = true;
       react("elus", st.part, performance.now() / 1000);
     } else if (st.pet && reaction.current?.kind === "elus") {
-      // usapan berlanjut: perpanjang reaksi, sesuaikan intensitas & arah condong badan
       const r = reaction.current;
       r.start = performance.now() / 1000;
       r.part = st.part;
       r.intensity += (Math.min(1, moved / 25) - r.intensity) * 0.3;
       r.lean += (Math.sign(dx) * Math.min(1, Math.abs(dx) / 20) - r.lean) * 0.2;
       if (st.dist > st.nextHeart && st.part !== "ekor") {
-        st.nextHeart += 300;
+        st.nextHeart += 260;
         const now = r.start;
         setHearts((h) => [...h.slice(-(anim.maxHearts - 1)), now]);
       }
@@ -228,279 +260,415 @@ function Cat({
     stroke.current = null;
     onPettingChange?.(false);
   };
-  const body = useRef<Group>(null);
-  const tail = useRef<Group>(null);
-  const scaleGroup = useRef<Group>(null);
-  const chest = useRef<Mesh>(null);
-  // jadwal perilaku idle & nilai yang di-damp antar frame
-  const idleRef = useRef({ nextBlink: 2, blinkUntil: 0, nextLook: 3, lookYaw: 0, tailPhase: 0, tailAmp: 0.4, stateEnteredAt: 0 });
 
-  useFrame(({ clock }, delta) => {
-    const t = clock.getElapsedTime();
-    // berjalan menuju objek yang dipilih, berhenti sedikit di depannya
+  useFrame(({ clock, camera, size }, delta) => {
+    const dt = Math.min(delta, 0.1);
+    const elapsed = clock.getElapsedTime();
+
     let moving = false;
-    if (root.current) {
+    if (root.current && bodyGroup.current) {
       const p = root.current.position;
       const dx = target[0] - p.x;
-      const dz = target[1] - p.z;
+      const dz = target[2] - p.z;
       const dist = Math.hypot(dx, dz);
-      if (dist > 0.75) {
+      if (dist > 0.08) {
         moving = true;
-        const step = Math.min(dist - 0.75, delta * 1.6);
-        p.x += (dx / dist) * step;
-        p.z += (dz / dist) * step;
-        p.y = Math.abs(Math.sin(t * 10)) * 0.05; // langkah memantul
-        const want = Math.atan2(dx, dz);
-        const diff = Math.atan2(Math.sin(want - root.current.rotation.y), Math.cos(want - root.current.rotation.y));
-        root.current.rotation.y += diff * Math.min(1, delta * 8);
+        p.x = MathUtils.lerp(p.x, target[0], dt * 4.2);
+        p.z = MathUtils.lerp(p.z, target[2], dt * 4.2);
+        p.y = MathUtils.lerp(p.y, target[1], dt * 6);
+        bodyGroup.current.position.y = Math.abs(Math.sin(elapsed * 14)) * 0.14;
       } else {
-        p.y = MathUtils.damp(p.y, 0, 12, delta);
-        // saat sudah sampai di benda (atau kembali ke tengah), hadapkan badan ke arah benda/kamera dengan halus
-        const want = spot ? Math.atan2(dx, dz) : 0;
-        const diff = Math.atan2(Math.sin(want - root.current.rotation.y), Math.cos(want - root.current.rotation.y));
-        root.current.rotation.y += diff * Math.min(1, delta * 5);
+        p.y = MathUtils.lerp(p.y, target[1], dt * 6);
+        bodyGroup.current.position.y = MathUtils.lerp(bodyGroup.current.position.y, 0, dt * 8);
       }
+
+      const lookX = moving ? target[0] : lookTarget[0];
+      const lookZ = moving ? target[2] : lookTarget[1];
+      const wantAngle = Math.atan2(lookX - p.x, lookZ - p.z);
+      const diff = Math.atan2(Math.sin(wantAngle - root.current.rotation.y), Math.cos(wantAngle - root.current.rotation.y));
+      root.current.rotation.y += diff * Math.min(1, dt * 5.5);
     }
+
     const r = reaction.current;
     const age = r ? performance.now() / 1000 - r.start : Infinity;
-    if (r && age > 1.6) reaction.current = null;
-    const annoyed = r?.kind === "elus" && r.part === "ekor"; // ekor dielus = kesal
-    // state animasi terpusat — dilaporkan ke UI hanya saat berubah
-    const next = resolveAnimState({ moving, spot: bathing ? null : spot, reaction: annoyed ? "kesal" : (r?.kind ?? null), bathing });
+    if (r && age > 1.8) reaction.current = null;
+    const annoyed = r?.kind === "elus" && r.part === "ekor";
+
+    const next = resolveAnimState({
+      moving,
+      spot: bathing ? null : spot,
+      reaction: annoyed ? "kesal" : (r?.kind ?? null),
+      bathing,
+    });
+
     if (next !== animState.current) {
       const prev = animState.current;
       animState.current = next;
-      idleRef.current.stateEnteredAt = t;
-      // munculkan hati saat baru mulai makan/minum/main atau baru selesai mandi
       if (next === "makan" || next === "minum" || next === "main" || (prev === "mandi" && next === "diam")) {
         setHearts((h) => [...h.slice(-(anim.maxHearts - 1)), performance.now() / 1000]);
       }
       setActiveRoutineAnim(next);
       onAnimState?.(next);
     }
-    // ---- transisi halus: semua target di-"damp" (independen FPS) agar perpindahan state tidak patah ----
-    const petting = next === "dielus";
-    const touched = next === "kaget";
-    const k = r?.intensity ?? 0;
-    const d = (cur: number, want: number, lambda = 8) => MathUtils.damp(cur, want, lambda, delta);
-    const idle = idleRef.current;
-    // animasi sekunder dimatikan di kualitas rendah
-    const secondary = anim.secondary && frame.current++ % anim.secondaryEvery === 0;
 
-    // idle: kedip berkala & sesekali menoleh melihat sekitar
-    if (secondary && t > idle.nextBlink) {
-      idle.blinkUntil = t + 0.12;
-      idle.nextBlink = t + 2.5 + Math.random() * 3;
-    }
-    if (secondary && t > idle.nextLook) {
-      idle.lookYaw = next === "diam" ? (Math.random() - 0.5) * 0.9 : 0;
-      idle.nextLook = t + 2 + Math.random() * 4;
+    // Napas & postur perut bundar Mochi
+    const breath = 1 + Math.sin(elapsed * 3.2) * 0.022;
+    if (torsoMesh.current) {
+      torsoMesh.current.scale.set(1.04 * breath, 0.94 / breath, 0.98 * breath);
     }
 
-    // ekor: fase diakumulasi supaya ganti kecepatan tidak membuat ekor "loncat"
-    const moodTailMul = mood === "senang" ? 1.25 : mood === "bosan" ? 0.55 : mood === "ngantuk" ? 0.45 : 1;
-    const tailSpeed = (next === "kesal" ? 14 : petting ? 4 + k * 8 : next === "tidur" ? 0.8 : next === "main" ? 7 : 3) * moodTailMul;
-    const tailAmp = next === "kesal" ? 0.9 : petting ? 0.4 + k * 0.3 : next === "tidur" ? 0.1 : 0.4;
-    idle.tailPhase += delta * tailSpeed;
-    idle.tailAmp = d(idle.tailAmp, tailAmp, 5);
-    // ekor bersegmen: tiap ruas ikut bergoyang dengan jeda fase → gerak melambai seperti gelombang
-    if (tail.current) {
-      // kualitas rendah: hanya pangkal ekor yang bergoyang (ruas lain diam) → lebih sedikit update matriks
-      let node: Object3D | undefined = tail.current;
-      for (let i = 0; node; i++) {
-        node.rotation.z = Math.sin(idle.tailPhase - i * 0.7) * idle.tailAmp * (0.55 + i * 0.15);
-        if (i > 0) node.rotation.x = -0.12 - (next === "tidur" ? 0 : Math.sin(idle.tailPhase * 0.5 - i) * 0.05);
-        node = secondary ? node.children.find((c) => c.userData.tailSegment) : undefined;
+    // Ekor belang bergoyang
+    const moodTailMul = mood === "senang" ? 1.2 : mood === "bosan" ? 0.65 : mood === "ngantuk" ? 0.5 : 1;
+    if (tailPivot.current) {
+      const speed = (next === "kesal" ? 12 : next === "main" ? 7 : 4.2) * moodTailMul;
+      tailPivot.current.rotation.z = Math.sin(elapsed * speed) * 0.34;
+      tailPivot.current.rotation.x = Math.cos(elapsed * 2.5) * 0.1;
+    }
+
+    // Telinga berkedip halus
+    const earDroop = mood === "bosan" || mood === "ngantuk" ? 0.16 : 0;
+    if (leftEar.current && rightEar.current) {
+      leftEar.current.rotation.z = 0.38 + earDroop + Math.sin(elapsed * 2.8) * 0.05;
+      rightEar.current.rotation.z = -0.38 - earDroop - Math.sin(elapsed * 3.1) * 0.05;
+    }
+
+    // Kedipan mata & ekspresi mood
+    const blinkCycle = elapsed % 4.2;
+    const isBlinking =
+      (blinkCycle > 3.95 && blinkCycle < 4.1) || next === "tidur" || next === "dielus";
+    const openEyeY = mood === "ngantuk" ? 0.45 : mood === "bosan" ? 0.72 : mood === "lapar" ? 1.12 : 1.0;
+    if (leftEyeGroup.current && rightEyeGroup.current) {
+      leftEyeGroup.current.scale.y = isBlinking ? 0.12 : openEyeY;
+      rightEyeGroup.current.scale.y = isBlinking ? 0.12 : openEyeY;
+    }
+
+    // Mulut terbuka saat mengeong / makan / minum / dielus
+    const mouthActive =
+      vocalizing || next === "makan" || next === "minum" || next === "dielus" || next === "kaget";
+    if (openMouthMesh.current) {
+      if (mouthActive) {
+        openMouthMesh.current.scale.y = 0.35 + Math.abs(Math.sin(elapsed * 18)) * 0.95;
+      } else {
+        openMouthMesh.current.scale.y = MathUtils.lerp(openMouthMesh.current.scale.y, 0.12, dt * 10);
       }
     }
 
-    // badan: napas, condong saat dielus, rebah saat tidur, lompat kecil saat kaget
-    if (body.current) {
-      const sleeping = next === "tidur";
-      const breath = Math.sin(t * (sleeping ? 1.2 : 2)) * (sleeping ? 0.035 : 0.02);
-      body.current.scale.y = d(body.current.scale.y, sleeping ? 0.8 : 1, 6);
-      // napas: dada mengembang-mengempis (x/z) terpisah dari postur
-      if (chest.current) chest.current.scale.set(1 + breath, 1 + breath * 0.5, 1 + breath);
-      const lean = petting && anim.secondary ? -(r?.lean ?? 0) * 0.15 : 0;
-      body.current.rotation.z = d(body.current.rotation.z, lean, 6);
-      const stateAge = t - idle.stateEnteredAt;
-      const settleHop = stateAge < 0.25 && next !== "jalan" ? Math.sin((stateAge / 0.25) * Math.PI) * 0.05 : 0;
-      const hop = touched && age < 0.4 ? Math.sin((age / 0.4) * Math.PI) * 0.15 : 0;
-      const bob =
-        next === "main"
-          ? Math.abs(Math.sin(t * 8.5)) * 0.11
-          : next === "garuk"
-            ? Math.abs(Math.sin(t * 11)) * 0.055
-            : next === "makan" || next === "minum"
-              ? Math.abs(Math.sin(t * 9)) * 0.025
-              : 0;
-      const pitchBody =
-        next === "garuk"
-          ? -0.18 + Math.sin(t * 11) * 0.05
-          : next === "makan" || next === "minum"
-            ? 0.14 + Math.sin(t * 9) * 0.04
-            : next === "main"
-              ? Math.sin(t * 8.5) * 0.12
-              : sleeping
-                ? 0.06
-                : 0;
-      body.current.rotation.x = d(body.current.rotation.x, pitchBody, 8);
-      body.current.position.y = d(body.current.position.y, (sleeping ? -0.08 : 0) + hop + bob + settleHop, 25);
+    // Animasi aktif kepala & badan
+    if (headGroup.current && bodyGroup.current) {
+      if (next === "dielus" || next === "kaget" || next === "mandi") {
+        headGroup.current.rotation.z = Math.sin(elapsed * 10) * 0.12;
+        if (!moving) bodyGroup.current.position.y = Math.abs(Math.sin(elapsed * 9)) * 0.12;
+      } else if (next === "makan" || next === "minum") {
+        headGroup.current.rotation.x = 0.25 + Math.sin(elapsed * 14) * 0.12;
+        headGroup.current.rotation.z = 0;
+      } else if (next === "main" || next === "garuk") {
+        if (!moving) bodyGroup.current.position.y = Math.abs(Math.sin(elapsed * 11)) * 0.18;
+        headGroup.current.rotation.z = Math.sin(elapsed * 7) * 0.08;
+      } else if (next === "tidur") {
+        headGroup.current.rotation.x = MathUtils.lerp(headGroup.current.rotation.x, 0.22, dt * 6);
+        headGroup.current.rotation.z = MathUtils.lerp(headGroup.current.rotation.z, 0.12, dt * 6);
+      } else {
+        headGroup.current.rotation.z = Math.sin(elapsed * 1.6) * 0.04;
+        headGroup.current.rotation.x = Math.sin(elapsed * 1.2) * 0.03;
+      }
     }
 
-    // kepala: miring saat kaget, geleng saat kesal, menyundul saat dielus, menunduk saat makan/minum
-    if (head.current) {
-      const tilt = touched ? Math.sin(Math.min(age, 1) * Math.PI) * 0.35 : 0;
-      const yaw = next === "kesal" ? Math.sin(t * 20) * 0.12 : next === "mandi" ? Math.sin(t * 14) * 0.25 : next === "diam" ? idle.lookYaw : 0;
-      const eating = next === "makan" || next === "minum";
-      const pitch = eating
-        ? 0.45 + Math.sin(t * 8) * 0.06
-        : petting
-          ? Math.sin(t * 6) * (0.04 + k * 0.08)
-          : next === "tidur"
-            ? 0.25
-            : 0;
-      head.current.rotation.y = d(head.current.rotation.y, yaw, next === "kesal" ? 20 : 4);
-      head.current.rotation.z = d(head.current.rotation.z, tilt, 10);
-      head.current.rotation.x = d(head.current.rotation.x, pitch, 8);
-    }
-
-    // mata & telinga: menyesuaikan ekspresi 4 suasana hati (senang, lapar, bosan, ngantuk)
-    if (eyes.current) {
-      const closed = petting || next === "tidur" || t < idle.blinkUntil;
-      const openScale = mood === "ngantuk" ? 0.42 : mood === "bosan" ? 0.68 : mood === "lapar" ? 1.15 : 1;
-      eyes.current.scale.y = d(eyes.current.scale.y, closed ? 0.12 : openScale, closed ? 30 : 14);
-    }
+    // Skala pertumbuhan halus (Anak Kucing 0.68 -> Dewasa 1.0)
     if (scaleGroup.current) {
-      const nextScale = d(scaleGroup.current.scale.x, growthScale, 5);
+      const targetScale = stage === "anak" ? 0.68 : growthScale;
+      const nextScale = MathUtils.damp(scaleGroup.current.scale.x, targetScale, 5, dt);
       scaleGroup.current.scale.setScalar(nextScale);
     }
-    if (ears.current) {
-      const droop = mood === "bosan" || mood === "ngantuk" ? 0.22 : 0;
-      ears.current.rotation.x = d(ears.current.rotation.x, droop, 6);
+
+    // Update posisi balon suara 3D di atas kepala Mochi
+    if (headGroup.current && typeof document !== "undefined") {
+      const bubbleEl = document.getElementById(headScreenElementId);
+      if (bubbleEl) {
+        const vec = headWorldRef.current;
+        headGroup.current.getWorldPosition(vec);
+        vec.y += stage === "anak" ? 0.65 : 0.85;
+        vec.project(camera);
+        const screenX = (vec.x * 0.5 + 0.5) * size.width;
+        const screenY = (-(vec.y * 0.5) + 0.5) * size.height;
+        bubbleEl.style.left = `${screenX}px`;
+        bubbleEl.style.top = `${screenY}px`;
+      }
     }
   });
+
+  const orangeColor = color || "#f29b4b";
 
   return (
     <group
       ref={root}
-      position={[0, 0, 0.6]}
+      position={[HOME_SPOT[0], 0, HOME_SPOT[1]]}
       onPointerDown={onDown}
       onPointerMove={onMove}
       onPointerUp={end}
       onPointerLeave={end}
-      onPointerOver={() => (document.body.style.cursor = "grab")}
-      onPointerOut={() => (document.body.style.cursor = "auto")}
+      onPointerOver={(e: ThreeEvent<PointerEvent>) => {
+        e.stopPropagation();
+        document.body.style.cursor = "pointer";
+        onHoverSpot?.("Mochi 🐱 · Klik / Usap untuk Mengelus", e.clientX, e.clientY);
+      }}
+      onPointerOut={() => {
+        document.body.style.cursor = "auto";
+        onHoverSpot?.(null);
+      }}
     >
+      {/* Bayangan kontak lembut di bawah Mochi */}
+      {textures?.shadow && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 0]}>
+          <planeGeometry args={[1.64, 1.64]} />
+          <meshBasicMaterial map={textures.shadow} transparent depthWrite={false} />
+        </mesh>
+      )}
+
       <group ref={scaleGroup} scale={growthScale}>
-      <group ref={body}>
-        <mesh ref={chest} name="badan" position={[0, 0.45, 0]} castShadow>
-          <sphereGeometry args={[0.5, seg, seg]} />
-          <meshStandardMaterial color={color} />
-        </mesh>
-        {/* Bulu dada putih lembut & kalung lonceng emas khusus tahap Kucing Dewasa */}
-        {stage === "dewasa" && (
-          <group>
-            <mesh position={[0, 0.56, 0.41]} scale={[0.9, 1.1, 0.45]}>
-              <sphereGeometry args={[0.22, 16, 16]} />
-              <meshStandardMaterial color="#fffbeb" />
-            </mesh>
-            <mesh position={[0, 0.77, 0.12]} rotation={[Math.PI / 2 + 0.15, 0, 0]}>
-              <torusGeometry args={[0.31, 0.032, 12, 24]} />
-              <meshStandardMaterial color="#ef4444" />
-            </mesh>
-            <mesh position={[0, 0.72, 0.44]} castShadow>
-              <sphereGeometry args={[0.055, 14, 14]} />
-              <meshStandardMaterial color="#fbbf24" metalness={0.6} roughness={0.25} />
-            </mesh>
-          </group>
-        )}
-        <group ref={head} position={[0, 0.8, 0.1]}>
-        <group position={[0, -0.8, -0.1]}>
-        {/* kepala */}
-        <mesh position={[0, 1.05, 0.15]} castShadow>
-          <sphereGeometry args={[0.38, seg, seg]} />
-          <meshStandardMaterial color={color} />
-        </mesh>
-        {/* telinga */}
-        <group ref={ears} position={[0, 1.35, 0.1]}>
-          {[-0.2, 0.2].map((x) => (
-            <mesh key={x} position={[x, 0.05, 0]} rotation={[0, 0, x > 0 ? -0.3 : 0.3]} castShadow>
-              <coneGeometry args={[0.12, 0.25, 16]} />
-              <meshStandardMaterial color={color} />
-            </mesh>
-          ))}
-        </group>
-        {/* mata */}
-        <group ref={eyes} position={[0, 1.1, 0]}>
-          {[-0.13, 0.13].map((x) => (
-            <mesh key={x} position={[x, 0, 0.49]}>
-              <sphereGeometry args={[0.05, eyeSeg, eyeSeg]} />
-              <meshStandardMaterial color="#222" />
+        <group ref={bodyGroup}>
+          {/* Torso Chubby */}
+          <mesh
+            ref={torsoMesh}
+            name="badan"
+            position={[0, 0.62, 0]}
+            scale={[1.05, 0.95, 0.98]}
+            castShadow
+            receiveShadow
+          >
+            <sphereGeometry args={[0.68, 36, 36]} />
+            <meshStandardMaterial
+              map={textures?.fur ?? null}
+              color={orangeColor}
+              roughness={0.52}
+              metalness={0.02}
+            />
+          </mesh>
+
+          {/* Bulu Perut Krem Putih */}
+          <mesh name="badan" position={[0, 0.59, 0.44]} scale={[0.86, 0.88, 0.56]}>
+            <sphereGeometry args={[0.53, 32, 32]} />
+            <meshStandardMaterial color="#fff5e6" roughness={0.55} />
+          </mesh>
+
+          {/* Kaki Depan Kiri & Kanan */}
+          {[-0.28, 0.28].map((px) => (
+            <mesh
+              key={px}
+              name="badan"
+              position={[px, 0.36, 0.58]}
+              rotation={[0.3, 0, 0]}
+              scale={[0.88, 1.35, 0.92]}
+              castShadow
+            >
+              <sphereGeometry args={[0.175, 20, 20]} />
+              <meshStandardMaterial color="#fff5e6" roughness={0.55} />
             </mesh>
           ))}
-        </group>
-        {/* hidung */}
-        <mesh position={[0, 1.0, 0.52]}>
-          <sphereGeometry args={[0.03, 12, 12]} />
-          <meshStandardMaterial color="#e88a9a" />
-        </mesh>
-        {/* kumis & corak dahi lebih tegas saat dewasa */}
-        {stage === "dewasa" && (
-          <group>
-            {[-0.26, 0.26].map((wx) => (
-              <mesh key={wx} position={[wx, 0.99, 0.44]} rotation={[0, 0, Math.PI / 2 + (wx > 0 ? -0.08 : 0.08)]}>
-                <cylinderGeometry args={[0.006, 0.006, 0.22, 6]} />
-                <meshStandardMaterial color="#fffbeb" />
+
+          {/* Kaki Belakang Duduk dengan Bantalan Pink (Toe Beans) */}
+          {[-0.44, 0.44].map((hx) => (
+            <group key={hx} position={[hx, 0.12, 0.39]}>
+              <mesh name="badan" scale={[0.95, 0.65, 1.35]} castShadow>
+                <sphereGeometry args={[0.195, 20, 20]} />
+                <meshStandardMaterial color="#fff5e6" roughness={0.55} />
+              </mesh>
+              <mesh position={[0, 0.02, 0.22]}>
+                <sphereGeometry args={[0.065, 12, 12]} />
+                <meshStandardMaterial color="#f47c7c" roughness={0.48} />
+              </mesh>
+            </group>
+          ))}
+
+          {/* Kalung Merah & Lonceng Emas Metalik */}
+          <mesh position={[0, 1.08, 0.04]} rotation={[Math.PI / 2 + 0.12, 0, 0]}>
+            <torusGeometry args={[0.495, 0.068, 18, 40]} />
+            <meshStandardMaterial color="#e02832" roughness={0.35} />
+          </mesh>
+          <mesh position={[0, 1.0, 0.56]} castShadow>
+            <sphereGeometry args={[0.12, 24, 24]} />
+            <meshStandardMaterial color="#ffcb3d" metalness={0.85} roughness={0.18} />
+          </mesh>
+
+          {/* Ekor Belang 6 Segmen */}
+          <group ref={tailPivot} position={[0, 0.38, -0.58]}>
+            {[0, 1, 2, 3, 4, 5].map((t) => (
+              <mesh
+                key={t}
+                name="ekor"
+                position={[0, t * 0.11, -t * 0.09]}
+                castShadow
+              >
+                <sphereGeometry args={[0.135 - t * 0.008, 16, 16]} />
+                <meshStandardMaterial
+                  map={t % 2 === 0 ? (textures?.fur ?? null) : null}
+                  color={t % 2 === 1 ? "#d97224" : orangeColor}
+                  roughness={0.55}
+                />
               </mesh>
             ))}
-            <mesh position={[0, 1.28, 0.43]}>
-              <boxGeometry args={[0.14, 0.04, 0.02]} />
-              <meshStandardMaterial color="#b45309" />
-            </mesh>
           </group>
-        )}
+
+          {/* Kepala Chibi Mochi */}
+          <group ref={headGroup} position={[0, 1.52, 0.05]}>
+            <mesh name="kepala" scale={[1.15, 0.96, 1.03]} castShadow receiveShadow>
+              <sphereGeometry args={[0.63, 36, 36]} />
+              <meshStandardMaterial
+                map={textures?.fur ?? null}
+                color={orangeColor}
+                roughness={0.52}
+                metalness={0.02}
+              />
+            </mesh>
+
+            {/* Pipi Gembil Kiri & Kanan */}
+            {[-0.43, 0.43].map((cx) => (
+              <mesh key={cx} name="kepala" position={[cx, -0.1, 0.19]}>
+                <sphereGeometry args={[0.33, 24, 24]} />
+                <meshStandardMaterial
+                  map={textures?.fur ?? null}
+                  color={orangeColor}
+                  roughness={0.52}
+                />
+              </mesh>
+            ))}
+
+            {/* Moncong Krem 3D (Bentuk ω) & Mulut Pink Animasi */}
+            {[-0.082, 0.082].map((mx) => (
+              <mesh key={mx} name="kepala" position={[mx, -0.125, 0.59]} scale={[1.2, 0.88, 0.72]}>
+                <sphereGeometry args={[0.105, 18, 18]} />
+                <meshStandardMaterial color="#fff5e6" roughness={0.55} />
+              </mesh>
+            ))}
+            <mesh ref={openMouthMesh} position={[0, -0.165, 0.61]} scale={[1.0, 0.15, 0.5]}>
+              <sphereGeometry args={[0.068, 16, 16]} />
+              <meshStandardMaterial color="#f47c7c" roughness={0.48} />
+            </mesh>
+
+            {/* Garis Belang Tabby di Dahi */}
+            <mesh position={[0, 0.25, 0.6]} rotation={[-0.35, 0, 0]}>
+              <boxGeometry args={[0.17, 0.048, 0.05]} />
+              <meshStandardMaterial color="#d97224" roughness={0.58} />
+            </mesh>
+            <mesh position={[0, 0.34, 0.56]} rotation={[-0.5, 0, 0]}>
+              <boxGeometry args={[0.12, 0.042, 0.05]} />
+              <meshStandardMaterial color="#d97224" roughness={0.58} />
+            </mesh>
+
+            {/* Telinga Kiri & Kanan */}
+            <group ref={leftEar} position={[-0.43, 0.47, 0.02]} rotation={[-0.1, 0, 0.38]}>
+              <mesh name="kepala" position={[0, 0.15, 0]} scale={[1, 1, 0.68]} castShadow>
+                <coneGeometry args={[0.25, 0.44, 28]} />
+                <meshStandardMaterial map={textures?.fur ?? null} color={orangeColor} roughness={0.52} />
+              </mesh>
+              <mesh position={[0, 0.13, 0.065]} scale={[1, 1, 0.45]}>
+                <coneGeometry args={[0.155, 0.3, 24]} />
+                <meshStandardMaterial color="#f47c7c" roughness={0.48} />
+              </mesh>
+            </group>
+            <group ref={rightEar} position={[0.43, 0.47, 0.02]} rotation={[-0.1, 0, -0.38]}>
+              <mesh name="kepala" position={[0, 0.15, 0]} scale={[1, 1, 0.68]} castShadow>
+                <coneGeometry args={[0.25, 0.44, 28]} />
+                <meshStandardMaterial map={textures?.fur ?? null} color={orangeColor} roughness={0.52} />
+              </mesh>
+              <mesh position={[0, 0.13, 0.065]} scale={[1, 1, 0.45]}>
+                <coneGeometry args={[0.155, 0.3, 24]} />
+                <meshStandardMaterial color="#f47c7c" roughness={0.48} />
+              </mesh>
+            </group>
+
+            {/* Mata Berkilau dengan Highlight Anime */}
+            <group ref={leftEyeGroup} position={[-0.24, 0.025, 0.59]}>
+              <mesh scale={[1, 1.08, 0.55]}>
+                <sphereGeometry args={[0.1, 24, 24]} />
+                <meshStandardMaterial color="#160f0c" roughness={0.08} />
+              </mesh>
+              <mesh position={[-0.028, 0.034, 0.052]}>
+                <sphereGeometry args={[0.034, 14, 14]} />
+                <meshBasicMaterial color="#ffffff" />
+              </mesh>
+              <mesh position={[0.026, -0.026, 0.052]}>
+                <sphereGeometry args={[0.017, 10, 10]} />
+                <meshBasicMaterial color="#ffffff" />
+              </mesh>
+            </group>
+            <group ref={rightEyeGroup} position={[0.24, 0.025, 0.59]}>
+              <mesh scale={[1, 1.08, 0.55]}>
+                <sphereGeometry args={[0.1, 24, 24]} />
+                <meshStandardMaterial color="#160f0c" roughness={0.08} />
+              </mesh>
+              <mesh position={[-0.028, 0.034, 0.052]}>
+                <sphereGeometry args={[0.034, 14, 14]} />
+                <meshBasicMaterial color="#ffffff" />
+              </mesh>
+              <mesh position={[0.026, -0.026, 0.052]}>
+                <sphereGeometry args={[0.017, 10, 10]} />
+                <meshBasicMaterial color="#ffffff" />
+              </mesh>
+            </group>
+
+            {/* Hidung Pink Mungil */}
+            <mesh position={[0, -0.075, 0.65]} scale={[1.28, 0.85, 0.75]}>
+              <sphereGeometry args={[0.058, 16, 16]} />
+              <meshStandardMaterial color="#f47c7c" roughness={0.48} />
+            </mesh>
+
+            {/* Rona Pipi Merah Muda (Rosy Blush Ovals) */}
+            <mesh position={[-0.39, -0.1, 0.54]} rotation={[0, -0.35, 0]} scale={[1.35, 0.65, 0.3]}>
+              <sphereGeometry args={[0.09, 16, 16]} />
+              <meshStandardMaterial color="#f47c7c" roughness={0.48} />
+            </mesh>
+            <mesh position={[0.39, -0.1, 0.54]} rotation={[0, 0.35, 0]} scale={[1.35, 0.65, 0.3]}>
+              <sphereGeometry args={[0.09, 16, 16]} />
+              <meshStandardMaterial color="#f47c7c" roughness={0.48} />
+            </mesh>
+
+            {/* Kumis Kucing (Whiskers) */}
+            {[-1, 1].map((side) =>
+              [-1, 1].map((w) => (
+                <mesh
+                  key={`${side}-${w}`}
+                  position={[side * 0.53, -0.09 + w * 0.036, 0.47]}
+                  rotation={[0, -side * 0.35, Math.PI / 2 + side * w * 0.14]}
+                >
+                  <cylinderGeometry args={[0.009, 0.009, 0.28, 8]} />
+                  <meshBasicMaterial color="#fffaf2" />
+                </mesh>
+              )),
+            )}
+          </group>
         </group>
-        </group>
-      </group>
-      {bathing && <SoapBubbles />}
-      <RoutineEffect state={activeRoutineAnim} />
-      {hearts.map((h) => (
-        <Heart key={h} onDone={() => setHearts((all) => all.filter((x) => x !== h))} />
-      ))}
-      <group ref={tail} position={[0, 0.35, -0.45]} rotation={[-0.5, 0, 0]}>
-        <TailSegment index={0} color={color} count={anim.tailSegments} />
-      </group>
+
+        {bathing && <SoapBubbles />}
+        <RoutineEffect state={activeRoutineAnim} />
+        {hearts.map((h) => (
+          <Heart key={h} onDone={() => setHearts((all) => all.filter((x) => x !== h))} />
+        ))}
       </group>
     </group>
   );
 }
 
-/** Sesuaikan FOV & jarak kamera dengan rasio layar agar kucing tetap terlihat di HP (potret). */
+const CAMERA_HOME: [number, number, number] = [5.1, 4.15, 6.2];
+const CAMERA_TARGET: [number, number, number] = [0.2, 1.0, -0.2];
+
 function ResponsiveCamera() {
   const size = useThree((state) => state.size);
   const aspect = size.width / size.height;
-  const fov = aspect < 0.8 ? 60 : aspect < 1.2 ? 52 : 45;
+  const fov = aspect < 0.8 ? 54 : aspect < 1.2 ? 46 : 39;
   return <PerspectiveCamera makeDefault position={CAMERA_HOME} fov={fov} />;
 }
 
-/**
- * Kamera bebas: putar (1 jari / drag), zoom (cubit / scroll), dengan redaman halus.
- * Sudut dibatasi agar kamera tidak menembus dinding/lantai. `resetSignal` berubah → kembali ke sudut awal.
- */
-/** Batas ruangan (dinding di x=-4 dan z=-4) dan zona benda yang tak boleh ditembus kamera. */
-const ROOM_BOUNDS = { minX: -3.6, minZ: -3.6, maxX: 7, maxZ: 7, minY: 0.35, maxY: 6 };
+const ROOM_BOUNDS = { minX: -4.4, minZ: -4.4, maxX: 9.5, maxZ: 9.5, minY: 0.45, maxY: 7.5 };
 const OBSTACLES: { x: number; z: number; r: number; h: number }[] = (
   [
-    ["bed", 1.0, 0.6],
-    ["foodBowl", 0.45, 0.4],
-    ["waterBowl", 0.45, 0.4],
-    ["litterBox", 0.75, 0.5],
-    ["scratchPost", 0.6, 1.6],
+    ["bed", 1.1, 0.65],
+    ["foodBowl", 0.55, 0.4],
+    ["waterBowl", 0.55, 0.4],
+    ["litterBox", 0.85, 0.5],
+    ["scratchPost", 0.75, 2.2],
   ] as const
 ).map(([spot, r, h]) => ({ x: HOUSE_SPOTS[spot][0], z: HOUSE_SPOTS[spot][2], r, h }));
 
-/** Tiap frame: jepit posisi kamera di dalam ruangan & dorong keluar dari silinder benda. */
 function CameraCollision() {
   useFrame(({ camera }) => {
     const p = camera.position;
@@ -522,8 +690,6 @@ function CameraCollision() {
   return null;
 }
 
-const CAMERA_HOME: [number, number, number] = [3.5, 3, 5];
-
 function CameraRig({ enabled, resetSignal }: { enabled: boolean; resetSignal: number }) {
   const controls = useRef<OrbitControlsImpl>(null);
   const input = useInputKind();
@@ -532,7 +698,7 @@ function CameraRig({ enabled, resetSignal }: { enabled: boolean; resetSignal: nu
     const c = controls.current;
     if (resetSignal === 0 || !c) return;
     c.object.position.set(...CAMERA_HOME);
-    c.target.set(0, 0.8, 0);
+    c.target.set(...CAMERA_TARGET);
     c.update();
   }, [resetSignal]);
   return (
@@ -540,18 +706,18 @@ function CameraRig({ enabled, resetSignal }: { enabled: boolean; resetSignal: nu
       ref={controls}
       makeDefault
       enabled={enabled}
-      target={[0, 0.8, 0]}
+      target={CAMERA_TARGET}
       enableDamping
       dampingFactor={preset.dampingFactor}
       rotateSpeed={preset.rotateSpeed}
       zoomSpeed={preset.zoomSpeed}
       enablePan={false}
-      minDistance={preset.minDistance}
-      maxDistance={preset.maxDistance}
-      minPolarAngle={0.2}
-      maxPolarAngle={Math.PI / 2.1}
-      minAzimuthAngle={-0.35}
-      maxAzimuthAngle={Math.PI / 2 + 0.35}
+      minDistance={3.6}
+      maxDistance={11.0}
+      minPolarAngle={Math.PI / 6}
+      maxPolarAngle={Math.PI / 2.18}
+      minAzimuthAngle={-Math.PI / 6}
+      maxAzimuthAngle={Math.PI / 2.2}
       touches={{ ONE: TOUCH.ROTATE, TWO: TOUCH.DOLLY_ROTATE }}
       mouseButtons={{ LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.ROTATE }}
       regress
@@ -565,24 +731,26 @@ export default function CatRoomScene({
   onAnimState,
   onUseObject,
   onCatTouch,
+  onHoverSpot,
   cameraReset = 0,
   foodBowlState,
   waterBowlState,
   bathing = false,
   litterDirty = false,
-  toyColor = "#ffd166",
+  toyColor = "#f4b928",
   playingToy = false,
   mood = "senang",
   growthScale = 1,
-  stage = "anak",
+  stage = "dewasa",
+  lightingMode = "day",
+  vocalizing = false,
 }: {
   furColor: string;
-  /** benda yang sedang dituju kucing; null = kembali ke karpet */
   catSpot: HouseSpot | null;
   onAnimState?: (s: CatAnimState) => void;
   onUseObject: (spot: HouseSpot) => void;
   onCatTouch?: (t: CatTouch) => void;
-  /** Naikkan angkanya untuk mengembalikan kamera ke posisi awal. */
+  onHoverSpot?: (label: string | null, clientX?: number, clientY?: number) => void;
   cameraReset?: number;
   foodBowlState?: BowlState;
   waterBowlState?: BowlState;
@@ -593,16 +761,24 @@ export default function CatRoomScene({
   mood?: CatMood;
   growthScale?: number;
   stage?: GrowthStage;
+  lightingMode?: LightingMode;
+  vocalizing?: boolean;
 }) {
   const [petting, setPetting] = useState(false);
-  // kualitas awal ditebak dari perangkat, lalu diturunkan otomatis bila FPS anjlok
   const [quality, setQuality] = useState<QualityLevel>(() => detectQuality());
   const q = QUALITY_PROFILES[quality];
+  const lightPreset = LIGHTING_PRESETS[lightingMode];
+
   return (
     <Canvas
       shadows={q.shadows}
       dpr={q.dpr}
-      gl={{ antialias: q.antialias, powerPreference: "high-performance" }}
+      gl={{
+        antialias: q.antialias,
+        powerPreference: "high-performance",
+        toneMapping: THREE.ACESFilmicToneMapping,
+        toneMappingExposure: 1.06,
+      }}
       performance={{ min: 0.5 }}
       className="!touch-none"
       style={{ width: "100%", height: "100%" }}
@@ -614,14 +790,52 @@ export default function CatRoomScene({
       />
       <AdaptiveDpr pixelated />
       <ResponsiveCamera />
-      <color attach="background" args={["#fff6ef"]} />
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[4, 6, 3]} intensity={1.2} castShadow={q.shadows} shadow-mapSize={[q.shadowMapSize, q.shadowMapSize]} />
-      <CatHouse onUse={onUseObject} foodBowlState={foodBowlState} waterBowlState={waterBowlState} litterDirty={litterDirty} toyColor={toyColor} playingToy={playingToy} />
-      <Cat color={furColor} spot={catSpot} onAnimState={onAnimState} onTouch={onCatTouch} onPettingChange={setPetting} anim={q.anim} bathing={bathing} mood={mood} growthScale={growthScale} stage={stage} />
-      {q.contactShadows && (
-        <ContactShadows position={[0, 0.01, 0]} opacity={0.35} blur={2} far={3} resolution={256} />
-      )}
+      <color attach="background" args={[lightPreset.bgHex]} />
+      <fogExp2 attach="fog" args={[lightPreset.bgHex, 0.022]} />
+
+      {/* Pencahayaan Hangat Multi-Sumber (Hemisphere + Sun + Fill + Room Warm Point) */}
+      <hemisphereLight args={[0xfff7ed, 0xd8b898, lightPreset.hemiIntensity]} />
+      <directionalLight
+        position={[5.5, 8.8, 5.2]}
+        color={lightPreset.sunHex}
+        intensity={lightPreset.sunIntensity}
+        castShadow={q.shadows}
+        shadow-mapSize={[q.shadowMapSize, q.shadowMapSize]}
+        shadow-bias={-0.0005}
+        shadow-camera-near={0.5}
+        shadow-camera-far={22}
+        shadow-camera-left={-6.5}
+        shadow-camera-right={6.5}
+        shadow-camera-top={6.5}
+        shadow-camera-bottom={-6.5}
+      />
+      <directionalLight position={[-5, 4, 4]} color={0xffd8be} intensity={0.35} />
+      <pointLight position={[0, 3.8, 0.5]} color={0xffb86c} intensity={lightPreset.pointIntensity} distance={12} />
+
+      <CatHouse
+        onUse={onUseObject}
+        onHoverSpot={onHoverSpot}
+        foodBowlState={foodBowlState}
+        waterBowlState={waterBowlState}
+        litterDirty={litterDirty}
+        toyColor={toyColor}
+        playingToy={playingToy}
+        lightingMode={lightingMode}
+      />
+      <Cat
+        color={furColor}
+        spot={catSpot}
+        onAnimState={onAnimState}
+        onTouch={onCatTouch}
+        onPettingChange={setPetting}
+        onHoverSpot={onHoverSpot}
+        anim={q.anim}
+        bathing={bathing}
+        mood={mood}
+        growthScale={growthScale}
+        stage={stage}
+        vocalizing={vocalizing}
+      />
       <CameraRig enabled={!petting} resetSignal={cameraReset} />
       <CameraCollision />
     </Canvas>
