@@ -10,7 +10,9 @@ import {
   getActiveRoutine,
   MOCK_PERSONALITY_TRAITS,
   MOCK_ROUTINES,
+  MOOD_DEFINITIONS,
   type CatMood,
+  type MoodTransition,
 } from "@/lib/mock-mood";
 
 type TabKey = "mood" | "rutinitas" | "kepribadian";
@@ -22,6 +24,7 @@ export default function MoodRoutineSheet({
   onSelectMood,
   simulatedHour,
   onChangeHour,
+  moodHistory = [],
   onGoToSpot,
   onClose,
 }: {
@@ -31,6 +34,7 @@ export default function MoodRoutineSheet({
   onSelectMood: (m: CatMood | null) => void;
   simulatedHour: number;
   onChangeHour: (h: number) => void;
+  moodHistory?: MoodTransition[];
   onGoToSpot?: (spot: HouseSpot | null, label: string) => void;
   onClose: () => void;
 }) {
@@ -99,6 +103,25 @@ export default function MoodRoutineSheet({
             moodOverride={moodOverride}
             onSelectMood={onSelectMood}
           />
+
+          {moodHistory.length > 0 && (
+            <div className="rounded-2xl bg-stone-50 p-2.5 text-xs">
+              <p className="font-semibold text-stone-600"> Riwayat Perubahan Mood</p>
+              <ul className="mt-1 space-y-1 text-[11px] text-stone-600">
+                {moodHistory.slice(0, 3).map((item) => (
+                  <li key={item.id} className="flex items-center justify-between gap-2">
+                    <span>
+                      {MOOD_DEFINITIONS[item.from].emoji} {item.from} →{" "}
+                      <strong className="text-amber-800">
+                        {MOOD_DEFINITIONS[item.to].emoji} {item.to}
+                      </strong>
+                    </span>
+                    <span className="truncate text-stone-400">karena {item.trigger}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Pengingat Lembut */}
           <div className="space-y-1.5">

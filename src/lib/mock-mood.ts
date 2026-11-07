@@ -260,3 +260,30 @@ export function buildGentleReminders(stats: CatStats, name: string, hour = 9): G
   });
   return list;
 }
+
+export type MoodTransition = {
+  id: number;
+  from: CatMood;
+  to: CatMood;
+  trigger: string;
+  reason: string;
+};
+
+/** Hitung perubahan suasana hati sebelum & sesudah sebuah interaksi perawatan/sentuhan. */
+export function evaluateMoodShift(params: {
+  prevStats: CatStats;
+  nextStats: CatStats;
+  hour: number;
+  trigger: string;
+  catName: string;
+}): { prevMood: MoodInfo; nextMood: MoodInfo; changed: boolean; summary: string } {
+  const prevMood = deriveCatMood(params.prevStats, params.hour, null);
+  const nextMood = deriveCatMood(params.nextStats, params.hour, null);
+  const changed = prevMood.mood !== nextMood.mood;
+
+  const summary = changed
+    ? `Suasana hati ${params.catName} berubah: ${prevMood.emoji} ${prevMood.mood} → ${nextMood.emoji} ${nextMood.mood} (${params.trigger})`
+    : `${params.catName} merasa ${nextMood.mood} ${nextMood.emoji} setelah ${params.trigger.toLowerCase()}`;
+
+  return { prevMood, nextMood, changed, summary };
+}

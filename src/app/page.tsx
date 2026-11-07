@@ -11,7 +11,7 @@ import { SPOT_LABELS, type HouseSpot } from "@/components/room/CatHouse";
 import CarePanel from "@/components/care/CarePanel";
 import CareStatusPanel from "@/components/care/CareStatusPanel";
 import MoodRoutineSheet from "@/components/mood/MoodRoutineSheet";
-import { deriveCatMood, getActiveRoutine, type CatMood } from "@/lib/mock-mood";
+import { deriveCatMood, evaluateMoodShift, getActiveRoutine, type CatMood, type MoodTransition } from "@/lib/mock-mood";
 import { CARE_ACTIONS, getRefusalReason, MEAL_ITEMS, TOY_ITEMS, useCare, type CareAction, type MealItem, type ToyItem } from "@/lib/use-care";
 
 const CatRoomScene = dynamic(() => import("@/components/room/CatRoomScene"), {
@@ -40,6 +40,7 @@ export default function Home() {
   const [showMoodSheet, setShowMoodSheet] = useState(false);
   const [moodOverride, setMoodOverride] = useState<CatMood | null>(null);
   const [simulatedHour, setSimulatedHour] = useState<number>(9);
+  const [moodHistory, setMoodHistory] = useState<MoodTransition[]>([]);
   const [foodFill, setFoodFill] = useState(MEAL_ITEMS.makan[0].fillColor);
   const [waterFill, setWaterFill] = useState(MEAL_ITEMS.minum[0].fillColor);
   const [bathing, setBathing] = useState(false);
@@ -64,6 +65,36 @@ export default function Home() {
     return () => clearTimeout(id);
   }, [spot, anim]);
 
+  const recordMoodFromEffect = (effect: Partial<typeof stats>, trigger: string, fallbackToast: string) => {
+    const nextStats = { ...stats };
+    for (const [k, v] of Object.entries(effect) as [keyof typeof stats, number][]) {
+      nextStats[k] = Math.max(0, Math.min(100, nextStats[k] + v));
+    }
+    const shift = evaluateMoodShift({
+      prevStats: stats,
+      nextStats,
+      hour: simulatedHour,
+      trigger,
+      catName: cat.name,
+    });
+    setMoodOverride(null);
+    if (shift.changed) {
+      setMoodHistory((prev) => [
+        {
+          id: prev.length + 1,
+          from: shift.prevMood.mood,
+          to: shift.nextMood.mood,
+          trigger,
+          reason: shift.nextMood.reason,
+        },
+        ...prev.slice(0, 4),
+      ]);
+      setToast(`${fallbackToast} · ${shift.prevMood.emoji}→${shift.nextMood.emoji} Kini ${shift.nextMood.mood}!`);
+    } else {
+      setToast(fallbackToast);
+    }
+  };
+
   const doCare = (a: CareAction) => {
     const refusal = getRefusalReason(a, stats, cat.name, litterDirty || stats.hygiene < 65);
     if (refusal) {
@@ -81,7 +112,7 @@ export default function Home() {
     } else if (def.spot) {
       setSpot(def.spot);
     }
-    setToast(`${cat.name} ${def.message}`);
+    recordMoodFromEffect(def.effect, def.label, `${cat.name} ${def.message}`);
   };
 
   const serveMeal = (item: MealItem) => {
@@ -98,7 +129,7 @@ export default function Home() {
       setWaterFill(item.fillColor);
       setSpot("waterBowl");
     }
-    setToast(`${cat.name} ${item.message}`);
+    recordMoodFromEffect(item.effect, item.label, `${cat.name} ${item.message}`);
   };
 
   const playToy = (toy: ToyItem) => {
@@ -111,10 +142,25 @@ export default function Home() {
     perform({ effect: toy.effect, label: toy.label, icon: toy.icon, action: "main", itemType: toy.id });
     setToyColor(toy.color);
     setSpot(toy.spot);
-    setToast(`${cat.name} ${toy.message}`);
+    recordMoodFromEffect(toy.effect, toy.label, `${cat.name} ${toy.message}`);
   };
 
-  const touchCat = (t: CatTouch) => setToast(pickReaction(t, cat.name));
+  const touchCat = (t: CatTouch) => {
+    const reactionText = pickReaction(t, cat.name);
+    if (t.part === "ekor") {
+      const eff = { happiness: -6 };
+      perform({ effect: eff, label: "Sentuh ekor", icon: "😾" });
+      recordMoodFromEffect(eff, "Sentuh ekor", reactionText);
+    } else if (t.kind === "elus") {
+      const eff = { happiness: 8 };
+      perform({ effect: eff, label: `Elus ${t.part}`, icon: "💕", action: "main", itemType: "elus" });
+      recordMoodFromEffect(eff, `Elus ${t.part}`, reactionText);
+    } else {
+      const eff = { happiness: 3 };
+      perform({ effect: eff, label: `Sentuh ${t.part}`, icon: "🐾" });
+      recordMoodFromEffect(eff, `Sentuh ${t.part}`, reactionText);
+    }
+  };
 
   const useObject = (s: HouseSpot) => {
     if (s === "foodBowl") {
@@ -135,6 +181,13 @@ export default function Home() {
     }
     if (s === "scratchPost") {
       playToy(TOY_ITEMS[2]);
+      return;
+    }
+    if (s === "bed") {
+      const eff = { energy: 30, happiness: 5 };
+      perform({ effect: eff, label: "Tidur siang", icon: "😴" });
+      setSpot("bed");
+      recordMoodFromEffect(eff, "Tidur di kasur", `${cat.name} meringkuk tidur di kasur 😴`);
       return;
     }
     setSpot(s);
@@ -229,6 +282,7 @@ export default function Home() {
             onSelectMood={setMoodOverride}
             simulatedHour={simulatedHour}
             onChangeHour={setSimulatedHour}
+            moodHistory={moodHistory}
             onGoToSpot={(s, title) => {
               setSpot(s);
               setShowMoodSheet(false);
