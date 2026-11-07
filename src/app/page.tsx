@@ -318,6 +318,8 @@ export default function Home() {
             name={cat.name}
             experience={experience}
             closeness={closeness}
+            stats={stats}
+            history={history}
             stageOverride={stageOverride}
             onSelectStage={setStageOverride}
             onBoostGrowth={() => {

@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import BadgeCollectionGallery, { evaluateAchievementBadges } from "./BadgeCollectionGallery";
 import ClosenessLevelPanel from "./ClosenessLevelPanel";
+import type { CatStats } from "@/lib/mock-cat";
+import type { CareLogEntry } from "@/lib/use-care";
 import ExperienceStageIndicator from "./ExperienceStageIndicator";
 import {
   computeGrowthProgress,
-  MOCK_ACHIEVEMENTS,
   resolveClosenessTier,
   type GrowthStage,
 } from "@/lib/mock-growth";
@@ -19,6 +21,8 @@ export default function GrowthSheet({
   closeness,
   stageOverride,
   onSelectStage,
+  stats,
+  history,
   onBoostGrowth,
   onClose,
 }: {
@@ -27,9 +31,12 @@ export default function GrowthSheet({
   closeness: number;
   stageOverride: GrowthStage | null;
   onSelectStage: (stage: GrowthStage | null) => void;
+  stats?: CatStats;
+  history?: CareLogEntry[];
   onBoostGrowth?: () => void;
   onClose: () => void;
 }) {
+  const badges = evaluateAchievementBadges({ experience, closeness, stats, history });
   const [tab, setTab] = useState<GrowthTab>("tahap");
   const growth = computeGrowthProgress(experience, stageOverride);
   const closenessTier = resolveClosenessTier(closeness);
@@ -113,34 +120,8 @@ export default function GrowthSheet({
 
       {/* Tab 3: Pencapaian */}
       {tab === "pencapaian" && (
-        <div className="mt-3 max-h-52 space-y-2 overflow-y-auto pr-1 text-xs">
-          {MOCK_ACHIEVEMENTS.map((ach) => (
-            <div
-              key={ach.id}
-              className={`flex items-center justify-between gap-2.5 rounded-2xl border p-2.5 ${
-                ach.unlocked
-                  ? "border-amber-300 bg-amber-50/70 text-stone-800"
-                  : "border-stone-100 bg-stone-50/70 text-stone-500"
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-lg shadow-sm">
-                  {ach.icon}
-                </span>
-                <div>
-                  <p className="font-bold">{ach.name}</p>
-                  <p className="text-[11px]">{ach.description}</p>
-                </div>
-              </div>
-              <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                  ach.unlocked ? "bg-emerald-100 text-emerald-700" : "bg-stone-200 text-stone-600"
-                }`}
-              >
-                {ach.unlocked ? "Terbuka" : `${ach.progress}%`}
-              </span>
-            </div>
-          ))}
+        <div className="mt-3">
+          <BadgeCollectionGallery badges={badges} />
         </div>
       )}
     </div>
