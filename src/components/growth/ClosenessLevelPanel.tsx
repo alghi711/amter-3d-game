@@ -1,5 +1,6 @@
 "use client";
 
+import { CLOSENESS_REACTIONS } from "@/lib/cat-reactions";
 import { CLOSENESS_TIERS, resolveClosenessTier } from "@/lib/mock-growth";
 
 /** Panel Tingkat Kedekatan dengan label sederhana yang hangat dan mudah dipahami pemain. */
@@ -52,6 +53,9 @@ export default function ClosenessLevelPanel({
         </div>
 
         <p className="mt-1.5 text-[11px] text-stone-600">{currentTier.description}</p>
+        <p className="mt-1 rounded-xl bg-white/80 px-2.5 py-1.5 text-[11px] text-rose-900">
+          <strong>Reaksi khas saat ini:</strong> {CLOSENESS_REACTIONS[currentTier.id]?.summary}
+        </p>
 
         <div className="mt-2 flex items-center justify-between border-t border-rose-200/60 pt-2 text-[11px] text-stone-600">
           <span>

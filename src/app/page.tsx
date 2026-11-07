@@ -157,7 +157,7 @@ export default function Home() {
   };
 
   const touchCat = (t: CatTouch) => {
-    const reactionText = pickReaction(t, cat.name);
+    const reactionText = pickReaction(t, cat.name, closeness);
     if (t.part === "ekor") {
       const eff = { happiness: -6 };
       perform({ effect: eff, label: "Sentuh ekor", icon: "😾" });

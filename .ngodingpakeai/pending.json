@@ -1,6 +1,6 @@
 {
   "repo": "ngodingpakeai-project",
-  "generatedForCommit": "dce5089b01c69c7871320950da5106e4e882f6f3",
+  "generatedForCommit": "d97f9ece9059874073e093a071856522d51397e2",
   "files": [
     {
       "path": ".codex/skills/ngodingpakeai/SKILL.md",
@@ -148,7 +148,7 @@
     },
     {
       "path": "src/app/page.tsx",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 14830
     },
@@ -165,16 +165,22 @@
       "size": 5469
     },
     {
+      "path": "src/components/growth/ClosenessLevelPanel.tsx",
+      "reason": "new",
+      "language": "typescript",
+      "size": 4508
+    },
+    {
       "path": "src/components/growth/ExperienceStageIndicator.tsx",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 7077
     },
     {
       "path": "src/components/growth/GrowthSheet.tsx",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "typescript",
-      "size": 6666
+      "size": 4887
     },
     {
       "path": "src/components/mood/DailyRoutineSchedule.tsx",
@@ -214,7 +220,7 @@
     },
     {
       "path": "src/components/room/CatRoomScene.tsx",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 25944
     },
@@ -268,7 +274,7 @@
     },
     {
       "path": "src/lib/mock-growth.ts",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 5321
     },
