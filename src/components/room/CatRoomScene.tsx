@@ -1,6 +1,6 @@
 "use client";
 
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { AdaptiveDpr, ContactShadows, OrbitControls, PerformanceMonitor, PerspectiveCamera } from "@react-three/drei";
 import { QUALITY_PROFILES, detectQuality, stepQuality, type QualityLevel } from "@/lib/quality";
 import CatHouse, { type HouseSpot } from "./CatHouse";
@@ -8,8 +8,52 @@ import { useRef, useState } from "react";
 import type { Group } from "three";
 
 /** Kucing sederhana dari primitif — placeholder sebelum model glTF tersedia. */
-function Cat({ color, target }: { color: string; target: readonly [number, number] }) {
+export type CatPart = "kepala" | "badan" | "ekor";
+export type CatTouch = { kind: "sentuh" | "elus"; part: CatPart };
+
+/** Nama mesh → bagian tubuh; dipakai untuk tahu bagian mana yang disentuh. */
+const partOf = (name: string): CatPart => (name === "ekor" ? "ekor" : name === "badan" ? "badan" : "kepala");
+
+function Cat({
+  color,
+  target,
+  onTouch,
+  onPettingChange,
+}: {
+  color: string;
+  target: readonly [number, number];
+  onTouch?: (t: CatTouch) => void;
+  onPettingChange?: (petting: boolean) => void;
+}) {
   const root = useRef<Group>(null);
+  // jejak gesekan: jarak geser (px) selama jari/mouse ditekan di atas kucing
+  const stroke = useRef<{ x: number; y: number; dist: number; part: CatPart; pet: boolean } | null>(null);
+
+  const onDown = (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    stroke.current = { x: e.clientX, y: e.clientY, dist: 0, part: partOf(e.object.name), pet: false };
+    onPettingChange?.(true); // matikan kamera selama menyentuh kucing
+  };
+  const onMove = (e: ThreeEvent<PointerEvent>) => {
+    const st = stroke.current;
+    if (!st) return;
+    e.stopPropagation();
+    st.dist += Math.hypot(e.clientX - st.x, e.clientY - st.y);
+    st.x = e.clientX;
+    st.y = e.clientY;
+    st.part = partOf(e.object.name);
+    if (!st.pet && st.dist > 40) {
+      st.pet = true;
+      onTouch?.({ kind: "elus", part: st.part });
+    }
+  };
+  const end = () => {
+    const st = stroke.current;
+    if (!st) return;
+    if (!st.pet) onTouch?.({ kind: "sentuh", part: st.part });
+    stroke.current = null;
+    onPettingChange?.(false);
+  };
   const body = useRef<Group>(null);
   const tail = useRef<Group>(null);
 
@@ -37,9 +81,18 @@ function Cat({ color, target }: { color: string; target: readonly [number, numbe
   });
 
   return (
-    <group ref={root} position={[0, 0, 0.6]}>
+    <group
+      ref={root}
+      position={[0, 0, 0.6]}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={end}
+      onPointerLeave={end}
+      onPointerOver={() => (document.body.style.cursor = "grab")}
+      onPointerOut={() => (document.body.style.cursor = "auto")}
+    >
       <group ref={body}>
-        <mesh position={[0, 0.45, 0]} castShadow>
+        <mesh name="badan" position={[0, 0.45, 0]} castShadow>
           <sphereGeometry args={[0.5, 32, 32]} />
           <meshStandardMaterial color={color} />
         </mesh>
@@ -69,7 +122,7 @@ function Cat({ color, target }: { color: string; target: readonly [number, numbe
         </mesh>
       </group>
       <group ref={tail} position={[0, 0.35, -0.45]}>
-        <mesh position={[0, 0.3, -0.05]} rotation={[-0.4, 0, 0]} castShadow>
+        <mesh name="ekor" position={[0, 0.3, -0.05]} rotation={[-0.4, 0, 0]} castShadow>
           <capsuleGeometry args={[0.07, 0.6, 8, 16]} />
           <meshStandardMaterial color={color} />
         </mesh>
@@ -90,11 +143,14 @@ export default function CatRoomScene({
   furColor,
   catTarget,
   onUseObject,
+  onCatTouch,
 }: {
   furColor: string;
   catTarget: readonly [number, number];
   onUseObject: (spot: HouseSpot) => void;
+  onCatTouch?: (t: CatTouch) => void;
 }) {
+  const [petting, setPetting] = useState(false);
   // kualitas awal ditebak dari perangkat, lalu diturunkan otomatis bila FPS anjlok
   const [quality, setQuality] = useState<QualityLevel>(() => detectQuality());
   const q = QUALITY_PROFILES[quality];
@@ -118,12 +174,13 @@ export default function CatRoomScene({
       <ambientLight intensity={0.6} />
       <directionalLight position={[4, 6, 3]} intensity={1.2} castShadow={q.shadows} shadow-mapSize={[q.shadowMapSize, q.shadowMapSize]} />
       <CatHouse onUse={onUseObject} />
-      <Cat color={furColor} target={catTarget} />
+      <Cat color={furColor} target={catTarget} onTouch={onCatTouch} onPettingChange={setPetting} />
       {q.contactShadows && (
         <ContactShadows position={[0, 0.01, 0]} opacity={0.35} blur={2} far={3} resolution={256} />
       )}
       <OrbitControls
         target={[0, 0.8, 0]}
+        enabled={!petting}
         enablePan={false}
         minDistance={3}
         maxDistance={9}

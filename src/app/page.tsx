@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { mockCat } from "@/lib/mock-cat";
+import type { CatTouch } from "@/components/room/CatRoomScene";
 import { HOUSE_SPOTS, SPOT_LABELS, type HouseSpot } from "@/components/room/CatHouse";
 
 const CatRoomScene = dynamic(() => import("@/components/room/CatRoomScene"), {
@@ -26,6 +27,10 @@ export default function Home() {
     return () => clearTimeout(id);
   }, [toast]);
 
+  const touchCat = ({ kind, part }: CatTouch) => {
+    setToast(kind === "elus" ? `${cat.name} mendengkur… suka dielus di ${part} 💕` : `${cat.name} menoleh — kamu menyentuh ${part}nya`);
+  };
+
   const useObject = (s: HouseSpot) => {
     setSpot(s);
     setToast(`${cat.name} menuju ${SPOT_LABELS[s].toLowerCase()}`);
@@ -33,7 +38,7 @@ export default function Home() {
   return (
     <main className="relative h-dvh w-full overflow-hidden bg-[#fff6ef] text-stone-800">
       <div className="absolute inset-0">
-        <CatRoomScene furColor={cat.furColor} catTarget={target} onUseObject={useObject} />
+        <CatRoomScene furColor={cat.furColor} catTarget={target} onUseObject={useObject} onCatTouch={touchCat} />
       </div>
 
       {/* Header info kucing */}
