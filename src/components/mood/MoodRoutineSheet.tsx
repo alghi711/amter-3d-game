@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import MoodExpressionPicker from "./MoodExpressionPicker";
 import type { HouseSpot } from "@/components/room/CatHouse";
 import type { CatStats } from "@/lib/mock-cat";
 import {
@@ -9,7 +10,6 @@ import {
   getActiveRoutine,
   MOCK_PERSONALITY_TRAITS,
   MOCK_ROUTINES,
-  MOOD_DEFINITIONS,
   type CatMood,
 } from "@/lib/mock-mood";
 
@@ -94,47 +94,11 @@ export default function MoodRoutineSheet({
       {/* Isi Tab: Suasana Hati */}
       {tab === "mood" && (
         <div className="mt-3 space-y-3">
-          <div className="rounded-2xl bg-amber-50/80 p-3 text-xs text-stone-700">
-            <p className="font-semibold text-amber-900">Ekspresi & Suara {name}:</p>
-            <p className="mt-1">• Gerak: {moodInfo.expression}</p>
-            <p>• Suara: &ldquo;{moodInfo.sound}&rdquo;</p>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between text-xs text-stone-500">
-              <span>Coba simulasi suasana hati:</span>
-              {moodOverride && (
-                <button
-                  type="button"
-                  onClick={() => onSelectMood(null)}
-                  className="font-medium text-amber-700 underline"
-                >
-                  Ikuti kondisi otomatis
-                </button>
-              )}
-            </div>
-            <div className="mt-1.5 grid grid-cols-4 gap-1.5">
-              {(Object.keys(MOOD_DEFINITIONS) as CatMood[]).map((m) => {
-                const def = MOOD_DEFINITIONS[m];
-                const active = moodInfo.mood === m;
-                return (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => onSelectMood(moodOverride === m ? null : m)}
-                    className={`flex flex-col items-center gap-0.5 rounded-2xl border py-2 text-xs font-medium transition ${
-                      active
-                        ? "border-amber-400 bg-amber-100/80 text-amber-900"
-                        : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
-                    }`}
-                  >
-                    <span className="text-lg">{def.emoji}</span>
-                    <span className="capitalize">{m}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <MoodExpressionPicker
+            activeMood={moodInfo.mood}
+            moodOverride={moodOverride}
+            onSelectMood={onSelectMood}
+          />
 
           {/* Pengingat Lembut */}
           <div className="space-y-1.5">

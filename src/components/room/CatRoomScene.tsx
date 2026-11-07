@@ -7,6 +7,7 @@ import CatHouse, { HOUSE_SPOTS, type BowlState, type HouseSpot } from "./CatHous
 import { useEffect, useRef, useState } from "react";
 import { MathUtils, MOUSE, TOUCH, type Group, type Mesh, type Object3D } from "three";
 import { resolveAnimState, type CatAnimState } from "@/lib/cat-animation";
+import type { CatMood } from "@/lib/mock-mood";
 import { CAMERA_CONTROL_PRESETS, useInputKind } from "@/lib/use-input-kind";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
@@ -99,9 +100,11 @@ function Cat({
   onAnimState,
   anim,
   bathing = false,
+  mood = "senang",
 }: {
   anim: QualityProfile["anim"];
   bathing?: boolean;
+  mood?: CatMood;
   color: string;
   spot: HouseSpot | null;
   onAnimState?: (s: CatAnimState) => void;
@@ -117,6 +120,7 @@ function Cat({
   // jejak gesekan: jarak geser (px) selama jari/mouse ditekan di atas kucing
   const head = useRef<Group>(null);
   const eyes = useRef<Group>(null);
+  const ears = useRef<Group>(null);
   // reaksi aktif: jenis + waktu mulai (detik jam three)
   // intensity 0..1 mengikuti kecepatan usapan; lean = arah usapan (-1 kiri .. 1 kanan)
   const reaction = useRef<{ kind: CatTouch["kind"]; part: CatPart; start: number; intensity: number; lean: number } | null>(
@@ -239,7 +243,8 @@ function Cat({
     }
 
     // ekor: fase diakumulasi supaya ganti kecepatan tidak membuat ekor "loncat"
-    const tailSpeed = next === "kesal" ? 14 : petting ? 4 + k * 8 : next === "tidur" ? 0.8 : next === "main" ? 7 : 3;
+    const moodTailMul = mood === "senang" ? 1.25 : mood === "bosan" ? 0.55 : mood === "ngantuk" ? 0.45 : 1;
+    const tailSpeed = (next === "kesal" ? 14 : petting ? 4 + k * 8 : next === "tidur" ? 0.8 : next === "main" ? 7 : 3) * moodTailMul;
     const tailAmp = next === "kesal" ? 0.9 : petting ? 0.4 + k * 0.3 : next === "tidur" ? 0.1 : 0.4;
     idle.tailPhase += delta * tailSpeed;
     idle.tailAmp = d(idle.tailAmp, tailAmp, 5);
@@ -294,10 +299,15 @@ function Cat({
       head.current.rotation.x = d(head.current.rotation.x, pitch, 8);
     }
 
-    // mata: kedip, merem saat dielus/tidur
+    // mata & telinga: menyesuaikan ekspresi 4 suasana hati (senang, lapar, bosan, ngantuk)
     if (eyes.current) {
       const closed = petting || next === "tidur" || t < idle.blinkUntil;
-      eyes.current.scale.y = d(eyes.current.scale.y, closed ? 0.12 : 1, closed ? 30 : 14);
+      const openScale = mood === "ngantuk" ? 0.42 : mood === "bosan" ? 0.68 : mood === "lapar" ? 1.15 : 1;
+      eyes.current.scale.y = d(eyes.current.scale.y, closed ? 0.12 : openScale, closed ? 30 : 14);
+    }
+    if (ears.current) {
+      const droop = mood === "bosan" || mood === "ngantuk" ? 0.22 : 0;
+      ears.current.rotation.x = d(ears.current.rotation.x, droop, 6);
     }
   });
 
@@ -325,12 +335,14 @@ function Cat({
           <meshStandardMaterial color={color} />
         </mesh>
         {/* telinga */}
-        {[-0.2, 0.2].map((x) => (
-          <mesh key={x} position={[x, 1.4, 0.1]} rotation={[0, 0, x > 0 ? -0.3 : 0.3]} castShadow>
-            <coneGeometry args={[0.12, 0.25, 16]} />
-            <meshStandardMaterial color={color} />
-          </mesh>
-        ))}
+        <group ref={ears} position={[0, 1.35, 0.1]}>
+          {[-0.2, 0.2].map((x) => (
+            <mesh key={x} position={[x, 0.05, 0]} rotation={[0, 0, x > 0 ? -0.3 : 0.3]} castShadow>
+              <coneGeometry args={[0.12, 0.25, 16]} />
+              <meshStandardMaterial color={color} />
+            </mesh>
+          ))}
+        </group>
         {/* mata */}
         <group ref={eyes} position={[0, 1.1, 0]}>
           {[-0.13, 0.13].map((x) => (
@@ -455,6 +467,7 @@ export default function CatRoomScene({
   litterDirty = false,
   toyColor = "#ffd166",
   playingToy = false,
+  mood = "senang",
 }: {
   furColor: string;
   /** benda yang sedang dituju kucing; null = kembali ke karpet */
@@ -470,6 +483,7 @@ export default function CatRoomScene({
   litterDirty?: boolean;
   toyColor?: string;
   playingToy?: boolean;
+  mood?: CatMood;
 }) {
   const [petting, setPetting] = useState(false);
   // kualitas awal ditebak dari perangkat, lalu diturunkan otomatis bila FPS anjlok
@@ -495,7 +509,7 @@ export default function CatRoomScene({
       <ambientLight intensity={0.6} />
       <directionalLight position={[4, 6, 3]} intensity={1.2} castShadow={q.shadows} shadow-mapSize={[q.shadowMapSize, q.shadowMapSize]} />
       <CatHouse onUse={onUseObject} foodBowlState={foodBowlState} waterBowlState={waterBowlState} litterDirty={litterDirty} toyColor={toyColor} playingToy={playingToy} />
-      <Cat color={furColor} spot={catSpot} onAnimState={onAnimState} onTouch={onCatTouch} onPettingChange={setPetting} anim={q.anim} bathing={bathing} />
+      <Cat color={furColor} spot={catSpot} onAnimState={onAnimState} onTouch={onCatTouch} onPettingChange={setPetting} anim={q.anim} bathing={bathing} mood={mood} />
       {q.contactShadows && (
         <ContactShadows position={[0, 0.01, 0]} opacity={0.35} blur={2} far={3} resolution={256} />
       )}
