@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { CatStats } from "@/lib/mock-cat";
 import { careScore, careStatus } from "./CareStatusPanel";
-import { CARE_ACTIONS, MEAL_ITEMS, STAT_LABELS, TOY_ITEMS, type CareAction, type MealItem, type ToyItem } from "@/lib/use-care";
+import { CARE_ACTIONS, getRefusalReason, MEAL_ITEMS, STAT_LABELS, TOY_ITEMS, type CareAction, type MealItem, type ToyItem } from "@/lib/use-care";
 
 /** Bilah kondisi ringkas (5 kebutuhan). */
 export function StatBars({ stats }: { stats: CatStats }) {
@@ -36,6 +36,7 @@ export default function CarePanel({
   onPlayToy,
   busy,
   onOpenStatus,
+  litterDirty = true,
 }: {
   stats: CatStats;
   onAction: (a: CareAction) => void;
@@ -44,12 +45,18 @@ export default function CarePanel({
   busy?: boolean;
   /** buka panel detail kondisi perawatan */
   onOpenStatus?: () => void;
+  litterDirty?: boolean;
 }) {
   const [subMenu, setSubMenu] = useState<"makan" | "minum" | "main" | null>(null);
   const score = careScore(stats);
   const status = careStatus(score);
 
   const handleClick = (a: CareAction) => {
+    if (getRefusalReason(a, stats, "Mochi", litterDirty)) {
+      setSubMenu(null);
+      onAction(a);
+      return;
+    }
     if ((a === "makan" || a === "minum") && onServeMeal) {
       setSubMenu((cur) => (cur === a ? null : a));
       return;
@@ -127,6 +134,7 @@ export default function CarePanel({
       <div className="mt-3 grid grid-cols-5 gap-2">
         {(Object.keys(CARE_ACTIONS) as CareAction[]).map((a) => {
           const active = subMenu === a;
+          const refused = Boolean(getRefusalReason(a, stats, "Mochi", litterDirty));
           return (
             <button
               key={a}
@@ -134,14 +142,23 @@ export default function CarePanel({
               disabled={busy}
               aria-pressed={active}
               onClick={() => handleClick(a)}
-              className={`flex flex-col items-center gap-0.5 rounded-2xl py-2 text-xs font-medium shadow-sm transition active:scale-95 disabled:opacity-50 ${
-                active ? "bg-amber-400 text-white" : "bg-amber-50 text-stone-700 hover:bg-amber-100"
+              className={`relative flex flex-col items-center gap-0.5 rounded-2xl py-2 text-xs font-medium shadow-sm transition active:scale-95 disabled:opacity-50 ${
+                active
+                  ? "bg-amber-400 text-white"
+                  : refused
+                    ? "bg-stone-100 text-stone-500 hover:bg-stone-200/70"
+                    : "bg-amber-50 text-stone-700 hover:bg-amber-100"
               }`}
             >
               <span className="text-xl" aria-hidden>
                 {CARE_ACTIONS[a].icon}
               </span>
               {CARE_ACTIONS[a].label}
+              {refused && (
+                <span className="absolute top-1 right-1.5 text-[9px] text-emerald-600" aria-label="Sudah penuh">
+                  ✓
+                </span>
+              )}
             </button>
           );
         })}

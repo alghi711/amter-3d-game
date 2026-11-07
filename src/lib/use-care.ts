@@ -82,3 +82,35 @@ export function useCare(initial: CatStats = mockCat.stats) {
   const [stats, perform] = useReducer(reducer, initial);
   return { stats, perform };
 }
+
+const FULL_THRESHOLD = 95;
+
+/** Cek apakah kebutuhan untuk aksi tertentu sudah penuh; kembalikan pesan penolakan ramah bila ya. */
+export function getRefusalReason(
+  action: CareAction,
+  stats: CatStats,
+  name: string,
+  litterDirty = true,
+): string | null {
+  if (action === "makan" && stats.hunger >= FULL_THRESHOLD) {
+    return `${name} menggeleng pelan — perutnya sudah kenyang sekali 😸`;
+  }
+  if (action === "minum" && stats.thirst >= FULL_THRESHOLD) {
+    return `${name} mengendus mangkuk lalu pergi — belum haus lagi 💧`;
+  }
+  if (action === "mandi" && stats.hygiene >= FULL_THRESHOLD) {
+    return `Bulu ${name} sudah bersih dan wangi, belum perlu mandi lagi ✨`;
+  }
+  if (action === "bersihkan" && !litterDirty && stats.hygiene >= FULL_THRESHOLD) {
+    return `Kotak pasir ${name} masih bersih dan rapi 🌟`;
+  }
+  if (action === "main") {
+    if (stats.energy < 15) {
+      return `${name} menguap lebar — terlalu mengantuk untuk bermain 😴`;
+    }
+    if (stats.happiness >= FULL_THRESHOLD) {
+      return `${name} rebahan santai — sudah puas bermain hari ini 🐾`;
+    }
+  }
+  return null;
+}

@@ -10,7 +10,7 @@ import { ANIM_LABELS, type CatAnimState } from "@/lib/cat-animation";
 import { SPOT_LABELS, type HouseSpot } from "@/components/room/CatHouse";
 import CarePanel from "@/components/care/CarePanel";
 import CareStatusPanel from "@/components/care/CareStatusPanel";
-import { CARE_ACTIONS, MEAL_ITEMS, TOY_ITEMS, useCare, type CareAction, type MealItem, type ToyItem } from "@/lib/use-care";
+import { CARE_ACTIONS, getRefusalReason, MEAL_ITEMS, TOY_ITEMS, useCare, type CareAction, type MealItem, type ToyItem } from "@/lib/use-care";
 
 const CatRoomScene = dynamic(() => import("@/components/room/CatRoomScene"), {
   ssr: false,
@@ -50,6 +50,11 @@ export default function Home() {
   }, [bathing]);
 
   const doCare = (a: CareAction) => {
+    const refusal = getRefusalReason(a, stats, cat.name, litterDirty || stats.hygiene < 65);
+    if (refusal) {
+      setToast(refusal);
+      return;
+    }
     const def = CARE_ACTIONS[a];
     perform(a);
     if (a === "mandi") {
@@ -65,6 +70,11 @@ export default function Home() {
   };
 
   const serveMeal = (item: MealItem) => {
+    const refusal = getRefusalReason(item.action, stats, cat.name, litterDirty || stats.hygiene < 65);
+    if (refusal) {
+      setToast(refusal);
+      return;
+    }
     perform({ effect: item.effect });
     if (item.action === "makan") {
       setFoodFill(item.fillColor);
@@ -77,9 +87,10 @@ export default function Home() {
   };
 
   const playToy = (toy: ToyItem) => {
-    if (stats.energy < 15) {
-      setSpot("bed");
-      setToast(`${cat.name} terlalu lelah untuk bermain — waktunya istirahat 😴`);
+    const refusal = getRefusalReason("main", stats, cat.name, litterDirty || stats.hygiene < 65);
+    if (refusal) {
+      if (stats.energy < 15) setSpot("bed");
+      setToast(refusal);
       return;
     }
     perform({ effect: toy.effect });
@@ -163,7 +174,7 @@ export default function Home() {
         {showStatus ? (
           <CareStatusPanel stats={stats} name={cat.name} onClose={() => setShowStatus(false)} />
         ) : (
-          <CarePanel stats={stats} onAction={doCare} onServeMeal={serveMeal} onPlayToy={playToy} onOpenStatus={() => setShowStatus(true)} />
+          <CarePanel stats={stats} onAction={doCare} onServeMeal={serveMeal} onPlayToy={playToy} litterDirty={litterDirty || stats.hygiene < 65} onOpenStatus={() => setShowStatus(true)} />
         )}
       </footer>
     </main>
