@@ -4,8 +4,9 @@ import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber"
 import { AdaptiveDpr, ContactShadows, OrbitControls, PerformanceMonitor, PerspectiveCamera } from "@react-three/drei";
 import { QUALITY_PROFILES, detectQuality, stepQuality, type QualityLevel } from "@/lib/quality";
 import CatHouse, { type HouseSpot } from "./CatHouse";
-import { useRef, useState } from "react";
-import type { Group } from "three";
+import { useEffect, useRef, useState } from "react";
+import { TOUCH, type Group } from "three";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 /** Kucing sederhana dari primitif — placeholder sebelum model glTF tersedia. */
 /** Hati melayang ke atas lalu hilang — umpan balik saat kucing dielus. */
@@ -236,7 +237,45 @@ function ResponsiveCamera() {
   const size = useThree((state) => state.size);
   const aspect = size.width / size.height;
   const fov = aspect < 0.8 ? 60 : aspect < 1.2 ? 52 : 45;
-  return <PerspectiveCamera makeDefault position={[3.5, 3, 5]} fov={fov} />;
+  return <PerspectiveCamera makeDefault position={CAMERA_HOME} fov={fov} />;
+}
+
+/**
+ * Kamera bebas: putar (1 jari / drag), zoom (cubit / scroll), dengan redaman halus.
+ * Sudut dibatasi agar kamera tidak menembus dinding/lantai. `resetSignal` berubah → kembali ke sudut awal.
+ */
+const CAMERA_HOME: [number, number, number] = [3.5, 3, 5];
+
+function CameraRig({ enabled, resetSignal }: { enabled: boolean; resetSignal: number }) {
+  const controls = useRef<OrbitControlsImpl>(null);
+  useEffect(() => {
+    const c = controls.current;
+    if (resetSignal === 0 || !c) return;
+    c.object.position.set(...CAMERA_HOME);
+    c.target.set(0, 0.8, 0);
+    c.update();
+  }, [resetSignal]);
+  return (
+    <OrbitControls
+      ref={controls}
+      makeDefault
+      enabled={enabled}
+      target={[0, 0.8, 0]}
+      enableDamping
+      dampingFactor={0.08}
+      rotateSpeed={0.7}
+      zoomSpeed={0.8}
+      enablePan={false}
+      minDistance={2.5}
+      maxDistance={9}
+      minPolarAngle={0.2}
+      maxPolarAngle={Math.PI / 2.1}
+      minAzimuthAngle={-0.35}
+      maxAzimuthAngle={Math.PI / 2 + 0.35}
+      touches={{ ONE: TOUCH.ROTATE, TWO: TOUCH.DOLLY_ROTATE }}
+      regress
+    />
+  );
 }
 
 export default function CatRoomScene({
@@ -244,11 +283,14 @@ export default function CatRoomScene({
   catTarget,
   onUseObject,
   onCatTouch,
+  cameraReset = 0,
 }: {
   furColor: string;
   catTarget: readonly [number, number];
   onUseObject: (spot: HouseSpot) => void;
   onCatTouch?: (t: CatTouch) => void;
+  /** Naikkan angkanya untuk mengembalikan kamera ke posisi awal. */
+  cameraReset?: number;
 }) {
   const [petting, setPetting] = useState(false);
   // kualitas awal ditebak dari perangkat, lalu diturunkan otomatis bila FPS anjlok
@@ -278,15 +320,7 @@ export default function CatRoomScene({
       {q.contactShadows && (
         <ContactShadows position={[0, 0.01, 0]} opacity={0.35} blur={2} far={3} resolution={256} />
       )}
-      <OrbitControls
-        target={[0, 0.8, 0]}
-        enabled={!petting}
-        enablePan={false}
-        minDistance={3}
-        maxDistance={9}
-        maxPolarAngle={Math.PI / 2.1}
-        regress
-      />
+      <CameraRig enabled={!petting} resetSignal={cameraReset} />
     </Canvas>
   );
 }

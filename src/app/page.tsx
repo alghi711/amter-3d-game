@@ -19,6 +19,7 @@ const moodEmoji = { senang: "😺", lapar: "🍽️", bosan: "😿", ngantuk: "�
 export default function Home() {
   const cat = mockCat;
   const [spot, setSpot] = useState<HouseSpot | null>(null);
+  const [cameraReset, setCameraReset] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const target: readonly [number, number] = spot ? [HOUSE_SPOTS[spot][0], HOUSE_SPOTS[spot][2]] : [0, 0.6];
 
@@ -37,7 +38,7 @@ export default function Home() {
   return (
     <main className="relative h-dvh w-full overflow-hidden bg-[#fff6ef] text-stone-800">
       <div className="absolute inset-0">
-        <CatRoomScene furColor={cat.furColor} catTarget={target} onUseObject={useObject} onCatTouch={touchCat} />
+        <CatRoomScene furColor={cat.furColor} catTarget={target} onUseObject={useObject} onCatTouch={touchCat} cameraReset={cameraReset} />
       </div>
 
       {/* Header info kucing */}
@@ -50,9 +51,19 @@ export default function Home() {
             Tahap {cat.stage} · Level {cat.level} · Kedekatan {cat.closeness}%
           </p>
         </div>
-        <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-amber-700 shadow backdrop-blur">
-          MOCHI
-        </span>
+        <div className="pointer-events-auto flex flex-col items-end gap-2">
+          <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-amber-700 shadow backdrop-blur">
+            MOCHI
+          </span>
+          <button
+            type="button"
+            onClick={() => setCameraReset((n) => n + 1)}
+            className="rounded-full bg-white/80 px-3 py-1.5 text-xs font-medium text-stone-700 shadow backdrop-blur transition hover:bg-white active:scale-95"
+            aria-label="Kembalikan kamera"
+          >
+            🎥 Reset kamera
+          </button>
+        </div>
       </header>
 
       {toast && (
