@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { ensureCareSchema } from "@/db";
-import { cats, catStats, interactions } from "@/db/schema";
+import { catMoods, cats, catStats, interactions } from "@/db/schema";
+import { deriveCatMood } from "@/lib/mock-mood";
 import {
   applyTimeDecay,
   evaluateCareAction,
@@ -155,6 +156,24 @@ export async function executeCareAction(params: {
     value: evaluation.primaryValue,
     createdAt: now,
   });
+
+  const nextMood = deriveCatMood(evaluation.nextStats, new Date(now).getHours(), null);
+  await db
+    .insert(catMoods)
+    .values({
+      catId,
+      mood: nextMood.mood,
+      reason: nextMood.reason,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: catMoods.catId,
+      set: {
+        mood: nextMood.mood,
+        reason: nextMood.reason,
+        updatedAt: now,
+      },
+    });
 
   const updatedSnapshot = await getCatCareSnapshot(catId);
   return { evaluation, snapshot: updatedSnapshot };

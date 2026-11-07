@@ -1,6 +1,6 @@
 {
   "repo": "ngodingpakeai-project",
-  "generatedForCommit": "6cf7f77a9e49c3b4b5d85d4d1366e0f5325c5c9d",
+  "generatedForCommit": "ae54abc8c2d8d11d615a26fe76f8bc0f03f6d9f9",
   "files": [
     {
       "path": ".codex/skills/ngodingpakeai/SKILL.md",
@@ -37,6 +37,12 @@
       "reason": "needs_summary",
       "language": "sql",
       "size": 1286
+    },
+    {
+      "path": "drizzle/0001_mood_routine_personality.sql",
+      "reason": "new",
+      "language": "sql",
+      "size": 949
     },
     {
       "path": "drizzle.config.ts",
@@ -160,7 +166,7 @@
     },
     {
       "path": "src/components/mood/PersonalitySummaryPanel.tsx",
-      "reason": "changed",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 7338
     },
@@ -178,15 +184,15 @@
     },
     {
       "path": "src/db/index.ts",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "typescript",
-      "size": 3795
+      "size": 5869
     },
     {
       "path": "src/db/schema.ts",
-      "reason": "needs_summary",
+      "reason": "changed",
       "language": "typescript",
-      "size": 1997
+      "size": 3442
     },
     {
       "path": "src/lib/asset-cache.ts",
