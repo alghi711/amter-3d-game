@@ -1,7 +1,7 @@
 "use client";
 
 import type { CatStats } from "@/lib/mock-cat";
-import { STAT_LABELS } from "@/lib/use-care";
+import { CARE_ACTIONS, STAT_LABELS, type CareAction, type CareLogEntry } from "@/lib/use-care";
 
 /** Skor perawatan keseluruhan 0..100 (rata-rata berbobot). */
 export function careScore(s: CatStats): number {
@@ -16,16 +16,30 @@ export function careStatus(score: number): { label: string; emoji: string; tone:
   return { label: "Kurang terawat", emoji: "🥺", tone: "text-rose-600" };
 }
 
-const TIPS: Record<keyof CatStats, string> = {
-  hunger: "Mangkuk makannya hampir kosong — beri makan, yuk.",
-  thirst: "Sepertinya haus. Isi mangkuk minumnya.",
-  hygiene: "Bulunya mulai kusam. Mandikan atau bersihkan kandang.",
-  happiness: "Ia tampak bosan. Ajak main bola!",
-  energy: "Mulai lelah. Biarkan tidur sebentar di kasur.",
+const TIPS: Record<keyof CatStats, { text: string; action?: CareAction }> = {
+  hunger: { text: "Mangkuk makannya hampir kosong — beri makan, yuk.", action: "makan" },
+  thirst: { text: "Sepertinya haus. Isi mangkuk minumnya.", action: "minum" },
+  hygiene: { text: "Bulunya mulai kusam. Mandikan atau bersihkan kandang.", action: "mandi" },
+  happiness: { text: "Ia tampak bosan. Ajak main bola!", action: "main" },
+  energy: { text: "Mulai lelah. Biarkan tidur sebentar di kasur." },
 };
 
 /** Panel detail Kondisi Perawatan: skor keseluruhan, tiap kebutuhan, dan saran. */
-export default function CareStatusPanel({ stats, name, onClose }: { stats: CatStats; name: string; onClose: () => void }) {
+export default function CareStatusPanel({
+  stats,
+  deltas,
+  history = [],
+  name,
+  onAction,
+  onClose,
+}: {
+  stats: CatStats;
+  deltas?: Partial<CatStats>;
+  history?: CareLogEntry[];
+  name: string;
+  onAction?: (a: CareAction) => void;
+  onClose: () => void;
+}) {
   const score = careScore(stats);
   const status = careStatus(score);
   const keys = Object.keys(STAT_LABELS) as (keyof CatStats)[];
@@ -51,6 +65,7 @@ export default function CareStatusPanel({ stats, name, onClose }: { stats: CatSt
       <ul className="mt-3 space-y-2">
         {keys.map((k) => {
           const v = Math.round(stats[k]);
+          const d = deltas?.[k];
           const color = v < 30 ? "bg-rose-400" : v < 60 ? "bg-amber-400" : "bg-emerald-400";
           return (
             <li key={k} className="flex items-center gap-2 text-sm">
@@ -60,7 +75,14 @@ export default function CareStatusPanel({ stats, name, onClose }: { stats: CatSt
               <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-stone-200">
                 <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${v}%` }} />
               </div>
-              <span className="w-10 text-right tabular-nums text-stone-600">{v}%</span>
+              <span className="w-14 text-right tabular-nums text-stone-600">
+                {v}%
+                {d !== undefined && d !== 0 && (
+                  <span className={`ml-1 text-[11px] font-bold ${d > 0 ? "text-emerald-600" : "text-amber-600"}`}>
+                    ({d > 0 ? `+${d}` : d})
+                  </span>
+                )}
+              </span>
             </li>
           );
         })}
@@ -68,15 +90,40 @@ export default function CareStatusPanel({ stats, name, onClose }: { stats: CatSt
 
       <div className="mt-3 rounded-2xl bg-amber-50 p-3 text-xs text-stone-600">
         {tips.length ? (
-          <ul className="list-inside list-disc space-y-1">
-            {tips.slice(0, 2).map((k) => (
-              <li key={k}>{TIPS[k]}</li>
-            ))}
+          <ul className="space-y-1.5">
+            {tips.slice(0, 2).map((k) => {
+              const tip = TIPS[k];
+              return (
+                <li key={k} className="flex items-center justify-between gap-2">
+                  <span>• {tip.text}</span>
+                  {tip.action && onAction && (
+                    <button
+                      type="button"
+                      onClick={() => onAction(tip.action!)}
+                      className="shrink-0 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm hover:bg-amber-600 active:scale-95"
+                    >
+                      {CARE_ACTIONS[tip.action].icon} {CARE_ACTIONS[tip.action].label}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p>{name} sedang dalam kondisi prima. Terus rawat dengan penuh kasih! 💕</p>
         )}
       </div>
+
+      {history.length > 0 && (
+        <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto text-[11px] text-stone-500">
+          <span className="shrink-0 font-medium">Baru saja:</span>
+          {history.slice(0, 3).map((h) => (
+            <span key={h.id} className="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-stone-700">
+              {h.icon} {h.label}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

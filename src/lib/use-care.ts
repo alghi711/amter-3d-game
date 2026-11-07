@@ -66,21 +66,49 @@ export const STAT_LABELS: Record<keyof CatStats, { label: string; icon: string }
 
 const clamp = (n: number) => Math.max(0, Math.min(100, n));
 
-type CareDispatch = CareAction | { effect: Partial<CatStats> };
+export type CareLogEntry = {
+  id: number;
+  label: string;
+  icon: string;
+  deltas: Partial<CatStats>;
+};
 
-function reducer(stats: CatStats, input: CareDispatch): CatStats {
-  const next = { ...stats };
+type CareState = {
+  stats: CatStats;
+  lastDeltas: Partial<CatStats>;
+  history: CareLogEntry[];
+};
+
+type CareDispatch =
+  | CareAction
+  | { effect: Partial<CatStats>; label?: string; icon?: string };
+
+let logSeq = 1;
+
+function reducer(state: CareState, input: CareDispatch): CareState {
+  const next = { ...state.stats };
   const effect = typeof input === "string" ? CARE_ACTIONS[input].effect : input.effect;
+  const label = typeof input === "string" ? CARE_ACTIONS[input].label : (input.label ?? "Rawat");
+  const icon = typeof input === "string" ? CARE_ACTIONS[input].icon : (input.icon ?? "✨");
+  const deltas: Partial<CatStats> = {};
   for (const [k, v] of Object.entries(effect) as [keyof CatStats, number][]) {
-    next[k] = clamp(next[k] + v);
+    const updated = clamp(next[k] + v);
+    const diff = Math.round(updated - next[k]);
+    if (diff !== 0) deltas[k] = diff;
+    next[k] = updated;
   }
-  return next;
+  const entry: CareLogEntry = { id: logSeq++, label, icon, deltas };
+  return {
+    stats: next,
+    lastDeltas: deltas,
+    history: [entry, ...state.history].slice(0, 4),
+  };
 }
 
 /** State perawatan sementara (data tiruan, belum tersimpan) — nanti diganti store + backend. */
 export function useCare(initial: CatStats = mockCat.stats) {
-  const [stats, perform] = useReducer(reducer, initial);
-  return { stats, perform };
+  const [state, perform] = useReducer(reducer, { stats: initial, lastDeltas: {}, history: [] });
+  return { stats: state.stats, lastDeltas: state.lastDeltas, history: state.history, perform };
 }
 
 const FULL_THRESHOLD = 95;

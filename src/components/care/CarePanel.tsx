@@ -6,17 +6,25 @@ import { careScore, careStatus } from "./CareStatusPanel";
 import { CARE_ACTIONS, getRefusalReason, MEAL_ITEMS, STAT_LABELS, TOY_ITEMS, type CareAction, type MealItem, type ToyItem } from "@/lib/use-care";
 
 /** Bilah kondisi ringkas (5 kebutuhan). */
-export function StatBars({ stats }: { stats: CatStats }) {
+export function StatBars({ stats, deltas }: { stats: CatStats; deltas?: Partial<CatStats> }) {
   return (
     <ul className="grid grid-cols-5 gap-2" aria-label="Kondisi kucing">
       {(Object.keys(STAT_LABELS) as (keyof CatStats)[]).map((k) => {
         const v = Math.round(stats[k]);
+        const d = deltas?.[k];
         const color = v < 30 ? "bg-rose-400" : v < 60 ? "bg-amber-400" : "bg-emerald-400";
         return (
-          <li key={k} className="flex flex-col items-center gap-1" title={`${STAT_LABELS[k].label} ${v}%`}>
-            <span className="text-base leading-none" aria-hidden>
-              {STAT_LABELS[k].icon}
-            </span>
+          <li key={k} className="relative flex flex-col items-center gap-1" title={`${STAT_LABELS[k].label} ${v}%`}>
+            <div className="flex items-center gap-0.5">
+              <span className="text-base leading-none" aria-hidden>
+                {STAT_LABELS[k].icon}
+              </span>
+              {d !== undefined && d !== 0 && (
+                <span className={`text-[10px] font-bold ${d > 0 ? "text-emerald-600" : "text-amber-600"}`}>
+                  {d > 0 ? `+${d}` : d}
+                </span>
+              )}
+            </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-stone-200" role="progressbar" aria-valuenow={v} aria-valuemin={0} aria-valuemax={100} aria-label={STAT_LABELS[k].label}>
               <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${v}%` }} />
             </div>
@@ -31,6 +39,7 @@ export function StatBars({ stats }: { stats: CatStats }) {
 /** Panel rawat di bawah layar: kondisi + tombol aksi perawatan + pilihan sajian makan/minum. */
 export default function CarePanel({
   stats,
+  deltas,
   onAction,
   onServeMeal,
   onPlayToy,
@@ -39,6 +48,7 @@ export default function CarePanel({
   litterDirty = true,
 }: {
   stats: CatStats;
+  deltas?: Partial<CatStats>;
   onAction: (a: CareAction) => void;
   onServeMeal?: (item: MealItem) => void;
   onPlayToy?: (toy: ToyItem) => void;
@@ -87,7 +97,7 @@ export default function CarePanel({
           Skor {score} · Detail ›
         </span>
       </button>
-      <StatBars stats={stats} />
+      <StatBars stats={stats} deltas={deltas} />
 
       {(subMenu === "makan" || subMenu === "minum") && (
         <div className="mt-2.5 flex items-center gap-2 rounded-2xl bg-amber-100/80 p-2" role="group" aria-label={`Pilih ${subMenu}`}>

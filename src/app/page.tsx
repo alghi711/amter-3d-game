@@ -35,7 +35,7 @@ export default function Home() {
     return () => clearTimeout(id);
   }, [toast]);
 
-  const { stats, perform } = useCare();
+  const { stats, lastDeltas, history, perform } = useCare();
   const [showStatus, setShowStatus] = useState(false);
   const [foodFill, setFoodFill] = useState(MEAL_ITEMS.makan[0].fillColor);
   const [waterFill, setWaterFill] = useState(MEAL_ITEMS.minum[0].fillColor);
@@ -75,7 +75,7 @@ export default function Home() {
       setToast(refusal);
       return;
     }
-    perform({ effect: item.effect });
+    perform({ effect: item.effect, label: item.label, icon: item.icon });
     if (item.action === "makan") {
       setFoodFill(item.fillColor);
       setSpot("foodBowl");
@@ -93,7 +93,7 @@ export default function Home() {
       setToast(refusal);
       return;
     }
-    perform({ effect: toy.effect });
+    perform({ effect: toy.effect, label: toy.label, icon: toy.icon });
     setToyColor(toy.color);
     setSpot(toy.spot);
     setToast(`${cat.name} ${toy.message}`);
@@ -172,9 +172,24 @@ export default function Home() {
             : "Klik benda untuk dipakai · seret mouse memutar kamera · scroll untuk zoom"}
         </p>
         {showStatus ? (
-          <CareStatusPanel stats={stats} name={cat.name} onClose={() => setShowStatus(false)} />
+          <CareStatusPanel
+            stats={stats}
+            deltas={lastDeltas}
+            history={history}
+            name={cat.name}
+            onAction={doCare}
+            onClose={() => setShowStatus(false)}
+          />
         ) : (
-          <CarePanel stats={stats} onAction={doCare} onServeMeal={serveMeal} onPlayToy={playToy} litterDirty={litterDirty || stats.hygiene < 65} onOpenStatus={() => setShowStatus(true)} />
+          <CarePanel
+            stats={stats}
+            deltas={lastDeltas}
+            onAction={doCare}
+            onServeMeal={serveMeal}
+            onPlayToy={playToy}
+            litterDirty={litterDirty || stats.hygiene < 65}
+            onOpenStatus={() => setShowStatus(true)}
+          />
         )}
       </footer>
     </main>
