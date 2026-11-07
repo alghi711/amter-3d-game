@@ -11,6 +11,7 @@ import { SPOT_LABELS, type HouseSpot } from "@/components/room/CatHouse";
 import CarePanel from "@/components/care/CarePanel";
 import CareStatusPanel from "@/components/care/CareStatusPanel";
 import AutosaveBackupSheet, { AutosaveStatusPill } from "@/components/save/AutosaveBackupSheet";
+import type { GameSaveSnapshot } from "@/lib/mock-saves";
 import { useAutosave } from "@/lib/use-autosave";
 import { FloatingGentleReminder } from "@/components/mood/GentleReminderBanner";
 import { CompactGrowthBadge } from "@/components/growth/ExperienceStageIndicator";
@@ -43,7 +44,7 @@ export default function Home() {
     return () => clearTimeout(id);
   }, [toast]);
 
-  const { stats, lastDeltas, history, perform } = useCare();
+  const { stats, lastDeltas, history, perform, replaceStats } = useCare();
   const [showStatus, setShowStatus] = useState(false);
   const [showMoodSheet, setShowMoodSheet] = useState(false);
   const [moodOverride, setMoodOverride] = useState<CatMood | null>(null);
@@ -58,10 +59,17 @@ export default function Home() {
   const [unlockedToastBadge, setUnlockedToastBadge] = useState<MockAchievement | null>(null);
   const seenBadgesRef = useRef<Set<string> | null>(null);
 
-  const handleHydrateSave = useCallback((saved: { experience: number; closeness: number }) => {
-    setExperience(saved.experience);
-    setCloseness(saved.closeness);
-  }, []);
+  const handleHydrateSave = useCallback(
+    (saved: GameSaveSnapshot) => {
+      setExperience(saved.experience);
+      setCloseness(saved.closeness);
+      if (saved.stats) {
+        replaceStats(saved.stats);
+      }
+      setToast(`Selamat datang kembali! Kondisi ${saved.catName} dilanjutkan dari sesi terakhir 🐾`);
+    },
+    [replaceStats],
+  );
 
   const { autosaveStatus, lastSavedLabel, justSaved, saveNow: triggerManualSave } = useAutosave(
     {
@@ -394,6 +402,7 @@ export default function Home() {
             onRestoreSnapshot={(snap, label) => {
               if (typeof snap.experience === "number") setExperience(snap.experience);
               if (typeof snap.closeness === "number") setCloseness(snap.closeness);
+              if (snap.stats) replaceStats(snap.stats);
               if (snap.stage) setStageOverride(snap.stage);
               if (snap.mood) setMoodOverride(snap.mood);
               setShowSaveSheet(false);

@@ -159,7 +159,11 @@ export function useCare(initial: CatStats = mockCat.stats) {
       .catch(() => {});
   }, []);
 
-  return { stats: state.stats, lastDeltas: state.lastDeltas, history: state.history, perform };
+  const replaceStats = useCallback((nextStats: CatStats, deltas?: Partial<CatStats>) => {
+    dispatch({ syncStats: nextStats, deltas });
+  }, []);
+
+  return { stats: state.stats, lastDeltas: state.lastDeltas, history: state.history, perform, replaceStats };
 }
 
 const FULL_THRESHOLD = 95;
