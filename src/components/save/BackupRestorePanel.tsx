@@ -90,7 +90,7 @@ export default function BackupRestorePanel({
       return;
     }
     onRestoreSnapshot(decoded, decoded.deviceLabel || "Kode Cadangan");
-    setFeedback({ text: "Progres berhasil dipulihkan dari kode cadangan!", tone: "ok" });
+    setFeedback({ text: "Konfirmasi pemulihan di bagian atas panel untuk melanjutkan.", tone: "ok" });
     setPasteCode("");
   };
 
@@ -106,13 +106,13 @@ export default function BackupRestorePanel({
           const fromCode = decodeBackupSnapshot(parsed.backupCode);
           if (fromCode) {
             onRestoreSnapshot(fromCode, file.name);
-            setFeedback({ text: `Progres dipulihkan dari file ${file.name}!`, tone: "ok" });
+            setFeedback({ text: `File ${file.name} siap dipulihkan — konfirmasi di atas.`, tone: "ok" });
             return;
           }
         }
         if (parsed.stats && typeof parsed.experience === "number") {
           onRestoreSnapshot(parsed, file.name);
-          setFeedback({ text: `Progres dipulihkan dari file ${file.name}!`, tone: "ok" });
+          setFeedback({ text: `File ${file.name} siap dipulihkan — konfirmasi di atas.`, tone: "ok" });
           return;
         }
         setFeedback({ text: "Format file cadangan tidak valid.", tone: "err" });

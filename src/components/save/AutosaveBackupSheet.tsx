@@ -94,6 +94,7 @@ export default function AutosaveBackupSheet({
   onClose: () => void;
 }) {
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [pendingRestore, setPendingRestore] = useState<{ snap: Partial<GameSaveSnapshot>; label: string } | null>(null);
 
   return (
     <div
@@ -142,6 +143,40 @@ export default function AutosaveBackupSheet({
         </button>
       </div>
 
+      {/* Dialog Konfirmasi Sebelum Memulihkan Cadangan */}
+      {pendingRestore && (
+        <div
+          role="alertdialog"
+          aria-label="Konfirmasi pemulihan progres"
+          className="mt-3 rounded-2xl border-2 border-amber-400 bg-amber-50 p-3 text-xs shadow-md"
+        >
+          <p className="font-bold text-amber-950">⚠️ Pulihkan progres dari &ldquo;{pendingRestore.label}&rdquo;?</p>
+          <p className="mt-1 text-[11px] text-stone-600">
+            Progres saat ini (Lv.{level}, Kedekatan {Math.round(closeness)}%) akan diganti dengan data cadangan{" "}
+            {pendingRestore.snap.level ? `(Lv.${pendingRestore.snap.level}, Kedekatan ${pendingRestore.snap.closeness ?? closeness}%)` : "terpilih"}.
+          </p>
+          <div className="mt-2.5 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setPendingRestore(null)}
+              className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-stone-600 ring-1 ring-stone-200 hover:bg-stone-100"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onRestoreSnapshot(pendingRestore.snap, pendingRestore.label);
+                setPendingRestore(null);
+              }}
+              className="rounded-full bg-amber-600 px-3 py-1 text-[11px] font-semibold text-white shadow-sm hover:bg-amber-700"
+            >
+              Ya, Pulihkan
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Daftar Titik Simpanan (Lanjutkan Permainan) */}
       <div className="mt-3 space-y-1.5 text-xs">
         <p className="font-semibold text-stone-600">🕒 Titik Simpanan Terakhir</p>
@@ -160,7 +195,7 @@ export default function AutosaveBackupSheet({
             </div>
             <button
               type="button"
-              onClick={() => onRestoreSnapshot(slot, slot.savedAtLabel)}
+              onClick={() => setPendingRestore({ snap: slot, label: slot.savedAtLabel })}
               className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-amber-800 shadow-sm ring-1 ring-amber-200 hover:bg-amber-50"
             >
               Muat
@@ -180,7 +215,7 @@ export default function AutosaveBackupSheet({
         mood={mood}
         stats={stats}
         lastSavedLabel={lastSavedLabel}
-        onRestoreSnapshot={onRestoreSnapshot}
+        onRestoreSnapshot={(snap, label) => setPendingRestore({ snap, label })}
       />
     </div>
   );
