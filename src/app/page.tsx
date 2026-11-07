@@ -296,6 +296,7 @@ export default function Home() {
               if (rt.spot) setSpot(rt.spot);
             }}
             moodHistory={moodHistory}
+            careHistory={history}
             onQuickCare={doCare}
             onGoToSpot={(s, title) => {
               setSpot(s);

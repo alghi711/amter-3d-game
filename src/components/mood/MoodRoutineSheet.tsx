@@ -5,12 +5,13 @@ import DailyRoutineSchedule from "./DailyRoutineSchedule";
 import GentleReminderBanner from "./GentleReminderBanner";
 import type { CareAction } from "@/lib/use-care";
 import MoodExpressionPicker from "./MoodExpressionPicker";
+import PersonalitySummaryPanel from "./PersonalitySummaryPanel";
+import type { CareLogEntry } from "@/lib/use-care";
 import type { HouseSpot } from "@/components/room/CatHouse";
 import type { CatStats } from "@/lib/mock-cat";
 import {
   buildGentleReminders,
   deriveCatMood,
-  MOCK_PERSONALITY_TRAITS,
   MOOD_DEFINITIONS,
   type CatMood,
   type MoodTransition,
@@ -26,6 +27,7 @@ export default function MoodRoutineSheet({
   simulatedHour,
   onChangeHour,
   moodHistory = [],
+  careHistory = [],
   onQuickCare,
   onGoToSpot,
   onClose,
@@ -37,6 +39,7 @@ export default function MoodRoutineSheet({
   simulatedHour: number;
   onChangeHour: (h: number) => void;
   moodHistory?: MoodTransition[];
+  careHistory?: CareLogEntry[];
   onQuickCare?: (action: CareAction) => void;
   onGoToSpot?: (spot: HouseSpot | null, label: string) => void;
   onClose: () => void;
@@ -150,25 +153,8 @@ export default function MoodRoutineSheet({
 
       {/* Isi Tab: Kepribadian */}
       {tab === "kepribadian" && (
-        <div className="mt-3 space-y-2.5">
-          <p className="text-xs text-stone-500">
-            Kepribadian {name} terbentuk secara bertahap dari caramu merawatnya setiap hari:
-          </p>
-          {MOCK_PERSONALITY_TRAITS.map((trait) => (
-            <div key={trait.id} className="rounded-2xl border border-stone-100 bg-stone-50/80 p-2.5 text-xs">
-              <div className="flex items-center justify-between font-semibold text-stone-800">
-                <span>
-                  {trait.icon} {trait.name}
-                </span>
-                <span className="text-amber-700">{trait.score}%</span>
-              </div>
-              <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-stone-200">
-                <div className="h-full rounded-full bg-amber-400" style={{ width: `${trait.score}%` }} />
-              </div>
-              <p className="mt-1 text-[11px] text-stone-600">{trait.description}</p>
-              <p className="mt-0.5 text-[10px] text-stone-400">Terbentuk karena: {trait.formedBy}</p>
-            </div>
-          ))}
+        <div className="mt-3">
+          <PersonalitySummaryPanel name={name} stats={stats} history={careHistory} />
         </div>
       )}
     </div>
