@@ -144,3 +144,13 @@ export const gameSaves = sqliteTable("game_saves", {
   version: integer("version").notNull().default(1),
   createdAt: integer("created_at").notNull(),
 });
+
+/** Tabel kode pemulihan: satu kode unik per pemain untuk masuk kembali di perangkat lain. */
+export const playerRecoveryCodes = sqliteTable("player_recovery_codes", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  code: text("code").notNull().unique(),
+  createdAt: integer("created_at").notNull(),
+  lastUsedAt: integer("last_used_at"),
+});

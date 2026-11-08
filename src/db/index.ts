@@ -141,6 +141,12 @@ export async function ensureCareSchema(): Promise<LibSQLDatabase<typeof schema>>
         )`,
         `CREATE INDEX IF NOT EXISTS idx_game_saves_cat_kind ON game_saves(cat_id, kind, created_at DESC)`,
         `CREATE UNIQUE INDEX IF NOT EXISTS idx_game_saves_backup_code ON game_saves(backup_code) WHERE backup_code IS NOT NULL`,
+        `CREATE TABLE IF NOT EXISTS player_recovery_codes (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          code TEXT NOT NULL UNIQUE,
+          created_at INTEGER NOT NULL,
+          last_used_at INTEGER
+        )`,
         `CREATE TABLE IF NOT EXISTS cat_badges (
           cat_id TEXT NOT NULL REFERENCES cats(id) ON DELETE CASCADE,
           badge_id TEXT NOT NULL,

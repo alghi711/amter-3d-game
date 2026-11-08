@@ -1,6 +1,6 @@
 {
   "repo": "ngodingpakeai-project",
-  "generatedForCommit": "2e57b99434117c1335d44b5d6e748da9d6ef3b73",
+  "generatedForCommit": "24581c4e1b3007f96e05bb7b53c272de471382d3",
   "files": [
     {
       "path": ".codex/skills/ngodingpakeai/SKILL.md",
@@ -178,7 +178,7 @@
     },
     {
       "path": "src/app/api/saves/backups/route.ts",
-      "reason": "new",
+      "reason": "needs_summary",
       "language": "typescript",
       "size": 1372
     },
@@ -187,6 +187,12 @@
       "reason": "needs_summary",
       "language": "typescript",
       "size": 1346
+    },
+    {
+      "path": "src/app/api/saves/restore/route.ts",
+      "reason": "new",
+      "language": "typescript",
+      "size": 958
     },
     {
       "path": "src/app/globals.css",
@@ -426,7 +432,7 @@
       "path": "src/lib/save-service.ts",
       "reason": "changed",
       "language": "typescript",
-      "size": 6713
+      "size": 8628
     },
     {
       "path": "src/lib/use-autosave.ts",
