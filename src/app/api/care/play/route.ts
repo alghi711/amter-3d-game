@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DEFAULT_CAT_ID, executeCareAction, getCatCareSnapshot } from "@/lib/care-repository";
-import { TOY_ITEMS } from "@/lib/use-care";
+import { TOY_ITEMS } from "@/lib/care-rules";
 
 /** GET /api/care/play — Ambil daftar mainan yang tersedia beserta tingkat keceriaan & energi kucing. */
 export async function GET(req: NextRequest) {

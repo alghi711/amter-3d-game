@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DEFAULT_CAT_ID, executeCareAction, getCatCareSnapshot } from "@/lib/care-repository";
-import { MEAL_ITEMS } from "@/lib/use-care";
+import { MEAL_ITEMS } from "@/lib/care-rules";
 
 /** GET /api/care/feed — Ambil daftar menu makanan & minuman beserta kondisi lapar/haus kucing saat ini. */
 export async function GET(req: NextRequest) {

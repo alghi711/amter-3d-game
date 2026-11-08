@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { careScore, careStatus } from "@/components/care/CareStatusPanel";
 import { DEFAULT_CAT_ID, getCatCareSnapshot } from "@/lib/care-repository";
 import type { CatStats } from "@/lib/mock-cat";
-import { STAT_LABELS } from "@/lib/use-care";
+import { STAT_LABELS } from "@/lib/care-rules";
 
 const SUMMARY_TIPS: Record<keyof CatStats, string> = {
   hunger: "Mangkuk makannya hampir kosong — beri makan, yuk.",
