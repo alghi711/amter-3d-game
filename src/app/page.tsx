@@ -438,6 +438,8 @@ export default function Home() {
           stage={growth.stage}
           lightingMode={lightingMode}
           vocalizing={vocalizing}
+          qualityLevel={settings.graphicsQuality}
+          shadowsEnabled={settings.shadowsEnabled}
         />
       </div>
 

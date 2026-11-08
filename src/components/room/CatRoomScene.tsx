@@ -811,6 +811,8 @@ export default function CatRoomScene({
   stage = "dewasa",
   lightingMode = "day",
   vocalizing = false,
+  qualityLevel = "auto",
+  shadowsEnabled = true,
 }: {
   furColor: string;
   catSpot: HouseSpot | null;
@@ -830,15 +832,20 @@ export default function CatRoomScene({
   stage?: GrowthStage;
   lightingMode?: LightingMode;
   vocalizing?: boolean;
+  qualityLevel?: QualityLevel | "auto";
+  shadowsEnabled?: boolean;
 }) {
   const [petting, setPetting] = useState(false);
   const [quality, setQuality] = useState<QualityLevel>(() => detectQuality());
-  const q = QUALITY_PROFILES[quality];
+  const effectiveQuality: QualityLevel =
+    qualityLevel && qualityLevel !== "auto" ? qualityLevel : quality;
+  const q = QUALITY_PROFILES[effectiveQuality];
+  const useShadows = shadowsEnabled && q.shadows;
   const lightPreset = LIGHTING_PRESETS[lightingMode];
 
   return (
     <Canvas
-      shadows={q.shadows}
+      shadows={useShadows}
       dpr={q.dpr}
       gl={{
         antialias: q.antialias,

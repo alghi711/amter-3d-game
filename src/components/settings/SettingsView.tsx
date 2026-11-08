@@ -6,7 +6,7 @@ import { useGameSettings } from "@/lib/use-game-settings";
 import { useAudioPlayer } from "@/lib/mock-audio-player";
 import { GAME_FAQS, APP_INFO } from "@/lib/mock-settings";
 import { playCatSound, type SoundEffectType } from "@/lib/cat-audio";
-import type { QualityLevel } from "@/lib/quality";
+import QualitySelector from "./QualitySelector";
 
 export type SettingsTab = "suara" | "grafis" | "preferensi" | "bantuan" | "tentang";
 
@@ -421,45 +421,15 @@ export default function SettingsView({
         {/* TAB 2: GRAFIS & TAMPILAN */}
         {activeTab === "grafis" && (
           <div className="space-y-6 animate-in fade-in duration-200">
-            {/* Presets */}
-            <div className="p-5 rounded-2xl bg-white dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700/60 shadow-sm space-y-3">
-              <label className="text-xs font-bold text-stone-800 dark:text-stone-200 flex items-center gap-2">
-                <span>🖥️</span>
-                <span>Kualitas Render 3D</span>
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {(
-                  [
-                    { id: "auto", label: "Otomatis", desc: "Sesuai perangkat" },
-                    { id: "rendah", label: "Rendah", desc: "Hemat daya & ringan" },
-                    { id: "sedang", label: "Sedang", desc: "Seimbang & halus" },
-                    { id: "tinggi", label: "Tinggi", desc: "Bayangan tajam" },
-                  ] as { id: QualityLevel | "auto"; label: string; desc: string }[]
-                ).map((preset) => {
-                  const isSelected = settings.graphicsQuality === preset.id;
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => {
-                        updateSettings({ graphicsQuality: preset.id });
-                        showToast(`Kualitas grafis diatur ke: ${preset.label}`);
-                      }}
-                      className={`p-3 rounded-xl border text-left transition ${
-                        isSelected
-                          ? "bg-amber-500 text-white border-amber-600 shadow-sm font-semibold"
-                          : "bg-stone-50 dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-100"
-                      }`}
-                    >
-                      <div className="text-xs font-bold">{preset.label}</div>
-                      <div className={`text-[10px] mt-0.5 ${isSelected ? "text-amber-100" : "text-stone-400"}`}>
-                        {preset.desc}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            {/* Pemilih Kualitas Render 3D */}
+            <QualitySelector
+              value={settings.graphicsQuality}
+              onChange={(lvl) => {
+                updateSettings({ graphicsQuality: lvl });
+                showToast(`Kualitas tampilan diubah ke: ${lvl.toUpperCase()} 🖥️`);
+              }}
+              shadowsEnabled={settings.shadowsEnabled}
+            />
 
             {/* Performance Toggles */}
             <div className="space-y-3">
