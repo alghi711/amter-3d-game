@@ -1,4 +1,4 @@
-import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /** Tabel pengguna (pemilik kucing). */
 export const users = sqliteTable("users", {
@@ -81,3 +81,41 @@ export const routines = sqliteTable("routines", {
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
   lastTriggeredAt: integer("last_triggered_at"),
 });
+
+/** Tabel ringkasan pertumbuhan kucing (jumlah interaksi & waktu naik tahap). */
+export const catGrowth = sqliteTable("cat_growth", {
+  catId: text("cat_id")
+    .primaryKey()
+    .references(() => cats.id, { onDelete: "cascade" }),
+  totalInteractions: integer("total_interactions").notNull().default(0),
+  totalXp: integer("total_xp").notNull().default(0),
+  stageChangedAt: integer("stage_changed_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+/** Tabel riwayat peristiwa pertumbuhan (tambah XP, naik level, ganti tahap). */
+export const growthEvents = sqliteTable("growth_events", {
+  id: text("id").primaryKey(),
+  catId: text("cat_id")
+    .notNull()
+    .references(() => cats.id, { onDelete: "cascade" }),
+  kind: text("kind").notNull(), // xp | level_up | stage_up
+  fromStage: text("from_stage"),
+  toStage: text("to_stage"),
+  level: integer("level").notNull(),
+  xpGain: integer("xp_gain").notNull().default(0),
+  createdAt: integer("created_at").notNull(),
+});
+
+/** Tabel lencana pencapaian yang sudah terbuka beserta waktunya. */
+export const catBadges = sqliteTable(
+  "cat_badges",
+  {
+    catId: text("cat_id")
+      .notNull()
+      .references(() => cats.id, { onDelete: "cascade" }),
+    badgeId: text("badge_id").notNull(),
+    unlockedAt: integer("unlocked_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.catId, t.badgeId] })],
+);
