@@ -716,6 +716,28 @@ export default function SettingsView({
         {/* TAB 4: BANTUAN & FAQ */}
         {activeTab === "bantuan" && (
           <div className="space-y-6 animate-in fade-in duration-200">
+            {/* Banner Panduan Lengkap */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-600/15 border border-amber-300 dark:border-amber-700/60 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">📖</span>
+                <div>
+                  <h4 className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                    Buku Panduan Lengkap Merawat Kucing
+                  </h4>
+                  <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80">
+                    Pelajari langkah memberi makan, memandikan, memahami suasana hati, dan evolusi Mochi.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/bantuan"
+                className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition shadow-xs whitespace-nowrap flex items-center gap-1.5"
+              >
+                <span>Buka Buku Panduan</span>
+                <span>➔</span>
+              </Link>
+            </div>
+
             {/* Search FAQ */}
             <div className="relative">
               <input
