@@ -1,3 +1,4 @@
+import { evaluateBadges } from "@/lib/badge-service";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { ensureCareSchema } from "@/db";
@@ -177,6 +178,7 @@ export async function executeCareAction(params: {
     });
 
   await evaluateAndPersistCatPersonality(catId);
+  await evaluateBadges(catId);
   const updatedSnapshot = await getCatCareSnapshot(catId);
   return { evaluation, snapshot: updatedSnapshot };
 }

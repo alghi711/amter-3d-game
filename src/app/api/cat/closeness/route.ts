@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { evaluateBadges } from "@/lib/badge-service";
 import { DEFAULT_CAT_ID } from "@/lib/care-repository";
 import { addCloseness, MAX_CLOSENESS_PER_REQUEST } from "@/lib/growth-service";
 
@@ -23,8 +24,10 @@ export async function POST(req: NextRequest) {
   if (!result) {
     return NextResponse.json({ error: "Kucing tidak ditemukan" }, { status: 404 });
   }
+  const badgeResult = await evaluateBadges(result.catId);
   return NextResponse.json({
     ...result,
+    newBadges: badgeResult?.newlyUnlocked ?? [],
     message: result.tierChanged ? `Hubungan naik menjadi ${result.tier.label} ${result.tier.icon}` : null,
   });
 }

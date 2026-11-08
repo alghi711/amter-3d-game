@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { evaluateBadges } from "@/lib/badge-service";
 import { DEFAULT_CAT_ID } from "@/lib/care-repository";
 import { addExperience, MAX_XP_PER_REQUEST } from "@/lib/growth-service";
 
@@ -28,5 +29,6 @@ export async function POST(req: NextRequest) {
   const messages: string[] = [];
   if (result.leveledUp) messages.push(`Naik ke Level ${result.level}! 🎉`);
   if (result.stageChanged) messages.push("Mochi tumbuh menjadi Kucing Dewasa! 🐈");
-  return NextResponse.json({ ...result, messages });
+  const badgeResult = await evaluateBadges(result.catId);
+  return NextResponse.json({ ...result, messages, newBadges: badgeResult?.newlyUnlocked ?? [] });
 }
