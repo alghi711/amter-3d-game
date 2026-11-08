@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { ensureCareSchema } from "@/db";
-import { cats, gameSaves } from "@/db/schema";
+import { catMoods, cats, catStats, gameSaves } from "@/db/schema";
+import { computeGrowthProgress } from "@/lib/mock-growth";
 import { DEFAULT_CAT_ID } from "@/lib/care-repository";
 import type { CatStats } from "@/lib/mock-cat";
 
@@ -184,4 +185,59 @@ export async function listBackups(catId: string = DEFAULT_CAT_ID): Promise<(Stor
     .orderBy(desc(gameSaves.createdAt))
     .limit(MAX_BACKUPS_PER_CAT);
   return rows.map((r) => ({ ...toStored(r), backupCode: r.backupCode ?? "" }));
+}
+
+/** Pulihkan progres kucing dari cadangan (berdasarkan id atau kode); terapkan ke tabel kucing, kondisi, dan suasana hati. */
+export async function restoreBackup(params: {
+  catId?: string;
+  backupId?: string;
+  backupCode?: string;
+}): Promise<{ ok: true; save: StoredSave } | { ok: false; status: 400 | 404; error: string }> {
+  const catId = params.catId ?? DEFAULT_CAT_ID;
+  if (!params.backupId && !params.backupCode) {
+    return { ok: false, status: 400, error: "backupId atau backupCode wajib diisi" };
+  }
+  const db = await ensureCareSchema();
+  const [row] = await db
+    .select()
+    .from(gameSaves)
+    .where(
+      and(
+        eq(gameSaves.catId, catId),
+        eq(gameSaves.kind, "backup"),
+        params.backupId ? eq(gameSaves.id, params.backupId) : eq(gameSaves.backupCode, params.backupCode!.trim().toUpperCase()),
+      ),
+    )
+    .limit(1);
+  if (!row) return { ok: false, status: 404, error: "Cadangan tidak ditemukan" };
+
+  const save = toStored(row);
+  const snap = save.snapshot;
+  const growth = computeGrowthProgress(snap.experience);
+  const now = Date.now();
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(cats)
+      .set({
+        stage: snap.stage,
+        level: growth.level,
+        experience: growth.currentLevelXp,
+        closeness: snap.closeness,
+        lastPlayedAt: now,
+      })
+      .where(eq(cats.id, catId));
+    await tx
+      .update(catStats)
+      .set({ ...snap.stats, updatedAt: now })
+      .where(eq(catStats.catId, catId));
+    await tx
+      .insert(catMoods)
+      .values({ catId, mood: snap.mood, reason: "Dipulihkan dari cadangan", updatedAt: now })
+      .onConflictDoUpdate({
+        target: catMoods.catId,
+        set: { mood: snap.mood, reason: "Dipulihkan dari cadangan", updatedAt: now },
+      });
+  });
+  return { ok: true, save };
 }
