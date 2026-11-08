@@ -170,3 +170,29 @@ export const passwordResetTokens = sqliteTable("password_reset_tokens", {
   usedAt: integer("used_at"),
   createdAt: integer("created_at").notNull(),
 });
+
+/** Tabel relasi pencapaian pengguna (lencana yang terikat permanen ke akun pemain). */
+export const userAchievements = sqliteTable(
+  "user_achievements",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    achievementId: text("achievement_id").notNull(),
+    unlockedAt: integer("unlocked_at").notNull(),
+    progress: real("progress").notNull().default(100),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.achievementId] })],
+);
+
+/** Tabel sesi masuk pemain di berbagai perangkat. */
+export const playerSessions = sqliteTable("player_sessions", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  deviceLabel: text("device_label").notNull().default("Browser"),
+  createdAt: integer("created_at").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+});
