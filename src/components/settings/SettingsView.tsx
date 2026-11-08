@@ -194,7 +194,7 @@ export default function SettingsView({
                     <span>Volume Efek Suara: {settings.sfxVolume}%</span>
                   </label>
                   <span className="text-xs text-stone-400">
-                    {settings.sfxVolume === 0 ? "Mute" : settings.sfxVolume > 70 ? "Keras" : "Sedang"}
+                    {settings.sfxVolume === 0 ? "Senyap (Bisu)" : settings.sfxVolume > 70 ? "Keras" : "Sedang"}
                   </span>
                 </div>
                 <input
@@ -217,7 +217,7 @@ export default function SettingsView({
                     <span>Volume Musik Latar: {settings.musicVolume}%</span>
                   </label>
                   <span className="text-xs text-stone-400">
-                    {settings.musicVolume === 0 ? "Mute" : settings.musicVolume > 70 ? "Keras" : "Sedang"}
+                    {settings.musicVolume === 0 ? "Senyap (Bisu)" : settings.musicVolume > 70 ? "Keras" : "Sedang"}
                   </span>
                 </div>
                 <input
@@ -684,12 +684,12 @@ export default function SettingsView({
                   className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition shadow-xs flex items-center gap-1.5"
                 >
                   <span>🔄</span>
-                  <span>Kembalikan ke Pengaturan Default</span>
+                  <span>Kembalikan ke Setelan Awal Pabrik</span>
                 </button>
               ) : (
                 <div className="p-3 bg-white dark:bg-stone-900 rounded-xl border border-red-300 dark:border-red-800 space-y-2">
                   <p className="text-xs font-semibold text-red-700 dark:text-red-400">
-                    Apakah kamu yakin ingin mereset seluruh pengaturan?
+                    Apakah kamu yakin ingin mengembalikan seluruh setelan ke kondisi awal?
                   </p>
                   <div className="flex gap-2">
                     <button
@@ -697,7 +697,7 @@ export default function SettingsView({
                       onClick={handleReset}
                       className="px-3.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition"
                     >
-                      Ya, Reset Sekarang
+                      Ya, Pulihkan Sekarang
                     </button>
                     <button
                       type="button"
