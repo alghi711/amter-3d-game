@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DEFAULT_CAT_ID } from "@/lib/care-repository";
 import { parseSnapshot, readLatestAutosave, writeAutosave } from "@/lib/save-service";
+import { getAuthenticatedPlayer, verifyCatAccess } from "@/lib/auth-guard";
 
 /** GET /api/saves/auto — Muat simpanan otomatis terbaru (404 bila belum ada). */
 export async function GET(req: NextRequest) {
@@ -19,11 +20,20 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Payload JSON tidak valid" }, { status: 400 });
   }
 
+  const catId = body.catId ?? DEFAULT_CAT_ID;
+  const player = await getAuthenticatedPlayer(req);
+  if (player && !(await verifyCatAccess(catId, player.userId))) {
+    return NextResponse.json(
+      { error: "Akses ditolak: Anda tidak memiliki izin untuk menyimpan progres kucing ini." },
+      { status: 403 },
+    );
+  }
+
   const parsed = parseSnapshot(body.snapshot);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
   const save = await writeAutosave(
-    body.catId ?? DEFAULT_CAT_ID,
+    catId,
     parsed.snapshot,
     typeof body.deviceLabel === "string" && body.deviceLabel.trim() ? body.deviceLabel.trim() : undefined,
   );
