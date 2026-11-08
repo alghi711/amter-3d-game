@@ -13,6 +13,12 @@ import {
   resetAudioPreferences,
   loadAudioPreferences,
 } from "./audio-storage";
+import {
+  saveGraphicsPreferences,
+  resetGraphicsPreferences,
+  loadGraphicsPreferences,
+  GRAPHICS_STORAGE_KEY,
+} from "./graphics-storage";
 
 const SETTINGS_STORAGE_KEY = "mochi_game_settings_v1";
 
@@ -35,14 +41,24 @@ function loadInitialSettings(): GameSettings {
     return defaultSettings;
   }
   const audioPrefs = loadAudioPreferences();
+  const graphicsPrefs = loadGraphicsPreferences();
+
   const baseSettings: GameSettings = {
     ...defaultSettings,
+    // Audio
     soundEnabled: audioPrefs.soundEnabled,
     sfxVolume: audioPrefs.sfxVolume,
     musicEnabled: audioPrefs.musicEnabled,
     musicVolume: audioPrefs.musicVolume,
     vocalPitch: audioPrefs.vocalPitch,
+    // Grafis
+    graphicsQuality: graphicsPrefs.graphicsQuality,
+    shadowsEnabled: graphicsPrefs.shadowsEnabled,
+    batterySaver: graphicsPrefs.batterySaver,
+    frameRateLimit: graphicsPrefs.frameRateLimit,
+    cameraSpeed: graphicsPrefs.cameraSpeed,
   };
+
   try {
     const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (raw) {
@@ -59,6 +75,31 @@ function loadInitialSettings(): GameSettings {
 if (typeof window !== "undefined") {
   memorySettings = loadInitialSettings();
   syncAudioModules(memorySettings);
+
+  // Sinkronisasi tab untuk perubahan grafis & pengaturan global
+  window.addEventListener("storage", (event) => {
+    if (event.key === GRAPHICS_STORAGE_KEY && event.newValue) {
+      try {
+        const gfx = JSON.parse(event.newValue);
+        memorySettings = {
+          ...memorySettings,
+          graphicsQuality: gfx.graphicsQuality ?? memorySettings.graphicsQuality,
+          shadowsEnabled: gfx.shadowsEnabled ?? memorySettings.shadowsEnabled,
+          batterySaver: gfx.batterySaver ?? memorySettings.batterySaver,
+          frameRateLimit: gfx.frameRateLimit ?? memorySettings.frameRateLimit,
+          cameraSpeed: gfx.cameraSpeed ?? memorySettings.cameraSpeed,
+        };
+        notify();
+      } catch {}
+    } else if (event.key === SETTINGS_STORAGE_KEY && event.newValue) {
+      try {
+        const parsed = JSON.parse(event.newValue);
+        memorySettings = { ...defaultSettings, ...parsed };
+        syncAudioModules(memorySettings);
+        notify();
+      } catch {}
+    }
+  });
 }
 
 export function getSettingsSnapshot(): GameSettings {
@@ -82,6 +123,7 @@ export function updateGameSettings(updates: Partial<GameSettings>): GameSettings
     ...updates,
   };
 
+  // Simpan audio preferences otomatis
   const audioUpdates: Record<string, unknown> = {};
   if (typeof updates.soundEnabled === "boolean") {
     setSoundEnabled(updates.soundEnabled);
@@ -106,6 +148,17 @@ export function updateGameSettings(updates: Partial<GameSettings>): GameSettings
     saveAudioPreferences(audioUpdates);
   }
 
+  // Simpan graphics preferences otomatis
+  const graphicsUpdates: Record<string, unknown> = {};
+  if (updates.graphicsQuality !== undefined) graphicsUpdates.graphicsQuality = updates.graphicsQuality;
+  if (updates.shadowsEnabled !== undefined) graphicsUpdates.shadowsEnabled = updates.shadowsEnabled;
+  if (updates.batterySaver !== undefined) graphicsUpdates.batterySaver = updates.batterySaver;
+  if (updates.frameRateLimit !== undefined) graphicsUpdates.frameRateLimit = updates.frameRateLimit;
+  if (updates.cameraSpeed !== undefined) graphicsUpdates.cameraSpeed = updates.cameraSpeed;
+  if (Object.keys(graphicsUpdates).length > 0) {
+    saveGraphicsPreferences(graphicsUpdates);
+  }
+
   if (typeof window !== "undefined") {
     try {
       window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(memorySettings));
@@ -122,6 +175,7 @@ export function resetGameSettings(): GameSettings {
   memorySettings = { ...defaultSettings };
   syncAudioModules(memorySettings);
   resetAudioPreferences();
+  resetGraphicsPreferences();
   if (typeof window !== "undefined") {
     try {
       window.localStorage.removeItem(SETTINGS_STORAGE_KEY);

@@ -853,6 +853,7 @@ export default function CatRoomScene({
   shadowsEnabled = true,
   batterySaver = false,
   frameRateLimit = 60,
+  onQualityAutoAdjust,
 }: {
   furColor: string;
   catSpot: HouseSpot | null;
@@ -876,6 +877,7 @@ export default function CatRoomScene({
   shadowsEnabled?: boolean;
   batterySaver?: boolean;
   frameRateLimit?: 30 | 60;
+  onQualityAutoAdjust?: (newQuality: QualityLevel) => void;
 }) {
   const [petting, setPetting] = useState(false);
   const [quality, setQuality] = useState<QualityLevel>(() => detectQuality());
@@ -902,9 +904,18 @@ export default function CatRoomScene({
       style={{ width: "100%", height: "100%" }}
     >
       <PerformanceMonitor
-        onDecline={() => setQuality((cur) => stepQuality(cur, -1))}
+        onDecline={() => {
+          setQuality((cur) => {
+            const next = stepQuality(cur, -1);
+            onQualityAutoAdjust?.(next);
+            return next;
+          });
+        }}
         flipflops={3}
-        onFallback={() => setQuality("rendah")}
+        onFallback={() => {
+          setQuality("rendah");
+          onQualityAutoAdjust?.("rendah");
+        }}
       />
       <AdaptiveDpr pixelated />
       <LiveQualityManager

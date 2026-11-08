@@ -29,6 +29,7 @@ import { buildGentleReminders, deriveCatMood, evaluateMoodShift, getActiveRoutin
 import { CARE_ACTIONS, getRefusalReason, MEAL_ITEMS, TOY_ITEMS, useCare, type CareAction, type MealItem, type ToyItem } from "@/lib/use-care";
 import { playCatSound, playSoundForCareAction, type SoundEffectType } from "@/lib/cat-audio";
 import { LIGHTING_PRESETS, type LightingMode } from "@/lib/procedural-textures";
+import type { QualityLevel } from "@/lib/quality";
 
 const CatRoomScene = dynamic(() => import("@/components/room/CatRoomScene"), {
   ssr: false,
@@ -100,6 +101,10 @@ export default function Home() {
     },
     [growth.stage, setPlayerAccount, triggerVoiceBubble, spawnFloatingReaction],
   );
+
+  const handleQualityAutoAdjust = useCallback((newQ: QualityLevel) => {
+    setToast(`⚡ Mode adaptif: kualitas grafis disesuaikan ke ${newQ.toUpperCase()}`);
+  }, []);
 
   useEffect(() => {
     if (!floatingReaction) return;
@@ -442,6 +447,7 @@ export default function Home() {
           shadowsEnabled={settings.shadowsEnabled}
           batterySaver={settings.batterySaver}
           frameRateLimit={settings.frameRateLimit}
+          onQualityAutoAdjust={handleQualityAutoAdjust}
         />
       </div>
 
