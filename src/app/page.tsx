@@ -112,6 +112,24 @@ export default function Home() {
     return () => clearTimeout(id);
   }, [toast]);
 
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const targetTag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (targetTag === "input" || targetTag === "textarea") return;
+
+      if (e.key === "Escape") {
+        setShowStatus(false);
+        setShowMoodSheet(false);
+        setShowGrowthSheet(false);
+        setShowSaveSheet(false);
+        setShowAccountSheet(false);
+        setShowSettingsSheet(false);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
+
   const handleHydrateSave = useCallback(
     (saved: GameSaveSnapshot) => {
       setExperience(saved.experience);
@@ -683,7 +701,9 @@ export default function Home() {
           !showMoodSheet &&
           !showGrowthSheet &&
           !showSaveSheet &&
-          !showStatus && (
+          !showStatus &&
+          !showAccountSheet &&
+          !showSettingsSheet && (
             <FloatingGentleReminder
               reminders={buildGentleReminders(stats, cat.name, simulatedHour)}
               onQuickAction={doCare}
