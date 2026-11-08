@@ -21,6 +21,7 @@ import GrowthSheet from "@/components/growth/GrowthSheet";
 import MoodRoutineSheet from "@/components/mood/MoodRoutineSheet";
 import AccountSheet from "@/components/account/AccountSheet";
 import SettingsSheet from "@/components/settings/SettingsSheet";
+import CareGuideSheet from "@/components/help/CareGuideSheet";
 import { useGameSettings } from "@/lib/use-game-settings";
 import { usePlayerAccount } from "@/lib/use-player-account";
 import type { PlayerAccount } from "@/lib/mock-account";
@@ -56,6 +57,7 @@ export default function Home() {
   const [showSaveSheet, setShowSaveSheet] = useState(false);
   const [showAccountSheet, setShowAccountSheet] = useState(false);
   const [showSettingsSheet, setShowSettingsSheet] = useState(false);
+  const [showHelpSheet, setShowHelpSheet] = useState(false);
   const { account: playerAccount, saveAccount: setPlayerAccount } = usePlayerAccount();
   const [experience, setExperience] = useState<number>(cat.experience + (cat.level - 1) * 50);
   const [closeness, setCloseness] = useState<number>(cat.closeness);
@@ -130,6 +132,7 @@ export default function Home() {
         setShowSaveSheet(false);
         setShowAccountSheet(false);
         setShowSettingsSheet(false);
+        setShowHelpSheet(false);
       }
     };
     window.addEventListener("keydown", handleGlobalKeyDown);
@@ -629,6 +632,7 @@ export default function Home() {
               setShowGrowthSheet(false);
               setShowSaveSheet(false);
               setShowSettingsSheet(false);
+              setShowHelpSheet(false);
               setShowAccountSheet((v) => !v);
             }}
             className={`rounded-full border px-3.5 py-1.5 text-xs font-bold shadow backdrop-blur transition hover:-translate-y-0.5 active:scale-95 ${
@@ -673,12 +677,30 @@ export default function Home() {
                 setShowGrowthSheet(false);
                 setShowSaveSheet(false);
                 setShowAccountSheet(false);
+                setShowHelpSheet(false);
                 setShowSettingsSheet((v) => !v);
               }}
               className="rounded-full border border-white/90 bg-white/90 px-3 py-1.5 text-xs font-bold text-stone-700 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
               title="Pengaturan & Suara"
             >
               ⚙️ Pengaturan
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                playCatSound("pop", isKitten);
+                setShowStatus(false);
+                setShowMoodSheet(false);
+                setShowGrowthSheet(false);
+                setShowSaveSheet(false);
+                setShowAccountSheet(false);
+                setShowSettingsSheet(false);
+                setShowHelpSheet((v) => !v);
+              }}
+              className="rounded-full border border-white/90 bg-white/90 px-3 py-1.5 text-xs font-bold text-stone-700 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
+              title="Buku Panduan Merawat Kucing"
+            >
+              📖 Panduan
             </button>
           </div>
         </div>
@@ -729,7 +751,8 @@ export default function Home() {
           !showSaveSheet &&
           !showStatus &&
           !showAccountSheet &&
-          !showSettingsSheet && (
+          !showSettingsSheet &&
+          !showHelpSheet && (
             <FloatingGentleReminder
               reminders={buildGentleReminders(stats, cat.name, simulatedHour)}
               onQuickAction={doCare}
@@ -850,6 +873,10 @@ export default function Home() {
 
       {showSettingsSheet && (
         <SettingsSheet onClose={() => setShowSettingsSheet(false)} />
+      )}
+
+      {showHelpSheet && (
+        <CareGuideSheet onClose={() => setShowHelpSheet(false)} />
       )}
     </main>
   );
