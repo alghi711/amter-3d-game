@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import RegisterForm from "./RegisterForm";
+import LoginForm from "./LoginForm";
+import LogoutConfirmModal from "./LogoutConfirmModal";
 import { mockDefaultAccount, mockGuestAccount, type PlayerAccount } from "@/lib/mock-account";
 
 const AVATAR_OPTIONS = ["🐱", "🐾", "😸", "😻", "😽", "🦊", "🦁", "⭐", "🎀", "🍪"];
@@ -25,8 +27,7 @@ export default function AccountView({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Form states
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [recoveryInput, setRecoveryInput] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [copiedCode, setCopiedCode] = useState(false);
@@ -56,26 +57,6 @@ export default function AccountView({
   const handleSelectAvatar = (avatar: string) => {
     setAccount((prev) => ({ ...prev, avatar }));
     showToast(`Avatar diubah menjadi ${avatar}! 🎨`);
-  };
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!loginEmail || !loginPassword) {
-      showToast("Harap isi email dan kata sandi dengan lengkap! ⚠️");
-      return;
-    }
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setAccount({
-        ...mockDefaultAccount,
-        email: loginEmail,
-        name: loginEmail.split("@")[0].toUpperCase() || "Pemain Mochi",
-        isGuest: false,
-      });
-      setActiveTab("profil");
-      showToast("Selamat datang kembali! Akun berhasil masuk 🐾");
-    }, 600);
   };
 
   const handleRecovery = (e: React.FormEvent) => {
@@ -345,7 +326,7 @@ export default function AccountView({
             ) : (
               <button
                 type="button"
-                onClick={handleSwitchToGuest}
+                onClick={() => setShowLogoutModal(true)}
                 className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-xs font-bold text-stone-700 shadow-sm transition hover:bg-stone-100"
               >
                 🐾 Keluar & Main sebagai Tamu
@@ -365,73 +346,16 @@ export default function AccountView({
 
       {/* Konten Tab 2: Masuk (Login) */}
       {activeTab === "masuk" && (
-        <div className="rounded-3xl border border-amber-100 bg-white/95 p-6 shadow-lg backdrop-blur-sm sm:p-8">
-          <div className="mb-6 text-center">
-            <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-3xl">
-              🐱
-            </div>
-            <h2 className="text-xl font-extrabold text-stone-800">Masuk ke Akun Mochi</h2>
-            <p className="mt-1 text-xs text-stone-500">
-              Lanjutkan petualangan merawat Mochi dari perangkat mana saja.
-            </p>
-          </div>
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-stone-700">Alamat Email</label>
-              <input
-                type="email"
-                required
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                placeholder="nama@email.com"
-                className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-800 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-200"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-bold text-stone-700">Kata Sandi</label>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("pulihkan")}
-                  className="text-xs font-bold text-amber-700 hover:underline"
-                >
-                  Lupa kata sandi?
-                </button>
-              </div>
-              <input
-                type="password"
-                required
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                placeholder="••••••••"
-                className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-800 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-200"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full rounded-2xl bg-amber-500 py-3.5 text-sm font-extrabold text-white shadow-md transition hover:bg-amber-600 active:scale-95 disabled:opacity-50"
-            >
-              {isSubmitting ? "Memproses Masuk…" : "Masuk Sekarang 🐾"}
-            </button>
-          </form>
-
-          <div className="mt-6 border-t border-stone-100 pt-5 text-center">
-            <p className="text-xs text-stone-600">
-              Belum punya akun?{" "}
-              <button
-                type="button"
-                onClick={() => setActiveTab("daftar")}
-                className="font-extrabold text-amber-700 hover:underline"
-              >
-                Daftar akun baru gratis
-              </button>
-            </p>
-          </div>
-        </div>
+        <LoginForm
+          onSuccess={(loggedIn) => {
+            setAccount(loggedIn);
+            setActiveTab("profil");
+            showToast(`Selamat datang kembali, ${loggedIn.name}! 🐾`);
+          }}
+          onSwitchToRegister={() => setActiveTab("daftar")}
+          onSwitchToRecovery={() => setActiveTab("pulihkan")}
+          onPlayAsGuest={handleSwitchToGuest}
+        />
       )}
 
       {/* Konten Tab 3: Daftar Baru (Register) */}
@@ -506,6 +430,17 @@ export default function AccountView({
           </div>
         </div>
       )}
+      {/* Modal Konfirmasi Logout */}
+      <LogoutConfirmModal
+        isOpen={showLogoutModal}
+        playerName={account.name}
+        isGuest={account.isGuest}
+        onCancel={() => setShowLogoutModal(false)}
+        onConfirmLogout={() => {
+          setShowLogoutModal(false);
+          handleSwitchToGuest();
+        }}
+      />
     </div>
   );
 }
