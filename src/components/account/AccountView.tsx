@@ -5,6 +5,7 @@ import Link from "next/link";
 import RegisterForm from "./RegisterForm";
 import LoginForm from "./LoginForm";
 import LogoutConfirmModal from "./LogoutConfirmModal";
+import PasswordRecoveryFlow from "./PasswordRecoveryFlow";
 import { mockDefaultAccount, mockGuestAccount, type PlayerAccount } from "@/lib/mock-account";
 
 const AVATAR_OPTIONS = ["🐱", "🐾", "😸", "😻", "😽", "🦊", "🦁", "⭐", "🎀", "🍪"];
@@ -28,12 +29,9 @@ export default function AccountView({
 
   // Form states
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [recoveryInput, setRecoveryInput] = useState("");
-  const [newPassword, setNewPassword] = useState("");
   const [copiedCode, setCopiedCode] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [tempName, setTempName] = useState(account.name);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -57,22 +55,6 @@ export default function AccountView({
   const handleSelectAvatar = (avatar: string) => {
     setAccount((prev) => ({ ...prev, avatar }));
     showToast(`Avatar diubah menjadi ${avatar}! 🎨`);
-  };
-
-  const handleRecovery = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!recoveryInput || !newPassword) {
-      showToast("Masukkan kode pemulihan dan kata sandi baru! ⚠️");
-      return;
-    }
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      showToast("Kata sandi berhasil diatur ulang! Silakan masuk kembali 🔑");
-      setActiveTab("masuk");
-      setRecoveryInput("");
-      setNewPassword("");
-    }, 700);
   };
 
   const handleSwitchToGuest = () => {
@@ -372,63 +354,13 @@ export default function AccountView({
 
       {/* Konten Tab 4: Pemulihan Kata Sandi / Akun */}
       {activeTab === "pulihkan" && (
-        <div className="rounded-3xl border border-amber-100 bg-white/95 p-6 shadow-lg backdrop-blur-sm sm:p-8">
-          <div className="mb-6 text-center">
-            <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-3xl">
-              🔑
-            </div>
-            <h2 className="text-xl font-extrabold text-stone-800">Pulihkan Akun & Sandi</h2>
-            <p className="mt-1 text-xs text-stone-500">
-              Gunakan email atau Kode Pemulihan Akun (Recovery Code) untuk membuat sandi baru.
-            </p>
-          </div>
-
-          <form onSubmit={handleRecovery} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-stone-700">
-                Email atau Kode Pemulihan Akun
-              </label>
-              <input
-                type="text"
-                required
-                value={recoveryInput}
-                onChange={(e) => setRecoveryInput(e.target.value)}
-                placeholder="nama@email.com atau MOCHI-XXXX-XXXX-XXXX"
-                className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-mono font-semibold text-stone-800 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-200"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-stone-700">Kata Sandi Baru</label>
-              <input
-                type="password"
-                required
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Buat sandi baru minimal 6 karakter"
-                className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-800 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-200"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full rounded-2xl bg-amber-500 py-3.5 text-sm font-extrabold text-white shadow-md transition hover:bg-amber-600 active:scale-95 disabled:opacity-50"
-            >
-              {isSubmitting ? "Mengatur Ulang…" : "Atur Ulang Kata Sandi 🔑"}
-            </button>
-          </form>
-
-          <div className="mt-6 border-t border-stone-100 pt-5 text-center">
-            <button
-              type="button"
-              onClick={() => setActiveTab("masuk")}
-              className="text-xs font-extrabold text-stone-600 hover:text-amber-700"
-            >
-              ← Kembali ke Form Masuk
-            </button>
-          </div>
-        </div>
+        <PasswordRecoveryFlow
+          onSuccess={() => {
+            setActiveTab("masuk");
+            showToast("Kata sandi berhasil diperbarui! Silakan masuk dengan sandi barumu 🔑");
+          }}
+          onBackToLogin={() => setActiveTab("masuk")}
+        />
       )}
       {/* Modal Konfirmasi Logout */}
       <LogoutConfirmModal
