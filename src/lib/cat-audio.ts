@@ -4,10 +4,14 @@ import type { CareInteractionType } from "@/lib/care-rules";
 
 export type SoundEffectType =
   | "meow"
+  | "happy_meow"
   | "purr_meow"
+  | "purr"
   | "chirp"
   | "eat"
   | "drink"
+  | "crunch"
+  | "lap"
   | "bath"
   | "clean"
   | "sleep"
@@ -15,8 +19,27 @@ export type SoundEffectType =
   | "chime";
 
 let audioCtx: AudioContext | null = null;
-let noiseBuffer: AudioBuffer | null = null;
 let soundEnabledState = true;
+
+const realCatAudio: { meow1?: HTMLAudioElement; meow2?: HTMLAudioElement; purr?: HTMLAudioElement } = {};
+
+function initRealAudio() {
+  if (typeof window === "undefined" || realCatAudio.meow1) return;
+  try {
+    realCatAudio.meow1 = new Audio("https://upload.wikimedia.org/wikipedia/commons/6/66/Meow.ogg");
+    realCatAudio.meow2 = new Audio("https://upload.wikimedia.org/wikipedia/commons/0/06/Meow_domestic_cat.ogg");
+    realCatAudio.purr = new Audio("https://upload.wikimedia.org/wikipedia/commons/6/60/Cat_purring.ogg");
+    Object.values(realCatAudio).forEach((a) => {
+      if (a) {
+        a.crossOrigin = "anonymous";
+        a.preload = "auto";
+        a.volume = 0.65;
+      }
+    });
+  } catch {
+    // abaikan di SSR / lingkungan tanpa audio
+  }
+}
 
 export function isSoundEnabled(): boolean {
   return soundEnabledState;
@@ -26,7 +49,7 @@ export function setSoundEnabled(enabled: boolean): void {
   soundEnabledState = enabled;
 }
 
-function initAudio(): AudioContext | null {
+function ensureAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
   const Ctx = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!audioCtx && Ctx) {
@@ -35,353 +58,201 @@ function initAudio(): AudioContext | null {
   if (audioCtx && audioCtx.state === "suspended") {
     void audioCtx.resume();
   }
-  if (audioCtx && !noiseBuffer) {
-    const bufferSize = audioCtx.sampleRate * 2;
-    noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-    const data = noiseBuffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
-    }
-  }
+  initRealAudio();
   return audioCtx;
 }
 
-export function synthCatMeow(
-  options: {
-    startFreq?: number;
-    peakFreq?: number;
-    endFreq?: number;
-    duration?: number;
-    vibratoRate?: number;
-    vibratoDepth?: number;
-    delay?: number;
-    isKitten?: boolean;
-  } = {},
-): void {
+/** Formant-filtered realistic cat vocalization + real sample hybrid. */
+export function playCatVocal(type: SoundEffectType, isKitten = false): void {
   if (!soundEnabledState) return;
   try {
-    const ctx = initAudio();
+    const ctx = ensureAudioContext();
+    const now = ctx ? ctx.currentTime : 0;
+    const pitchMult = isKitten ? 1.38 : 1.0;
+
+    // Putar rekaman sampel kucing asli jika tersedia untuk meow / purr
+    if (type === "meow" || type === "happy_meow") {
+      const sample = type === "happy_meow" ? realCatAudio.meow1 : realCatAudio.meow2;
+      if (sample) {
+        sample.currentTime = 0;
+        sample.playbackRate = isKitten ? 1.32 : 1.04;
+        sample.play().catch(() => {});
+      }
+    } else if (type === "purr") {
+      if (realCatAudio.purr) {
+        realCatAudio.purr.currentTime = 0;
+        realCatAudio.purr.play().catch(() => {});
+        setTimeout(() => {
+          try {
+            realCatAudio.purr?.pause();
+          } catch {}
+        }, 1600);
+      }
+    }
+
     if (!ctx) return;
-    const {
-      startFreq = 480,
-      peakFreq = 790,
-      endFreq = 410,
-      duration = 0.48,
-      vibratoRate = 11,
-      vibratoDepth = 16,
-      delay = 0,
-      isKitten = false,
-    } = options;
 
-    const pitchMult = isKitten ? 1.32 : 1.0;
-    const now = ctx.currentTime + delay;
+    if (type === "meow" || type === "happy_meow" || type === "chirp") {
+      // Bio-acoustic double-formant cat meow ("M-eee-aaa-oow")
+      const dur = type === "chirp" ? 0.26 : 0.52;
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const filter1 = ctx.createBiquadFilter();
+      const filter2 = ctx.createBiquadFilter();
+      const masterGain = ctx.createGain();
 
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
-    osc1.type = "sawtooth";
-    osc2.type = "triangle";
+      osc1.type = "sawtooth";
+      osc2.type = "triangle";
 
-    const sF = startFreq * pitchMult;
-    const pF = peakFreq * pitchMult;
-    const eF = endFreq * pitchMult;
+      const baseF = (type === "chirp" ? 620 : 490) * pitchMult;
+      const peakF = (type === "chirp" ? 920 : 760) * pitchMult;
+      const endF = (type === "chirp" ? 680 : 410) * pitchMult;
 
-    osc1.frequency.setValueAtTime(sF, now);
-    osc1.frequency.exponentialRampToValueAtTime(pF, now + duration * 0.34);
-    osc1.frequency.exponentialRampToValueAtTime(eF, now + duration);
+      osc1.frequency.setValueAtTime(baseF, now);
+      osc1.frequency.exponentialRampToValueAtTime(peakF, now + dur * 0.35);
+      osc1.frequency.exponentialRampToValueAtTime(endF, now + dur);
 
-    osc2.frequency.setValueAtTime(sF * 0.995, now);
-    osc2.frequency.exponentialRampToValueAtTime(pF * 1.005, now + duration * 0.34);
-    osc2.frequency.exponentialRampToValueAtTime(eF, now + duration);
+      osc2.frequency.setValueAtTime(baseF * 1.005, now);
+      osc2.frequency.exponentialRampToValueAtTime(peakF * 1.005, now + dur * 0.35);
+      osc2.frequency.exponentialRampToValueAtTime(endF * 1.005, now + dur);
 
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-    lfo.frequency.setValueAtTime(vibratoRate, now);
-    lfoGain.gain.setValueAtTime(vibratoDepth * pitchMult, now);
-    lfo.connect(lfoGain);
-    lfoGain.connect(osc1.frequency);
-    lfoGain.connect(osc2.frequency);
+      // Sapuan formant vokal ("ee" -> "ah" -> "oh")
+      filter1.type = "bandpass";
+      filter1.Q.setValueAtTime(4.5, now);
+      filter1.frequency.setValueAtTime(800 * pitchMult, now);
+      filter1.frequency.exponentialRampToValueAtTime(1450 * pitchMult, now + dur * 0.4);
+      filter1.frequency.exponentialRampToValueAtTime(650 * pitchMult, now + dur);
 
-    const formant1 = ctx.createBiquadFilter();
-    formant1.type = "bandpass";
-    formant1.Q.setValueAtTime(4.2, now);
-    formant1.frequency.setValueAtTime(850 * pitchMult, now);
-    formant1.frequency.exponentialRampToValueAtTime(1650 * pitchMult, now + duration * 0.38);
-    formant1.frequency.exponentialRampToValueAtTime(920 * pitchMult, now + duration);
+      filter2.type = "bandpass";
+      filter2.Q.setValueAtTime(3.2, now);
+      filter2.frequency.setValueAtTime(2200, now);
 
-    const warmFilter = ctx.createBiquadFilter();
-    warmFilter.type = "lowpass";
-    warmFilter.frequency.setValueAtTime(3400, now);
+      masterGain.gain.setValueAtTime(0.001, now);
+      masterGain.gain.linearRampToValueAtTime(0.22, now + 0.06);
+      masterGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
 
-    const masterGain = ctx.createGain();
-    masterGain.gain.setValueAtTime(0.001, now);
-    masterGain.gain.linearRampToValueAtTime(0.24, now + duration * 0.14);
-    masterGain.gain.setValueAtTime(0.22, now + duration * 0.65);
-    masterGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      osc1.connect(filter1);
+      osc2.connect(filter1);
+      filter1.connect(filter2);
+      filter2.connect(masterGain);
+      masterGain.connect(ctx.destination);
 
-    osc1.connect(formant1);
-    osc2.connect(formant1);
-    formant1.connect(warmFilter);
-    warmFilter.connect(masterGain);
-    masterGain.connect(ctx.destination);
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(now + dur + 0.02);
+      osc2.stop(now + dur + 0.02);
+    } else if (type === "purr") {
+      // Rhythmic 27Hz feline purr
+      const osc = ctx.createOscillator();
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      const gain = ctx.createGain();
 
-    osc1.start(now);
-    osc2.start(now);
-    lfo.start(now);
-    osc1.stop(now + duration + 0.02);
-    osc2.stop(now + duration + 0.02);
-    lfo.stop(now + duration + 0.02);
-  } catch {
-    // abaikan bila autoplay belum diizinkan browser
-  }
-}
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(27, now);
 
-export function synthCatPurr(duration = 1.6): void {
-  if (!soundEnabledState) return;
-  try {
-    const ctx = initAudio();
-    if (!ctx || !noiseBuffer) return;
-    const now = ctx.currentTime;
+      lfo.type = "sine";
+      lfo.frequency.setValueAtTime(3.2, now);
+      lfoGain.gain.setValueAtTime(0.08, now);
 
-    const rumbleOsc = ctx.createOscillator();
-    rumbleOsc.type = "sawtooth";
-    rumbleOsc.frequency.setValueAtTime(26, now);
-    rumbleOsc.frequency.linearRampToValueAtTime(29, now + duration * 0.5);
-    rumbleOsc.frequency.linearRampToValueAtTime(25, now + duration);
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(190, now);
 
-    const rumbleFilter = ctx.createBiquadFilter();
-    rumbleFilter.type = "lowpass";
-    rumbleFilter.frequency.setValueAtTime(195, now);
+      gain.gain.setValueAtTime(0.01, now);
+      gain.gain.linearRampToValueAtTime(0.16, now + 0.2);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.3);
 
-    const noiseSrc = ctx.createBufferSource();
-    noiseSrc.buffer = noiseBuffer;
-    noiseSrc.loop = true;
+      lfo.connect(lfoGain);
+      lfoGain.connect(gain.gain);
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
 
-    const noiseFilter = ctx.createBiquadFilter();
-    noiseFilter.type = "bandpass";
-    noiseFilter.frequency.setValueAtTime(320, now);
-    noiseFilter.Q.setValueAtTime(2.5, now);
-
-    const amLfo = ctx.createOscillator();
-    amLfo.type = "sine";
-    amLfo.frequency.setValueAtTime(26, now);
-
-    const amGain = ctx.createGain();
-    amGain.gain.setValueAtTime(0.08, now);
-    amLfo.connect(amGain.gain);
-
-    const envGain = ctx.createGain();
-    envGain.gain.setValueAtTime(0.001, now);
-    envGain.gain.linearRampToValueAtTime(0.22, now + 0.25);
-    envGain.gain.setValueAtTime(0.2, now + duration - 0.35);
-    envGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-
-    rumbleOsc.connect(rumbleFilter);
-    rumbleFilter.connect(envGain);
-
-    noiseSrc.connect(noiseFilter);
-    noiseFilter.connect(amGain);
-    amGain.connect(envGain);
-
-    envGain.connect(ctx.destination);
-
-    rumbleOsc.start(now);
-    noiseSrc.start(now);
-    amLfo.start(now);
-
-    rumbleOsc.stop(now + duration);
-    noiseSrc.stop(now + duration);
-    amLfo.stop(now + duration);
-  } catch {
-    // abaikan
-  }
-}
-
-export function synthCatChirp(isKitten = false): void {
-  if (!soundEnabledState) return;
-  try {
-    const ctx = initAudio();
-    if (!ctx) return;
-    const pitchMult = isKitten ? 1.32 : 1.0;
-    const now = ctx.currentTime;
-
-    const osc = ctx.createOscillator();
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(520 * pitchMult, now);
-    osc.frequency.exponentialRampToValueAtTime(980 * pitchMult, now + 0.14);
-    osc.frequency.exponentialRampToValueAtTime(680 * pitchMult, now + 0.28);
-
-    const trillLfo = ctx.createOscillator();
-    const trillGain = ctx.createGain();
-    trillLfo.frequency.setValueAtTime(38, now);
-    trillGain.gain.setValueAtTime(65 * pitchMult, now);
-    trillLfo.connect(trillGain);
-    trillGain.connect(osc.frequency);
-
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(0.22, now + 0.04);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(now);
-    trillLfo.start(now);
-    osc.stop(now + 0.31);
-    trillLfo.stop(now + 0.31);
-  } catch {
-    // abaikan
-  }
-}
-
-export function playCatSound(type: SoundEffectType, isKitten = false): void {
-  if (!soundEnabledState) return;
-  try {
-    const ctx = initAudio();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-
-    if (type === "meow") {
-      const v = (Math.random() - 0.5) * 70;
-      synthCatMeow({
-        startFreq: 490 + v,
-        peakFreq: 810 + v,
-        endFreq: 430 + v * 0.5,
-        duration: 0.46 + Math.random() * 0.12,
-        isKitten,
-      });
-    } else if (type === "purr_meow") {
-      synthCatPurr(1.55);
-      synthCatMeow({
-        startFreq: 540,
-        peakFreq: 840,
-        endFreq: 490,
-        duration: 0.42,
-        delay: 0.08,
-        isKitten,
-      });
-    } else if (type === "chirp") {
-      synthCatChirp(isKitten);
-      synthCatMeow({
-        startFreq: 610,
-        peakFreq: 920,
-        endFreq: 560,
-        duration: 0.34,
-        delay: 0.26,
-        isKitten,
-      });
-    } else if (type === "eat") {
+      osc.start(now);
+      lfo.start(now);
+      osc.stop(now + 1.35);
+      lfo.stop(now + 1.35);
+    } else if (type === "crunch" || type === "eat") {
+      // Crunching kibbles
+      for (let i = 0; i < 3; i++) {
+        const t = now + i * 0.24;
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(280 + i * 60, t);
+        osc.frequency.exponentialRampToValueAtTime(120, t + 0.09);
+        g.gain.setValueAtTime(0.18, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+        osc.connect(g);
+        g.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.11);
+      }
+      setTimeout(() => playCatVocal("meow", isKitten), 550);
+    } else if (type === "lap" || type === "drink") {
+      // Water lapping droplets
       for (let i = 0; i < 3; i++) {
         const t = now + i * 0.22;
-        if (noiseBuffer) {
-          const src = ctx.createBufferSource();
-          src.buffer = noiseBuffer;
-          const bp = ctx.createBiquadFilter();
-          bp.type = "bandpass";
-          bp.frequency.setValueAtTime(1350 + i * 180, t);
-          bp.Q.setValueAtTime(3.0, t);
-          const g = ctx.createGain();
-          g.gain.setValueAtTime(0.22, t);
-          g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-          src.connect(bp);
-          bp.connect(g);
-          g.connect(ctx.destination);
-          src.start(t);
-          src.stop(t + 0.11);
-        }
-      }
-      synthCatMeow({ startFreq: 550, peakFreq: 780, endFreq: 520, duration: 0.32, delay: 0.68, isKitten });
-    } else if (type === "drink") {
-      for (let i = 0; i < 3; i++) {
-        const t = now + i * 0.2;
         const osc = ctx.createOscillator();
         const g = ctx.createGain();
         osc.type = "sine";
-        osc.frequency.setValueAtTime(340, t);
-        osc.frequency.exponentialRampToValueAtTime(780, t + 0.09);
+        osc.frequency.setValueAtTime(420, t);
+        osc.frequency.exponentialRampToValueAtTime(880, t + 0.08);
         g.gain.setValueAtTime(0.14, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.11);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
         osc.connect(g);
         g.connect(ctx.destination);
         osc.start(t);
-        osc.stop(t + 0.12);
+        osc.stop(t + 0.1);
       }
-      setTimeout(() => synthCatChirp(isKitten), 620);
+      setTimeout(() => playCatVocal("chirp", isKitten), 520);
+    } else if (type === "purr_meow") {
+      playCatVocal("purr", isKitten);
+      setTimeout(() => playCatVocal("happy_meow", isKitten), 240);
     } else if (type === "bath") {
-      [480, 640, 820, 960].forEach((freq, idx) => {
-        const t = now + idx * 0.09;
-        const osc = ctx.createOscillator();
-        const g = ctx.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(freq, t);
-        osc.frequency.exponentialRampToValueAtTime(freq * 1.45, t + 0.07);
-        g.gain.setValueAtTime(0.14, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-        osc.connect(g);
-        g.connect(ctx.destination);
-        osc.start(t);
-        osc.stop(t + 0.09);
-      });
-      synthCatMeow({ startFreq: 620, peakFreq: 960, endFreq: 510, duration: 0.44, delay: 0.38, isKitten });
+      playCatVocal("chime", isKitten);
+      setTimeout(() => playCatVocal("happy_meow", isKitten), 350);
     } else if (type === "clean") {
-      if (noiseBuffer) {
-        for (let i = 0; i < 2; i++) {
-          const t = now + i * 0.22;
-          const src = ctx.createBufferSource();
-          src.buffer = noiseBuffer;
-          const hp = ctx.createBiquadFilter();
-          hp.type = "bandpass";
-          hp.frequency.setValueAtTime(2200, t);
-          const g = ctx.createGain();
-          g.gain.setValueAtTime(0.12, t);
-          g.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
-          src.connect(hp);
-          hp.connect(g);
-          g.connect(ctx.destination);
-          src.start(t);
-          src.stop(t + 0.17);
-        }
-      }
-      synthCatMeow({ startFreq: 520, peakFreq: 860, endFreq: 620, duration: 0.36, delay: 0.45, isKitten });
+      playCatVocal("chime", isKitten);
+      setTimeout(() => playCatVocal("chirp", isKitten), 250);
     } else if (type === "sleep") {
-      synthCatMeow({ startFreq: 520, peakFreq: 580, endFreq: 330, duration: 0.62, vibratoDepth: 6, isKitten });
-      setTimeout(() => synthCatPurr(2.0), 450);
-    } else if (type === "pop") {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(380, now);
-      osc.frequency.exponentialRampToValueAtTime(840, now + 0.11);
-      gain.gain.setValueAtTime(0.15, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.13);
-    } else if (type === "chime") {
-      [523.25, 659.25, 783.99, 1046.5].forEach((freq, idx) => {
+      playCatVocal("purr", isKitten);
+    } else if (type === "chime" || type === "pop") {
+      const notes = type === "chime" ? [523.25, 659.25, 783.99, 1046.5] : [440, 680];
+      notes.forEach((freq, idx) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = "sine";
-        osc.frequency.setValueAtTime(freq, now + idx * 0.07);
-        gain.gain.setValueAtTime(0.12, now + idx * 0.07);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.35);
+        osc.frequency.setValueAtTime(freq, now + idx * 0.065);
+        gain.gain.setValueAtTime(0.11, now + idx * 0.065);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.065 + 0.28);
         osc.connect(gain);
         gain.connect(ctx.destination);
-        osc.start(now + idx * 0.07);
-        osc.stop(now + idx * 0.07 + 0.36);
+        osc.start(now + idx * 0.065);
+        osc.stop(now + idx * 0.065 + 0.3);
       });
     }
   } catch {
-    // abaikan
+    // abaikan kesalahan audio
   }
 }
 
+/** Kompatibilitas mundur dengan nama lama `playCatSound`. */
+export function playCatSound(type: SoundEffectType, isKitten = false): void {
+  playCatVocal(type, isKitten);
+}
+
 export function playSoundForCareAction(action: CareInteractionType, isKitten = false): void {
-  if (action === "makan") playCatSound("eat", isKitten);
-  else if (action === "minum") playCatSound("drink", isKitten);
-  else if (action === "mandi") playCatSound("bath", isKitten);
-  else if (action === "bersihkan") playCatSound("clean", isKitten);
-  else if (action === "main") playCatSound("chirp", isKitten);
-  else if (action === "elus") playCatSound("purr_meow", isKitten);
+  if (action === "makan") playCatVocal("crunch", isKitten);
+  else if (action === "minum") playCatVocal("lap", isKitten);
+  else if (action === "mandi") playCatVocal("bath", isKitten);
+  else if (action === "bersihkan") playCatVocal("clean", isKitten);
+  else if (action === "main") {
+    playCatVocal("chirp", isKitten);
+    setTimeout(() => playCatVocal("happy_meow", isKitten), 320);
+  } else if (action === "elus") {
+    playCatVocal("purr", isKitten);
+    setTimeout(() => playCatVocal("happy_meow", isKitten), 240);
+  }
 }

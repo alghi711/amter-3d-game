@@ -13,14 +13,21 @@ import {
   type LightingMode,
 } from "@/lib/procedural-textures";
 
+/** Dimensi Kamar Tertutup (Enclosed 4-Wall Cozy Room). */
+export const ROOM_W = 14.4;
+export const ROOM_D = 14.4;
+export const ROOM_H = 6.8;
+export const HALF_W = ROOM_W / 2; // 7.2
+export const HALF_D = ROOM_D / 2; // 7.2
+
 /** Posisi benda rumah — dipakai ulang oleh interaksi (makan, minum, main, tidur, pasir, garuk). */
 export const HOUSE_SPOTS = {
-  bed: [-1.35, 0, -3.1],
-  foodBowl: [1.2, 0, 1.35],
-  waterBowl: [2.05, 0, 1.65],
-  toy: [-1.35, 0, 0.55],
-  litterBox: [2.9, 0, -0.45],
-  scratchPost: [-2.6, 0, -0.4],
+  bed: [-1.45, 0, -3.35],
+  foodBowl: [1.25, 0, 1.4],
+  waterBowl: [2.12, 0, 1.7],
+  toy: [-1.35, 0.25, 0.55],
+  litterBox: [3.0, 0, -0.55],
+  scratchPost: [-2.7, 0, -0.5],
 } as const satisfies Record<string, [number, number, number]>;
 
 export type HouseSpot = keyof typeof HOUSE_SPOTS;
@@ -104,37 +111,41 @@ function Usable({
 }
 
 function WallFrame({
-  zPos,
+  xPos,
   yPos,
+  zPos,
+  rotY,
   bgColor,
   iconColor,
 }: {
-  zPos: number;
+  xPos: number;
   yPos: number;
+  zPos: number;
+  rotY: number;
   bgColor: string;
   iconColor: string;
 }) {
   return (
-    <group position={[-4.75, yPos, zPos]}>
+    <group position={[xPos, yPos, zPos]} rotation={[0, rotY, 0]}>
       <mesh castShadow>
-        <boxGeometry args={[0.09, 1.08, 0.92]} />
-        <meshStandardMaterial color="#c28752" roughness={0.5} />
+        <boxGeometry args={[1.1, 1.25, 0.09]} />
+        <meshStandardMaterial color="#b87b46" roughness={0.5} />
       </mesh>
       <mesh>
-        <boxGeometry args={[0.1, 0.86, 0.74]} />
+        <boxGeometry args={[0.9, 1.05, 0.1]} />
         <meshStandardMaterial color={bgColor} roughness={0.75} />
       </mesh>
-      <mesh position={[0.045, -0.05, 0]} scale={[0.3, 1, 1.2]}>
-        <sphereGeometry args={[0.11, 14, 14]} />
+      <mesh position={[0, -0.06, 0.05]} scale={[1.2, 1, 0.3]}>
+        <sphereGeometry args={[0.14, 14, 14]} />
         <meshStandardMaterial color={iconColor} roughness={0.45} />
       </mesh>
       {[-1, 0, 1].map((i) => (
         <mesh
           key={i}
-          position={[0.045, 0.12 + (i === 0 ? 0.04 : 0), i * 0.12]}
-          scale={[0.3, 1, 1]}
+          position={[i * 0.14, 0.14 + (i === 0 ? 0.04 : 0), 0.05]}
+          scale={[1, 1, 0.3]}
         >
-          <sphereGeometry args={[0.055, 10, 10]} />
+          <sphereGeometry args={[0.065, 10, 10]} />
           <meshStandardMaterial color={iconColor} roughness={0.45} />
         </mesh>
       ))}
@@ -149,11 +160,12 @@ function YarnBallToy({ color, active }: { color: string; active: boolean }) {
   useFrame(({ clock }, dt) => {
     const elapsed = clock.getElapsedTime();
     if (groupRef.current) {
-      groupRef.current.position.y = active ? 0.24 + Math.abs(Math.sin(elapsed * 11)) * 0.38 : 0.25;
+      groupRef.current.position.y = active ? 0.25 + Math.abs(Math.sin(elapsed * 11)) * 0.42 : 0.25;
+      groupRef.current.position.x = active ? Math.sin(elapsed * 5) * 0.35 : 0;
     }
     if (ballRef.current && active) {
-      ballRef.current.rotation.x += dt * 6;
-      ballRef.current.rotation.z += dt * 5;
+      ballRef.current.rotation.x += dt * 7;
+      ballRef.current.rotation.z += dt * 6;
     }
   });
 
@@ -173,7 +185,7 @@ function YarnBallToy({ color, active }: { color: string; active: boolean }) {
   );
 }
 
-/** Rumah diorama 3D Mochi lengkap dengan tekstur prosedural, jendela awan, sinar matahari, partikel debu, lampu gantung, & furnitur detail. */
+/** Rumah diorama 3D tertutup 4 sisi (Fully Enclosed Room) dengan langit-langit, balok kayu, jendela taman, rak buku, pintu kamar, sofa, dan tanaman hias. */
 export default function CatHouse({
   onUse,
   onHoverSpot,
@@ -205,20 +217,19 @@ export default function CatHouse({
   }, []);
 
   const dustGeometry = useMemo(() => {
-    const count = 42;
+    const count = 55;
     const geo = new THREE.BufferGeometry();
     const pos = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      // Deterministic pseudo-random based on index
       const s1 = Math.sin(i * 12.9898) * 43758.5453;
       const s2 = Math.sin(i * 78.233) * 43758.5453;
       const s3 = Math.sin(i * 45.164) * 43758.5453;
       const r1 = s1 - Math.floor(s1);
       const r2 = s2 - Math.floor(s2);
       const r3 = s3 - Math.floor(s3);
-      pos[i * 3] = (r1 - 0.3) * 6.5;
-      pos[i * 3 + 1] = 0.4 + r2 * 4.2;
-      pos[i * 3 + 2] = (r3 - 0.5) * 6.5;
+      pos[i * 3] = (r1 - 0.5) * 10.0;
+      pos[i * 3 + 1] = 0.4 + r2 * 4.6;
+      pos[i * 3 + 2] = (r3 - 0.5) * 10.0;
     }
     geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
     return geo;
@@ -234,7 +245,7 @@ export default function CatHouse({
       dustRef.current.position.y = Math.sin(elapsed * 0.8) * 0.08;
     }
     if (pomPomRef.current) {
-      pomPomRef.current.position.x = 0.38 + Math.sin(elapsed * 3) * 0.03;
+      pomPomRef.current.position.x = 0.38 + Math.sin(elapsed * 3) * 0.035;
     }
   });
 
@@ -244,115 +255,172 @@ export default function CatHouse({
 
   return (
     <group>
-      {/* Lantai Kayu Tebal (Floor Slab) */}
-      <mesh position={[0, -0.21, 0]} receiveShadow>
-        <boxGeometry args={[10.4, 0.42, 10.4]} />
+      {/* 1. Lantai Kayu Luas (Floor Slab) */}
+      <mesh position={[0, -0.25, 0]} receiveShadow>
+        <boxGeometry args={[ROOM_W + 0.8, 0.5, ROOM_D + 0.8]} />
         <meshStandardMaterial
           map={textures?.wood.map ?? null}
           bumpMap={textures?.wood.bumpMap ?? null}
-          bumpScale={0.015}
-          color={textures ? "#ffffff" : "#c58e5e"}
-          roughness={0.55}
+          bumpScale={0.018}
+          color={textures ? "#ffffff" : "#b67c4c"}
+          roughness={0.52}
           metalness={0.04}
         />
       </mesh>
 
-      {/* Dinding Belakang & Kiri (Back Wall & Left Wall) */}
-      <mesh position={[0, 2.7, -5.0]} receiveShadow castShadow>
-        <boxGeometry args={[10.4, 5.8, 0.4]} />
+      {/* 2. Langit-langit (Ceiling Slab) & Balok Kayu Ekspos */}
+      <mesh position={[0, ROOM_H + 0.2, 0]}>
+        <boxGeometry args={[ROOM_W + 0.8, 0.4, ROOM_D + 0.8]} />
+        <meshStandardMaterial color="#eeddca" roughness={0.85} />
+      </mesh>
+      {[-5.0, -2.5, 0, 2.5, 5.0].map((z) => (
+        <mesh key={z} position={[0, ROOM_H - 0.14, z]}>
+          <boxGeometry args={[ROOM_W, 0.28, 0.32]} />
+          <meshStandardMaterial color="#8f5b34" roughness={0.6} />
+        </mesh>
+      ))}
+
+      {/* Lampu Gantung Rotan Anyam di Tengah Plafon */}
+      <group position={[0, ROOM_H, 0]}>
+        <mesh position={[0, -0.45, 0]}>
+          <cylinderGeometry args={[0.025, 0.025, 0.9, 8]} />
+          <meshStandardMaterial color="#8f5b34" />
+        </mesh>
+        <mesh position={[0, -0.9, 0]}>
+          <cylinderGeometry args={[0.35, 0.62, 0.52, 24, 1, true]} />
+          <meshStandardMaterial color="#d89f62" roughness={0.7} side={THREE.DoubleSide} />
+        </mesh>
+        <mesh position={[0, -0.88, 0]}>
+          <sphereGeometry args={[0.18, 16, 16]} />
+          <meshBasicMaterial color="#ffe6a3" />
+        </mesh>
+      </group>
+
+      {/* 3. Keempat Dinding Tertutup (North, South, West, East Walls) */}
+      {/* North Wall (-Z) */}
+      <mesh position={[0, ROOM_H / 2, -HALF_D]} receiveShadow>
+        <boxGeometry args={[ROOM_W + 0.6, ROOM_H, 0.4]} />
         <meshStandardMaterial
           map={textures?.wall ?? null}
-          color={textures ? "#ffffff" : "#f5ebe1"}
-          roughness={0.85}
+          color={textures ? "#ffffff" : "#e5d4c0"}
+          roughness={0.82}
         />
       </mesh>
-      <mesh position={[-5.0, 2.7, 0]} receiveShadow castShadow>
-        <boxGeometry args={[0.4, 5.8, 10.4]} />
+      {/* South Wall (+Z) */}
+      <mesh position={[0, ROOM_H / 2, HALF_D]} receiveShadow>
+        <boxGeometry args={[ROOM_W + 0.6, ROOM_H, 0.4]} />
         <meshStandardMaterial
           map={textures?.wall ?? null}
-          color={textures ? "#ffffff" : "#f5ebe1"}
-          roughness={0.85}
+          color={textures ? "#ffffff" : "#e5d4c0"}
+          roughness={0.82}
+        />
+      </mesh>
+      {/* West Wall (-X) */}
+      <mesh position={[-HALF_W, ROOM_H / 2, 0]} receiveShadow>
+        <boxGeometry args={[0.4, ROOM_H, ROOM_D + 0.6]} />
+        <meshStandardMaterial
+          map={textures?.wall ?? null}
+          color={textures ? "#ffffff" : "#e5d4c0"}
+          roughness={0.82}
+        />
+      </mesh>
+      {/* East Wall (+X) */}
+      <mesh position={[HALF_W, ROOM_H / 2, 0]} receiveShadow>
+        <boxGeometry args={[0.4, ROOM_H, ROOM_D + 0.6]} />
+        <meshStandardMaterial
+          map={textures?.wall ?? null}
+          color={textures ? "#ffffff" : "#e5d4c0"}
+          roughness={0.82}
         />
       </mesh>
 
-      {/* Baseboards & Chair Rails */}
-      <mesh position={[0, 0.16, -4.76]}>
-        <boxGeometry args={[10.0, 0.32, 0.1]} />
-        <meshStandardMaterial color="#c89d7c" roughness={0.55} />
+      {/* Lis Bawah (Baseboards) sekeliling ruangan */}
+      <mesh position={[0, 0.17, -HALF_D + 0.22]}>
+        <boxGeometry args={[ROOM_W, 0.34, 0.12]} />
+        <meshStandardMaterial color="#9e683e" roughness={0.55} />
       </mesh>
-      <mesh position={[0, 1.55, -4.76]}>
-        <boxGeometry args={[10.0, 0.1, 0.09]} />
-        <meshStandardMaterial color="#c89d7c" roughness={0.55} />
+      <mesh position={[0, 0.17, HALF_D - 0.22]}>
+        <boxGeometry args={[ROOM_W, 0.34, 0.12]} />
+        <meshStandardMaterial color="#9e683e" roughness={0.55} />
       </mesh>
-      <mesh position={[-4.76, 0.16, 0]}>
-        <boxGeometry args={[0.1, 0.32, 10.0]} />
-        <meshStandardMaterial color="#c89d7c" roughness={0.55} />
+      <mesh position={[-HALF_W + 0.22, 0.17, 0]}>
+        <boxGeometry args={[0.12, 0.34, ROOM_D]} />
+        <meshStandardMaterial color="#9e683e" roughness={0.55} />
       </mesh>
-      <mesh position={[-4.76, 1.55, 0]}>
-        <boxGeometry args={[0.09, 0.1, 10.0]} />
-        <meshStandardMaterial color="#c89d7c" roughness={0.55} />
+      <mesh position={[HALF_W - 0.22, 0.17, 0]}>
+        <boxGeometry args={[0.12, 0.34, ROOM_D]} />
+        <meshStandardMaterial color="#9e683e" roughness={0.55} />
       </mesh>
 
-      {/* Jendela dengan Awan 3D, Gorden & Tanaman Pot */}
-      <group position={[2.2, 3.15, -4.74]}>
+      {/* 4. Jendela Panorama dengan Pemandangan Taman di Dinding Utara */}
+      <group position={[2.2, 3.45, -HALF_D + 0.22]}>
         <mesh>
-          <boxGeometry args={[2.4, 1.85, 0.05]} />
+          <boxGeometry args={[2.8, 2.1, 0.05]} />
           <meshBasicMaterial color={preset.skyHex} />
         </mesh>
-        {/* Awan 3D */}
-        <mesh position={[-0.45, 0.3, 0.03]} scale={[1.8, 0.8, 0.2]}>
-          <sphereGeometry args={[0.28, 12, 12]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.9} />
+        {/* Bukit Hijau Taman */}
+        <mesh position={[-0.5, -0.75, 0.03]} scale={[1.6, 0.55, 0.1]}>
+          <sphereGeometry args={[0.95, 16, 12]} />
+          <meshBasicMaterial color="#76b87c" />
         </mesh>
-        <mesh position={[0.5, 0.1, 0.03]} scale={[1.6, 0.75, 0.2]}>
-          <sphereGeometry args={[0.22, 12, 12]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.9} />
+        <mesh position={[0.55, -0.8, 0.035]} scale={[1.7, 0.5, 0.1]}>
+          <sphereGeometry args={[0.85, 16, 12]} />
+          <meshBasicMaterial color="#5da165" />
         </mesh>
-        {/* Kusen Jendela */}
-        <mesh position={[0, 0.94, 0]}>
-          <boxGeometry args={[2.7, 0.16, 0.18]} />
-          <meshStandardMaterial color="#fff6eb" roughness={0.45} />
+        {/* Awan Putih Lembut */}
+        <mesh position={[-0.55, 0.42, 0.04]} scale={[1.8, 0.75, 0.15]}>
+          <sphereGeometry args={[0.3, 12, 12]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.92} />
         </mesh>
-        <mesh position={[0, -0.94, 0.08]}>
-          <boxGeometry args={[2.8, 0.18, 0.32]} />
-          <meshStandardMaterial color="#fff6eb" roughness={0.45} />
+        <mesh position={[0.55, 0.25, 0.04]} scale={[1.6, 0.7, 0.15]}>
+          <sphereGeometry args={[0.24, 12, 12]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.92} />
         </mesh>
-        <mesh position={[-1.22, 0, 0]}>
-          <boxGeometry args={[0.16, 1.95, 0.16]} />
-          <meshStandardMaterial color="#fff6eb" roughness={0.45} />
+        {/* Kusen & Palang Jendela */}
+        <mesh position={[0, 1.08, 0]}>
+          <boxGeometry args={[3.15, 0.18, 0.22]} />
+          <meshStandardMaterial color="#fff5e8" roughness={0.45} />
         </mesh>
-        <mesh position={[1.22, 0, 0]}>
-          <boxGeometry args={[0.16, 1.95, 0.16]} />
-          <meshStandardMaterial color="#fff6eb" roughness={0.45} />
+        <mesh position={[0, -1.08, 0.08]}>
+          <boxGeometry args={[3.25, 0.2, 0.36]} />
+          <meshStandardMaterial color="#fff5e8" roughness={0.45} />
+        </mesh>
+        <mesh position={[-1.42, 0, 0]}>
+          <boxGeometry args={[0.18, 2.2, 0.18]} />
+          <meshStandardMaterial color="#fff5e8" roughness={0.45} />
+        </mesh>
+        <mesh position={[1.42, 0, 0]}>
+          <boxGeometry args={[0.18, 2.2, 0.18]} />
+          <meshStandardMaterial color="#fff5e8" roughness={0.45} />
         </mesh>
         <mesh>
-          <boxGeometry args={[0.08, 1.85, 0.1]} />
-          <meshStandardMaterial color="#fff6eb" roughness={0.45} />
+          <boxGeometry args={[0.08, 2.1, 0.12]} />
+          <meshStandardMaterial color="#fff5e8" roughness={0.45} />
         </mesh>
         <mesh>
-          <boxGeometry args={[2.4, 0.08, 0.1]} />
-          <meshStandardMaterial color="#fff6eb" roughness={0.45} />
+          <boxGeometry args={[2.8, 0.08, 0.12]} />
+          <meshStandardMaterial color="#fff5e8" roughness={0.45} />
         </mesh>
         {/* Gorden Kiri & Kanan */}
         {[-1, 1].map((side) => (
-          <mesh key={side} position={[side * 1.32, -0.02, 0.14]} scale={[1, 1, 0.45]} castShadow>
-            <cylinderGeometry args={[0.22, 0.32, 2.15, 16]} />
-            <meshStandardMaterial color="#ffe4d1" roughness={0.85} />
+          <mesh key={side} position={[side * 1.52, -0.04, 0.15]} scale={[1, 1, 0.45]} castShadow>
+            <cylinderGeometry args={[0.26, 0.36, 2.45, 16]} />
+            <meshStandardMaterial color="#f4c2a8" roughness={0.82} />
           </mesh>
         ))}
-        {/* Tanaman Pot di Ambang Jendela */}
-        <mesh position={[-0.72, -0.73, 0.14]}>
-          <cylinderGeometry args={[0.16, 0.11, 0.25, 18]} />
-          <meshStandardMaterial color="#e07a5f" roughness={0.5} />
+        {/* Pot Tanaman di Ambang Jendela */}
+        <mesh position={[-0.82, -0.85, 0.16]}>
+          <cylinderGeometry args={[0.17, 0.12, 0.26, 18]} />
+          <meshStandardMaterial color="#d96b4c" roughness={0.5} />
         </mesh>
         {[0, 1, 2, 3, 4].map((i) => (
           <mesh
             key={i}
-            position={[-0.72 + (i - 2) * 0.055, -0.52 + (i % 2) * 0.06, 0.14]}
+            position={[-0.82 + (i - 2) * 0.06, -0.62 + (i % 2) * 0.06, 0.16]}
             rotation={[0, 0, (i - 2) * -0.22]}
             scale={[0.8, 1.6, 0.5]}
           >
-            <sphereGeometry args={[0.11, 12, 12]} />
+            <sphereGeometry args={[0.12, 12, 12]} />
             <meshStandardMaterial color="#4ca165" roughness={0.45} />
           </mesh>
         ))}
@@ -363,10 +431,10 @@ export default function CatHouse({
         {[0, 1].map((i) => (
           <mesh
             key={i}
-            position={[1.8 + i * 0.35, 1.85, -2.5]}
-            rotation={[-0.58, -0.25, 0]}
+            position={[1.8 + i * 0.4, 2.0, -3.8]}
+            rotation={[-0.55, -0.22, 0]}
           >
-            <planeGeometry args={[2.2, 5.0]} />
+            <planeGeometry args={[2.5, 5.8]} />
             <meshBasicMaterial
               color={preset.beamHex}
               transparent
@@ -389,81 +457,150 @@ export default function CatHouse({
         />
       </points>
 
-      {/* Lampu Gantung Hangat (Fairy String Lights) */}
+      {/* Lampu Fairy Lights di Dinding Utara & Barat */}
       <group>
-        {Array.from({ length: 11 }, (_, i) => {
-          const t = i / 10;
-          const x = -4.5 + t * 9.0;
-          const sag = Math.sin(t * Math.PI) * 0.28;
+        {Array.from({ length: 15 }, (_, i) => {
+          const t = i / 14;
+          const pos = -6.6 + t * 13.2;
+          const sag = Math.sin(t * Math.PI * 3) * 0.22;
           return (
-            <mesh key={i} position={[x, 4.75 - sag, -4.74]}>
-              <sphereGeometry args={[0.055, 10, 10]} />
-              <meshBasicMaterial color="#ffd97d" />
+            <group key={i}>
+              <mesh position={[pos, 5.55 - sag, -HALF_D + 0.25]}>
+                <sphereGeometry args={[0.06, 10, 10]} />
+                <meshBasicMaterial color="#ffd97d" />
+              </mesh>
+              <mesh position={[-HALF_W + 0.25, 5.55 - sag, pos]}>
+                <sphereGeometry args={[0.06, 10, 10]} />
+                <meshBasicMaterial color="#ffd97d" />
+              </mesh>
+            </group>
+          );
+        })}
+      </group>
+
+      {/* 5. Dinding Barat: Bingkai Tapak Kaki, Rak Buku, Lampu Meja */}
+      <WallFrame xPos={-HALF_W + 0.24} yPos={3.4} zPos={-1.6} rotY={Math.PI / 2} bgColor="#fff5eb" iconColor="#f07b8e" />
+      <WallFrame xPos={-HALF_W + 0.24} yPos={3.7} zPos={0.1} rotY={Math.PI / 2} bgColor="#eef7f2" iconColor="#56ab78" />
+
+      {/* Lemari Buku Kayu & Koleksi Buku */}
+      <group position={[-HALF_W + 0.65, 0, 2.5]}>
+        <ContactShadowPlane texture={textures?.shadow ?? null} radiusX={0.65} radiusZ={1.2} />
+        <mesh position={[0, 1.25, 0]} castShadow receiveShadow>
+          <boxGeometry args={[0.85, 2.5, 1.9]} />
+          <meshStandardMaterial color="#a86b3c" roughness={0.55} />
+        </mesh>
+        {/* 7 Buku Berwarna-warni */}
+        {["#e76f51", "#2a9d8f", "#e9c46a", "#8ab17d", "#f4a261", "#2a9d8f", "#e76f51"].map((col, b) => (
+          <mesh key={b} position={[0.05, 2.71, -0.65 + b * 0.13]} castShadow>
+            <boxGeometry args={[0.36, 0.42 - (b % 2) * 0.05, 0.11]} />
+            <meshStandardMaterial color={col} roughness={0.6} />
+          </mesh>
+        ))}
+        {/* Lampu Meja Kayu Hangat */}
+        <mesh position={[0, 2.62, 0.55]}>
+          <cylinderGeometry args={[0.14, 0.18, 0.25, 16]} />
+          <meshStandardMaterial color="#e6ccb2" roughness={0.4} />
+        </mesh>
+        <mesh position={[0, 2.9, 0.55]}>
+          <cylinderGeometry args={[0.16, 0.28, 0.32, 18]} />
+          <meshStandardMaterial color="#ffddb0" emissive="#ff9e3d" emissiveIntensity={0.45} />
+        </mesh>
+      </group>
+
+      {/* 6. Dinding Timur: Pintu Kamar Kayu Mewah & Handle Emas */}
+      <group position={[HALF_W - 0.22, 0, -2.2]}>
+        <mesh position={[0, 2.05, 0]}>
+          <boxGeometry args={[0.14, 4.1, 2.0]} />
+          <meshStandardMaterial color="#a66c3e" roughness={0.55} />
+        </mesh>
+        <mesh position={[-0.12, 1.9, 0.72]}>
+          <sphereGeometry args={[0.09, 16, 16]} />
+          <meshStandardMaterial color="#ffcb47" metalness={0.85} roughness={0.2} />
+        </mesh>
+      </group>
+
+      {/* 7. Sudut Tenggara: Tanaman Hias Daun Lebar (Potted Monstera) */}
+      <group position={[5.2, 0, 4.8]}>
+        <ContactShadowPlane texture={textures?.shadow ?? null} radiusX={0.7} radiusZ={0.7} />
+        <mesh position={[0, 0.39, 0]} castShadow>
+          <cylinderGeometry args={[0.45, 0.34, 0.78, 24]} />
+          <meshStandardMaterial color="#f4ebe1" roughness={0.4} />
+        </mesh>
+        {[0, 1, 2, 3, 4, 5, 6].map((i) => {
+          const ang = (i / 7) * Math.PI * 2;
+          return (
+            <mesh
+              key={i}
+              position={[Math.cos(ang) * 0.42, 0.95 + (i % 3) * 0.22, Math.sin(ang) * 0.42]}
+              rotation={[0, -ang, 0.35]}
+              scale={[1.4, 0.25, 0.85]}
+              castShadow
+            >
+              <sphereGeometry args={[0.32, 14, 14]} />
+              <meshStandardMaterial color="#4ca165" roughness={0.45} />
             </mesh>
           );
         })}
       </group>
 
-      {/* Bingkai Lukisan Tapak Kaki & Rak Buku */}
-      <WallFrame zPos={-1.35} yPos={3.15} bgColor="#fff5eb" iconColor="#f07b8e" />
-      <WallFrame zPos={0.15} yPos={3.45} bgColor="#eef7f2" iconColor="#56ab78" />
-
-      <group position={[-1.8, 3.35, -4.62]}>
-        <mesh castShadow>
-          <boxGeometry args={[1.7, 0.09, 0.36]} />
-          <meshStandardMaterial color="#c58b56" roughness={0.55} />
+      {/* 8. Dinding Selatan: Sofa Santai Pastel (Pastel Lounge Sofa) */}
+      <group position={[-1.5, 0, HALF_D - 1.15]}>
+        <ContactShadowPlane texture={textures?.shadow ?? null} radiusX={2.1} radiusZ={1.0} />
+        <mesh position={[0, 0.35, 0]} castShadow receiveShadow>
+          <boxGeometry args={[3.6, 0.55, 1.35]} />
+          <meshStandardMaterial color="#d8a48f" roughness={0.78} />
         </mesh>
-        {["#f28482", "#84a59d", "#f6bd60", "#9b89b3"].map((col, b) => (
-          <mesh key={b} position={[-0.5 + b * 0.11, 0.2, 0]} castShadow>
-            <boxGeometry args={[0.09, 0.32 - (b % 2) * 0.04, 0.24]} />
-            <meshStandardMaterial color={col} roughness={0.6} />
-          </mesh>
-        ))}
+        <mesh position={[0, 0.9, 0.5]} castShadow>
+          <boxGeometry args={[3.6, 1.1, 0.38]} />
+          <meshStandardMaterial color="#d8a48f" roughness={0.78} />
+        </mesh>
       </group>
 
-      {/* Karpet Rajut Bundar di Tengah (Center Braided Plush Rug) */}
-      <group position={[0.1, 0.01, 0.4]}>
+      {/* 9. Karpet Rajut Bundar di Tengah Ruangan */}
+      <group position={[0.1, 0.01, 0.35]}>
         <mesh receiveShadow>
-          <cylinderGeometry args={[2.42, 2.46, 0.045, 64]} />
+          <cylinderGeometry args={[2.65, 2.7, 0.045, 64]} />
           <meshStandardMaterial color="#f7e1e6" roughness={0.88} />
         </mesh>
         <mesh receiveShadow>
-          <cylinderGeometry args={[2.24, 2.24, 0.065, 64]} />
+          <cylinderGeometry args={[2.45, 2.45, 0.065, 64]} />
           <meshStandardMaterial
             map={textures?.rug ?? null}
-            color={textures ? "#ffffff" : "#e8a5b8"}
+            color={textures ? "#ffffff" : "#e091a9"}
             roughness={0.85}
           />
         </mesh>
       </group>
 
-      {/* 1. Tiang Garukan Kucing (Scratching Post) */}
+      {/* --- OBJEK INTERAKTIF --- */}
+
+      {/* 10. Tiang Garukan Kucing (Scratching Post) */}
       <Usable spot="scratchPost" onUse={onUse} onHoverSpot={onHoverSpot}>
-        <ContactShadowPlane texture={textures?.shadow ?? null} radiusX={0.95} radiusZ={0.95} />
+        <ContactShadowPlane texture={textures?.shadow ?? null} radiusX={1.0} radiusZ={1.0} />
         <mesh position={[0, 0.08, 0]} castShadow receiveShadow>
-          <boxGeometry args={[1.38, 0.16, 1.38]} />
+          <boxGeometry args={[1.42, 0.16, 1.42]} />
           <meshStandardMaterial color="#bf8750" roughness={0.55} />
         </mesh>
         <mesh position={[0, 0.18, 0]} receiveShadow>
-          <boxGeometry args={[1.18, 0.06, 1.18]} />
+          <boxGeometry args={[1.22, 0.06, 1.22]} />
           <meshStandardMaterial color="#fff3e6" roughness={0.85} />
         </mesh>
-        <mesh position={[0, 1.06, 0]} castShadow receiveShadow>
-          <cylinderGeometry args={[0.23, 0.23, 1.88, 28]} />
+        <mesh position={[0, 1.08, 0]} castShadow receiveShadow>
+          <cylinderGeometry args={[0.24, 0.24, 1.92, 28]} />
           <meshStandardMaterial
             map={textures?.rope ?? null}
             bumpMap={textures?.rope ?? null}
             bumpScale={0.02}
-            color={textures ? "#ffffff" : "#c99658"}
+            color={textures ? "#ffffff" : "#c48e4f"}
             roughness={0.82}
           />
         </mesh>
-        <mesh position={[0, 2.02, 0]} castShadow>
-          <boxGeometry args={[1.18, 0.16, 1.18]} />
+        <mesh position={[0, 2.04, 0]} castShadow>
+          <boxGeometry args={[1.22, 0.16, 1.22]} />
           <meshStandardMaterial color="#bf8750" roughness={0.55} />
         </mesh>
-        <mesh position={[0, 2.12, 0]} castShadow>
-          <boxGeometry args={[1.06, 0.1, 1.06]} />
+        <mesh position={[0, 2.14, 0]} castShadow>
+          <boxGeometry args={[1.08, 0.1, 1.08]} />
           <meshStandardMaterial color="#fff3e6" roughness={0.85} />
         </mesh>
         <mesh position={[0.38, 1.75, 0.38]}>
@@ -476,44 +613,44 @@ export default function CatHouse({
         </mesh>
       </Usable>
 
-      {/* 2. Kasur Kucing Empuk (Cozy Bolster Cat Bed) */}
-      <Usable spot="bed" rotationY={0.25} onUse={onUse} onHoverSpot={onHoverSpot}>
-        <ContactShadowPlane texture={textures?.shadow ?? null} radiusX={1.15} radiusZ={0.95} />
+      {/* 11. Kasur Kucing Biru Langit (Cozy Bolster Bed) */}
+      <Usable spot="bed" rotationY={0.22} onUse={onUse} onHoverSpot={onHoverSpot}>
+        <ContactShadowPlane texture={textures?.shadow ?? null} radiusX={1.2} radiusZ={1.0} />
         <mesh position={[0, 0.14, 0]} castShadow receiveShadow>
-          <boxGeometry args={[1.82, 0.28, 1.42]} />
+          <boxGeometry args={[1.88, 0.28, 1.48]} />
           <meshStandardMaterial color="#6ea8dc" roughness={0.72} />
         </mesh>
-        <mesh position={[0, 0.32, -0.58]} rotation={[0, 0, Math.PI / 2]} castShadow>
-          <cylinderGeometry args={[0.16, 0.16, 1.78, 16]} />
+        <mesh position={[0, 0.32, -0.6]} rotation={[0, 0, Math.PI / 2]} castShadow>
+          <cylinderGeometry args={[0.17, 0.17, 1.84, 16]} />
           <meshStandardMaterial color="#6ea8dc" roughness={0.72} />
         </mesh>
         <mesh position={[0, 0.25, 0]} castShadow receiveShadow>
-          <boxGeometry args={[1.5, 0.24, 1.12]} />
+          <boxGeometry args={[1.56, 0.24, 1.16]} />
           <meshStandardMaterial color="#fff8ef" roughness={0.8} />
         </mesh>
         <mesh position={[-0.35, 0.4, -0.2]} rotation={[0, 0, -0.1]} scale={[1.3, 0.45, 0.85]} castShadow>
-          <sphereGeometry args={[0.24, 16, 16]} />
+          <sphereGeometry args={[0.25, 16, 16]} />
           <meshStandardMaterial color="#ff9270" roughness={0.65} />
         </mesh>
       </Usable>
 
-      {/* 3. Kotak Pasir Mint dengan Sekop Mini (Litter Box) */}
+      {/* 12. Kotak Pasir Mint dengan Sekop Mini (Litter Box) */}
       <Usable spot="litterBox" rotationY={-0.25} onUse={onUse} onHoverSpot={onHoverSpot}>
-        <ContactShadowPlane texture={textures?.shadow ?? null} radiusX={0.9} radiusZ={0.72} />
-        <mesh position={[0, 0.17, 0]} castShadow receiveShadow>
-          <boxGeometry args={[1.38, 0.34, 1.05]} />
+        <ContactShadowPlane texture={textures?.shadow ?? null} radiusX={0.95} radiusZ={0.75} />
+        <mesh position={[0, 0.175, 0]} castShadow receiveShadow>
+          <boxGeometry args={[1.42, 0.35, 1.08]} />
           <meshStandardMaterial color="#76b8a1" roughness={0.45} />
         </mesh>
-        <mesh position={[0, 0.34, 0]} castShadow>
-          <boxGeometry args={[1.44, 0.07, 1.11]} />
+        <mesh position={[0, 0.35, 0]} castShadow>
+          <boxGeometry args={[1.48, 0.07, 1.14]} />
           <meshStandardMaterial color="#eaf6f1" roughness={0.42} />
         </mesh>
-        <mesh position={[0, 0.35, 0]} receiveShadow>
-          <boxGeometry args={[1.22, 0.06, 0.9]} />
+        <mesh position={[0, 0.36, 0]} receiveShadow>
+          <boxGeometry args={[1.26, 0.06, 0.92]} />
           <meshStandardMaterial color={litterDirty ? "#d4c39c" : "#ebd9c0"} roughness={0.95} />
         </mesh>
-        <mesh position={[0.74, 0.24, 0]}>
-          <boxGeometry args={[0.08, 0.24, 0.14]} />
+        <mesh position={[0.76, 0.25, 0]}>
+          <boxGeometry args={[0.08, 0.25, 0.15]} />
           <meshStandardMaterial color="#52947e" roughness={0.4} />
         </mesh>
         {litterDirty && (
@@ -532,15 +669,15 @@ export default function CatHouse({
         )}
       </Usable>
 
-      {/* 4. Mangkuk Makan Keramik Merah dengan Biskuit Kibble */}
+      {/* 13. Mangkuk Makan Keramik Merah */}
       <Usable spot="foodBowl" onUse={onUse} onHoverSpot={onHoverSpot}>
-        <ContactShadowPlane texture={textures?.shadow ?? null} radiusX={0.52} radiusZ={0.52} />
-        <mesh position={[0, 0.135, 0]} castShadow receiveShadow>
-          <cylinderGeometry args={[0.43, 0.34, 0.27, 32]} />
-          <meshStandardMaterial color="#e25b52" roughness={0.32} metalness={0.05} />
+        <ContactShadowPlane texture={textures?.shadow ?? null} radiusX={0.54} radiusZ={0.54} />
+        <mesh position={[0, 0.14, 0]} castShadow receiveShadow>
+          <cylinderGeometry args={[0.44, 0.35, 0.28, 32]} />
+          <meshStandardMaterial color="#e25b52" roughness={0.32} />
         </mesh>
-        <mesh position={[0, 0.14 + foodLevel * 0.1, 0]}>
-          <cylinderGeometry args={[0.36, 0.36, 0.05, 24]} />
+        <mesh position={[0, 0.15 + foodLevel * 0.09, 0]}>
+          <cylinderGeometry args={[0.37, 0.37, 0.05, 24]} />
           <meshStandardMaterial color={foodBowlState?.fill ?? "#8a4b22"} roughness={0.65} />
         </mesh>
         {Array.from({ length: 16 }, (_, i) => {
@@ -549,7 +686,7 @@ export default function CatHouse({
           return (
             <mesh
               key={i}
-              position={[Math.cos(angle) * rad, 0.17 + foodLevel * 0.1, Math.sin(angle) * rad]}
+              position={[Math.cos(angle) * rad, 0.18 + foodLevel * 0.09, Math.sin(angle) * rad]}
             >
               <sphereGeometry args={[0.048, 10, 10]} />
               <meshStandardMaterial color={foodBowlState?.fill ?? "#8a4b22"} roughness={0.65} />
@@ -558,26 +695,25 @@ export default function CatHouse({
         })}
       </Usable>
 
-      {/* 5. Mangkuk Air Keramik Biru */}
+      {/* 14. Mangkuk Air Keramik Biru */}
       <Usable spot="waterBowl" onUse={onUse} onHoverSpot={onHoverSpot}>
-        <ContactShadowPlane texture={textures?.shadow ?? null} radiusX={0.52} radiusZ={0.52} />
-        <mesh position={[0, 0.135, 0]} castShadow receiveShadow>
-          <cylinderGeometry args={[0.43, 0.34, 0.27, 32]} />
-          <meshStandardMaterial color="#4b87db" roughness={0.3} metalness={0.05} />
+        <ContactShadowPlane texture={textures?.shadow ?? null} radiusX={0.54} radiusZ={0.54} />
+        <mesh position={[0, 0.14, 0]} castShadow receiveShadow>
+          <cylinderGeometry args={[0.44, 0.35, 0.28, 32]} />
+          <meshStandardMaterial color="#4b87db" roughness={0.3} />
         </mesh>
-        <mesh position={[0, 0.14 + waterLevel * 0.1, 0]}>
-          <cylinderGeometry args={[0.37, 0.37, 0.04, 28]} />
+        <mesh position={[0, 0.15 + waterLevel * 0.09, 0]}>
+          <cylinderGeometry args={[0.38, 0.38, 0.04, 28]} />
           <meshStandardMaterial
             color={waterBowlState?.fill ?? "#82d6ff"}
             roughness={0.12}
-            metalness={0.1}
             transparent
             opacity={0.88}
           />
         </mesh>
       </Usable>
 
-      {/* 6. Bola Benang Emas (Golden Yarn Ball Toy) */}
+      {/* 15. Bola Benang Mainan Emas */}
       <Usable spot="toy" onUse={onUse} onHoverSpot={onHoverSpot}>
         <YarnBallToy color={toyColor} active={playingToy} />
       </Usable>

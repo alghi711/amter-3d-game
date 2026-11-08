@@ -129,18 +129,27 @@ function Heart({ onDone }: { onDone: () => void }) {
 export type CatPart = "kepala" | "badan" | "ekor";
 export type CatTouch = { kind: "sentuh" | "elus"; part: CatPart };
 
-/** Posisi santai Mochi di tengah karpet rajut bundar. */
-const HOME_SPOT: readonly [number, number] = [0.35, 0.2];
+/** Posisi santai Mochi di atas karpet rajut bundar. */
+const HOME_SPOT: readonly [number, number] = [0.2, 0.25];
 
-/** Posisi berdiri Mochi di depan tiap benda furnitur agar pas dan tidak menembus objek. */
+/** Posisi berdiri Mochi di depan tiap furnitur saat beraktivitas. */
 const SPOT_STAND_POS: Record<HouseSpot, readonly [number, number, number]> = {
-  bed: [-1.35, 0.22, -3.05],
-  foodBowl: [0.95, 0, 1.0],
-  waterBowl: [1.65, 0, 1.25],
+  bed: [-1.45, 0.22, -3.25],
+  foodBowl: [0.95, 0, 1.05],
+  waterBowl: [1.7, 0, 1.3],
   toy: [-0.95, 0, 0.5],
-  litterBox: [2.25, 0, -0.35],
-  scratchPost: [-1.9, 0, -0.25],
+  litterBox: [2.35, 0, -0.45],
+  scratchPost: [-1.95, 0, -0.35],
 };
+
+/** Titik jalan-jalan otonom saat kucing santai (Autonomous Wandering). */
+const WANDER_POINTS: readonly (readonly [number, number, number])[] = [
+  [0.2, 0, 0.25],
+  [-0.7, 0, 0.8],
+  [0.8, 0, -0.4],
+  [-1.2, 0, -0.8],
+  [0.1, 0, 1.1],
+];
 
 const partOf = (name: string): CatPart => (name === "ekor" ? "ekor" : name === "badan" ? "badan" : "kepala");
 
@@ -185,6 +194,12 @@ function Cat({
   const tailPivot = useRef<Group>(null);
   const scaleGroup = useRef<Group>(null);
 
+  // Kaki depan & belakang untuk siklus berjalan 4 kaki
+  const leftFrontPawRef = useRef<Mesh>(null);
+  const rightFrontPawRef = useRef<Mesh>(null);
+  const leftHindFootRef = useRef<Group>(null);
+  const rightHindFootRef = useRef<Group>(null);
+
   const textures = useMemo(() => {
     if (typeof document === "undefined") return null;
     return {
@@ -194,16 +209,9 @@ function Cat({
   }, []);
 
   const headWorldRef = useRef(new THREE.Vector3());
+  const wanderRef = useRef({ timer: 6.0, ptIndex: 0 });
 
   const animState = useRef<CatAnimState>("diam");
-  const target: readonly [number, number, number] = spot
-    ? SPOT_STAND_POS[spot]
-    : [HOME_SPOT[0], 0, HOME_SPOT[1]];
-  const lookTarget: readonly [number, number] = spot
-    ? spot === "bed"
-      ? [0, 2]
-      : [HOUSE_SPOTS[spot][0], HOUSE_SPOTS[spot][2]]
-    : [0.35, 4.0];
 
   const reaction = useRef<{ kind: CatTouch["kind"]; part: CatPart; start: number; intensity: number; lean: number } | null>(
     null,
@@ -227,7 +235,7 @@ function Cat({
     onPettingChange?.(true);
   };
   const onMove = (e: ThreeEvent<PointerEvent>) => {
-    onHoverSpot?.("Mochi 🐱 · Klik / Usap untuk Mengelus", e.clientX, e.clientY);
+    onHoverSpot?.("Mochi 🐱 · Klik / Usap untuk Mengelus & Bersuara", e.clientX, e.clientY);
     const st = stroke.current;
     if (!st) return;
     e.stopPropagation();
@@ -265,25 +273,63 @@ function Cat({
     const dt = Math.min(delta, 0.1);
     const elapsed = clock.getElapsedTime();
 
+    // Jalankan wandering otonom saat kucing sedang santai di karpet
+    if (!spot && !bathing && !reaction.current) {
+      wanderRef.current.timer -= dt;
+      if (wanderRef.current.timer <= 0) {
+        wanderRef.current.timer = 6.5 + Math.random() * 5.5;
+        wanderRef.current.ptIndex = (wanderRef.current.ptIndex + 1) % WANDER_POINTS.length;
+      }
+    }
+
+    const currentWander = WANDER_POINTS[wanderRef.current.ptIndex];
+    const targetPos: readonly [number, number, number] = spot
+      ? SPOT_STAND_POS[spot]
+      : bathing
+        ? [0.1, 0, 0.35]
+        : currentWander;
+
+    const lookTarget: readonly [number, number] = spot
+      ? spot === "bed"
+        ? [0, 2]
+        : [HOUSE_SPOTS[spot][0], HOUSE_SPOTS[spot][2]]
+      : [currentWander[0] + 0.2, currentWander[2] + 2.5];
+
     let moving = false;
     if (root.current && bodyGroup.current) {
       const p = root.current.position;
-      const dx = target[0] - p.x;
-      const dz = target[2] - p.z;
+      const dx = targetPos[0] - p.x;
+      const dz = targetPos[2] - p.z;
       const dist = Math.hypot(dx, dz);
-      if (dist > 0.08) {
+      if (dist > 0.06) {
         moving = true;
-        p.x = MathUtils.lerp(p.x, target[0], dt * 4.2);
-        p.z = MathUtils.lerp(p.z, target[2], dt * 4.2);
-        p.y = MathUtils.lerp(p.y, target[1], dt * 6);
-        bodyGroup.current.position.y = Math.abs(Math.sin(elapsed * 14)) * 0.14;
+        p.x = MathUtils.lerp(p.x, targetPos[0], dt * 3.8);
+        p.z = MathUtils.lerp(p.z, targetPos[2], dt * 3.8);
+        p.y = MathUtils.lerp(p.y, targetPos[1], dt * 6);
+        bodyGroup.current.position.y = Math.abs(Math.sin(elapsed * 14)) * 0.13;
       } else {
-        p.y = MathUtils.lerp(p.y, target[1], dt * 6);
+        p.y = MathUtils.lerp(p.y, targetPos[1], dt * 6);
         bodyGroup.current.position.y = MathUtils.lerp(bodyGroup.current.position.y, 0, dt * 8);
       }
 
-      const lookX = moving ? target[0] : lookTarget[0];
-      const lookZ = moving ? target[2] : lookTarget[1];
+      // Animasi ayunan 4 kaki Mochi (Front paws & hind feet)
+      if (moving) {
+        if (leftFrontPawRef.current) leftFrontPawRef.current.rotation.x = 0.3 + Math.sin(elapsed * 14) * 0.45;
+        if (rightFrontPawRef.current) rightFrontPawRef.current.rotation.x = 0.3 - Math.sin(elapsed * 14) * 0.45;
+        if (leftHindFootRef.current) leftHindFootRef.current.position.y = 0.12 + Math.max(0, -Math.sin(elapsed * 14)) * 0.08;
+        if (rightHindFootRef.current) rightHindFootRef.current.position.y = 0.12 + Math.max(0, Math.sin(elapsed * 14)) * 0.08;
+      } else if (animState.current === "main") {
+        if (leftFrontPawRef.current) leftFrontPawRef.current.rotation.x = -0.6 + Math.sin(elapsed * 16) * 0.5;
+        if (rightFrontPawRef.current) rightFrontPawRef.current.rotation.x = -0.6 - Math.sin(elapsed * 16) * 0.5;
+      } else {
+        if (leftFrontPawRef.current) leftFrontPawRef.current.rotation.x = MathUtils.lerp(leftFrontPawRef.current.rotation.x, 0.3, dt * 8);
+        if (rightFrontPawRef.current) rightFrontPawRef.current.rotation.x = MathUtils.lerp(rightFrontPawRef.current.rotation.x, 0.3, dt * 8);
+        if (leftHindFootRef.current) leftHindFootRef.current.position.y = 0.12;
+        if (rightHindFootRef.current) rightHindFootRef.current.position.y = 0.12;
+      }
+
+      const lookX = moving ? targetPos[0] : lookTarget[0];
+      const lookZ = moving ? targetPos[2] : lookTarget[1];
       const wantAngle = Math.atan2(lookX - p.x, lookZ - p.z);
       const diff = Math.atan2(Math.sin(wantAngle - root.current.rotation.y), Math.cos(wantAngle - root.current.rotation.y));
       root.current.rotation.y += diff * Math.min(1, dt * 5.5);
@@ -311,25 +357,25 @@ function Cat({
       onAnimState?.(next);
     }
 
-    // Napas & postur perut bundar Mochi
+    // Napas dada & perut gembil Mochi
     const breath = 1 + Math.sin(elapsed * 3.2) * 0.022;
     if (torsoMesh.current) {
       torsoMesh.current.scale.set(1.04 * breath, 0.94 / breath, 0.98 * breath);
     }
 
-    // Ekor belang bergoyang
+    // Ekor belang bergoyang anggun
     const moodTailMul = mood === "senang" ? 1.2 : mood === "bosan" ? 0.65 : mood === "ngantuk" ? 0.5 : 1;
     if (tailPivot.current) {
-      const speed = (next === "kesal" ? 12 : next === "main" ? 7 : 4.2) * moodTailMul;
-      tailPivot.current.rotation.z = Math.sin(elapsed * speed) * 0.34;
-      tailPivot.current.rotation.x = Math.cos(elapsed * 2.5) * 0.1;
+      const speed = (next === "kesal" ? 12 : next === "main" ? 7 : 4.5) * moodTailMul;
+      tailPivot.current.rotation.z = Math.sin(elapsed * speed) * 0.35;
+      tailPivot.current.rotation.x = Math.cos(elapsed * 2.5) * 0.12;
     }
 
-    // Telinga berkedip halus
+    // Gerak telinga kucing
     const earDroop = mood === "bosan" || mood === "ngantuk" ? 0.16 : 0;
     if (leftEar.current && rightEar.current) {
-      leftEar.current.rotation.z = 0.38 + earDroop + Math.sin(elapsed * 2.8) * 0.05;
-      rightEar.current.rotation.z = -0.38 - earDroop - Math.sin(elapsed * 3.1) * 0.05;
+      leftEar.current.rotation.z = 0.38 + earDroop + Math.sin(elapsed * 2.8) * 0.06;
+      rightEar.current.rotation.z = -0.38 - earDroop - Math.sin(elapsed * 3.1) * 0.06;
     }
 
     // Kedipan mata & ekspresi mood
@@ -338,31 +384,31 @@ function Cat({
       (blinkCycle > 3.95 && blinkCycle < 4.1) || next === "tidur" || next === "dielus";
     const openEyeY = mood === "ngantuk" ? 0.45 : mood === "bosan" ? 0.72 : mood === "lapar" ? 1.12 : 1.0;
     if (leftEyeGroup.current && rightEyeGroup.current) {
-      leftEyeGroup.current.scale.y = isBlinking ? 0.12 : openEyeY;
-      rightEyeGroup.current.scale.y = isBlinking ? 0.12 : openEyeY;
+      leftEyeGroup.current.scale.y = isBlinking ? 0.14 : openEyeY;
+      rightEyeGroup.current.scale.y = isBlinking ? 0.14 : openEyeY;
     }
 
-    // Mulut terbuka saat mengeong / makan / minum / dielus
+    // Mulut pink terbuka saat mengeong / makan / bersuara
     const mouthActive =
       vocalizing || next === "makan" || next === "minum" || next === "dielus" || next === "kaget";
     if (openMouthMesh.current) {
       if (mouthActive) {
-        openMouthMesh.current.scale.y = 0.35 + Math.abs(Math.sin(elapsed * 18)) * 0.95;
+        openMouthMesh.current.scale.y = 0.55 + Math.abs(Math.sin(elapsed * 18)) * 0.85;
       } else {
-        openMouthMesh.current.scale.y = MathUtils.lerp(openMouthMesh.current.scale.y, 0.12, dt * 10);
+        openMouthMesh.current.scale.y = MathUtils.lerp(openMouthMesh.current.scale.y, 0.2, dt * 10);
       }
     }
 
-    // Animasi aktif kepala & badan
+    // Animasi kepala & badan aktif
     if (headGroup.current && bodyGroup.current) {
       if (next === "dielus" || next === "kaget" || next === "mandi") {
-        headGroup.current.rotation.z = Math.sin(elapsed * 10) * 0.12;
+        headGroup.current.rotation.z = Math.sin(elapsed * 10) * 0.13;
         if (!moving) bodyGroup.current.position.y = Math.abs(Math.sin(elapsed * 9)) * 0.12;
       } else if (next === "makan" || next === "minum") {
-        headGroup.current.rotation.x = 0.25 + Math.sin(elapsed * 14) * 0.12;
+        headGroup.current.rotation.x = 0.28 + Math.sin(elapsed * 15) * 0.14;
         headGroup.current.rotation.z = 0;
       } else if (next === "main" || next === "garuk") {
-        if (!moving) bodyGroup.current.position.y = Math.abs(Math.sin(elapsed * 11)) * 0.18;
+        if (!moving) bodyGroup.current.position.y = Math.abs(Math.sin(elapsed * 11)) * 0.2;
         headGroup.current.rotation.z = Math.sin(elapsed * 7) * 0.08;
       } else if (next === "tidur") {
         headGroup.current.rotation.x = MathUtils.lerp(headGroup.current.rotation.x, 0.22, dt * 6);
@@ -373,14 +419,14 @@ function Cat({
       }
     }
 
-    // Skala pertumbuhan halus (Anak Kucing 0.68 -> Dewasa 1.0)
+    // Skala pertumbuhan kucing (Anak 0.68x -> Dewasa 1.0x)
     if (scaleGroup.current) {
       const targetScale = stage === "anak" ? 0.68 : growthScale;
       const nextScale = MathUtils.damp(scaleGroup.current.scale.x, targetScale, 5, dt);
       scaleGroup.current.scale.setScalar(nextScale);
     }
 
-    // Update posisi balon suara 3D di atas kepala Mochi
+    // Update proyeksi koordinat 3D kepala Mochi ke layar untuk Speech Bubble
     if (headGroup.current && typeof document !== "undefined") {
       const bubbleEl = document.getElementById(headScreenElementId);
       if (bubbleEl) {
@@ -409,17 +455,17 @@ function Cat({
       onPointerOver={(e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
         document.body.style.cursor = "pointer";
-        onHoverSpot?.("Mochi 🐱 · Klik / Usap untuk Mengelus", e.clientX, e.clientY);
+        onHoverSpot?.("Mochi 🐱 · Klik / Usap untuk Mengelus & Bersuara", e.clientX, e.clientY);
       }}
       onPointerOut={() => {
         document.body.style.cursor = "auto";
         onHoverSpot?.(null);
       }}
     >
-      {/* Bayangan kontak lembut di bawah Mochi */}
+      {/* Bayangan kontak halus di bawah Mochi */}
       {textures?.shadow && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 0]}>
-          <planeGeometry args={[1.64, 1.64]} />
+          <planeGeometry args={[1.7, 1.7]} />
           <meshBasicMaterial map={textures.shadow} transparent depthWrite={false} />
         </mesh>
       )}
@@ -439,45 +485,69 @@ function Cat({
             <meshStandardMaterial
               map={textures?.fur ?? null}
               color={orangeColor}
-              roughness={0.52}
-              metalness={0.02}
+              roughness={0.5}
             />
           </mesh>
 
-          {/* Bulu Perut Krem Putih */}
+          {/* Bulu Dada / Perut Krem Putih */}
           <mesh name="badan" position={[0, 0.59, 0.44]} scale={[0.86, 0.88, 0.56]}>
             <sphereGeometry args={[0.53, 32, 32]} />
             <meshStandardMaterial color="#fff5e6" roughness={0.55} />
           </mesh>
 
-          {/* Kaki Depan Kiri & Kanan */}
-          {[-0.28, 0.28].map((px) => (
-            <mesh
-              key={px}
-              name="badan"
-              position={[px, 0.36, 0.58]}
-              rotation={[0.3, 0, 0]}
-              scale={[0.88, 1.35, 0.92]}
-              castShadow
-            >
-              <sphereGeometry args={[0.175, 20, 20]} />
-              <meshStandardMaterial color="#fff5e6" roughness={0.55} />
+          {/* 3 Garis Belang di Punggung */}
+          {[0, 1, 2].map((s) => (
+            <mesh key={s} position={[0, 0.82 - s * 0.18, -0.58]}>
+              <boxGeometry args={[0.45 - s * 0.06, 0.06, 0.12]} />
+              <meshStandardMaterial color="#d46a1e" roughness={0.58} />
             </mesh>
           ))}
 
+          {/* Kaki Depan Kiri & Kanan */}
+          <mesh
+            ref={leftFrontPawRef}
+            name="badan"
+            position={[-0.28, 0.36, 0.58]}
+            rotation={[0.3, 0, 0]}
+            scale={[0.88, 1.35, 0.92]}
+            castShadow
+          >
+            <sphereGeometry args={[0.175, 20, 20]} />
+            <meshStandardMaterial color="#fff5e6" roughness={0.55} />
+          </mesh>
+          <mesh
+            ref={rightFrontPawRef}
+            name="badan"
+            position={[0.28, 0.36, 0.58]}
+            rotation={[0.3, 0, 0]}
+            scale={[0.88, 1.35, 0.92]}
+            castShadow
+          >
+            <sphereGeometry args={[0.175, 20, 20]} />
+            <meshStandardMaterial color="#fff5e6" roughness={0.55} />
+          </mesh>
+
           {/* Kaki Belakang Duduk dengan Bantalan Pink (Toe Beans) */}
-          {[-0.44, 0.44].map((hx) => (
-            <group key={hx} position={[hx, 0.12, 0.39]}>
-              <mesh name="badan" scale={[0.95, 0.65, 1.35]} castShadow>
-                <sphereGeometry args={[0.195, 20, 20]} />
-                <meshStandardMaterial color="#fff5e6" roughness={0.55} />
-              </mesh>
-              <mesh position={[0, 0.02, 0.22]}>
-                <sphereGeometry args={[0.065, 12, 12]} />
-                <meshStandardMaterial color="#f47c7c" roughness={0.48} />
-              </mesh>
-            </group>
-          ))}
+          <group ref={leftHindFootRef} position={[-0.44, 0.12, 0.39]}>
+            <mesh name="badan" scale={[0.95, 0.65, 1.35]} castShadow>
+              <sphereGeometry args={[0.195, 20, 20]} />
+              <meshStandardMaterial color="#fff5e6" roughness={0.55} />
+            </mesh>
+            <mesh position={[0, 0.02, 0.17]}>
+              <sphereGeometry args={[0.065, 12, 12]} />
+              <meshStandardMaterial color="#f47c7c" roughness={0.48} />
+            </mesh>
+          </group>
+          <group ref={rightHindFootRef} position={[0.44, 0.12, 0.39]}>
+            <mesh name="badan" scale={[0.95, 0.65, 1.35]} castShadow>
+              <sphereGeometry args={[0.195, 20, 20]} />
+              <meshStandardMaterial color="#fff5e6" roughness={0.55} />
+            </mesh>
+            <mesh position={[0, 0.02, 0.17]}>
+              <sphereGeometry args={[0.065, 12, 12]} />
+              <meshStandardMaterial color="#f47c7c" roughness={0.48} />
+            </mesh>
+          </group>
 
           {/* Kalung Merah & Lonceng Emas Metalik */}
           <mesh position={[0, 1.08, 0.04]} rotation={[Math.PI / 2 + 0.12, 0, 0]}>
@@ -501,7 +571,7 @@ function Cat({
                 <sphereGeometry args={[0.135 - t * 0.008, 16, 16]} />
                 <meshStandardMaterial
                   map={t % 2 === 0 ? (textures?.fur ?? null) : null}
-                  color={t % 2 === 1 ? "#d97224" : orangeColor}
+                  color={t % 2 === 1 ? "#d46a1e" : orangeColor}
                   roughness={0.55}
                 />
               </mesh>
@@ -515,8 +585,7 @@ function Cat({
               <meshStandardMaterial
                 map={textures?.fur ?? null}
                 color={orangeColor}
-                roughness={0.52}
-                metalness={0.02}
+                roughness={0.5}
               />
             </mesh>
 
@@ -527,7 +596,7 @@ function Cat({
                 <meshStandardMaterial
                   map={textures?.fur ?? null}
                   color={orangeColor}
-                  roughness={0.52}
+                  roughness={0.5}
                 />
               </mesh>
             ))}
@@ -539,26 +608,26 @@ function Cat({
                 <meshStandardMaterial color="#fff5e6" roughness={0.55} />
               </mesh>
             ))}
-            <mesh ref={openMouthMesh} position={[0, -0.165, 0.61]} scale={[1.0, 0.15, 0.5]}>
-              <sphereGeometry args={[0.068, 16, 16]} />
+            <mesh ref={openMouthMesh} position={[0, -0.18, 0.59]} scale={[1.1, 0.2, 0.5]}>
+              <sphereGeometry args={[0.065, 14, 14]} />
               <meshStandardMaterial color="#f47c7c" roughness={0.48} />
             </mesh>
 
             {/* Garis Belang Tabby di Dahi */}
             <mesh position={[0, 0.25, 0.6]} rotation={[-0.35, 0, 0]}>
               <boxGeometry args={[0.17, 0.048, 0.05]} />
-              <meshStandardMaterial color="#d97224" roughness={0.58} />
+              <meshStandardMaterial color="#d46a1e" roughness={0.58} />
             </mesh>
             <mesh position={[0, 0.34, 0.56]} rotation={[-0.5, 0, 0]}>
               <boxGeometry args={[0.12, 0.042, 0.05]} />
-              <meshStandardMaterial color="#d97224" roughness={0.58} />
+              <meshStandardMaterial color="#d46a1e" roughness={0.58} />
             </mesh>
 
             {/* Telinga Kiri & Kanan */}
             <group ref={leftEar} position={[-0.43, 0.47, 0.02]} rotation={[-0.1, 0, 0.38]}>
               <mesh name="kepala" position={[0, 0.15, 0]} scale={[1, 1, 0.68]} castShadow>
                 <coneGeometry args={[0.25, 0.44, 28]} />
-                <meshStandardMaterial map={textures?.fur ?? null} color={orangeColor} roughness={0.52} />
+                <meshStandardMaterial map={textures?.fur ?? null} color={orangeColor} roughness={0.5} />
               </mesh>
               <mesh position={[0, 0.13, 0.065]} scale={[1, 1, 0.45]}>
                 <coneGeometry args={[0.155, 0.3, 24]} />
@@ -568,7 +637,7 @@ function Cat({
             <group ref={rightEar} position={[0.43, 0.47, 0.02]} rotation={[-0.1, 0, -0.38]}>
               <mesh name="kepala" position={[0, 0.15, 0]} scale={[1, 1, 0.68]} castShadow>
                 <coneGeometry args={[0.25, 0.44, 28]} />
-                <meshStandardMaterial map={textures?.fur ?? null} color={orangeColor} roughness={0.52} />
+                <meshStandardMaterial map={textures?.fur ?? null} color={orangeColor} roughness={0.5} />
               </mesh>
               <mesh position={[0, 0.13, 0.065]} scale={[1, 1, 0.45]}>
                 <coneGeometry args={[0.155, 0.3, 24]} />
@@ -648,24 +717,24 @@ function Cat({
   );
 }
 
-const CAMERA_HOME: [number, number, number] = [5.1, 4.15, 6.2];
-const CAMERA_TARGET: [number, number, number] = [0.2, 1.0, -0.2];
+const CAMERA_HOME: [number, number, number] = [5.6, 4.4, 6.8];
+const CAMERA_TARGET: [number, number, number] = [0, 1.15, 0];
 
 function ResponsiveCamera() {
   const size = useThree((state) => state.size);
   const aspect = size.width / size.height;
-  const fov = aspect < 0.8 ? 54 : aspect < 1.2 ? 46 : 39;
+  const fov = aspect < 0.8 ? 52 : aspect < 1.2 ? 44 : 40;
   return <PerspectiveCamera makeDefault position={CAMERA_HOME} fov={fov} />;
 }
 
-const ROOM_BOUNDS = { minX: -4.4, minZ: -4.4, maxX: 9.5, maxZ: 9.5, minY: 0.45, maxY: 7.5 };
+const ROOM_BOUNDS = { minX: -6.0, minZ: -6.0, maxX: 6.0, maxZ: 6.0, minY: 0.5, maxY: 6.2 };
 const OBSTACLES: { x: number; z: number; r: number; h: number }[] = (
   [
-    ["bed", 1.1, 0.65],
+    ["bed", 1.2, 0.65],
     ["foodBowl", 0.55, 0.4],
     ["waterBowl", 0.55, 0.4],
-    ["litterBox", 0.85, 0.5],
-    ["scratchPost", 0.75, 2.2],
+    ["litterBox", 0.9, 0.5],
+    ["scratchPost", 0.8, 2.2],
   ] as const
 ).map(([spot, r, h]) => ({ x: HOUSE_SPOTS[spot][0], z: HOUSE_SPOTS[spot][2], r, h }));
 
@@ -712,12 +781,10 @@ function CameraRig({ enabled, resetSignal }: { enabled: boolean; resetSignal: nu
       rotateSpeed={preset.rotateSpeed}
       zoomSpeed={preset.zoomSpeed}
       enablePan={false}
-      minDistance={3.6}
-      maxDistance={11.0}
-      minPolarAngle={Math.PI / 6}
-      maxPolarAngle={Math.PI / 2.18}
-      minAzimuthAngle={-Math.PI / 6}
-      maxAzimuthAngle={Math.PI / 2.2}
+      minDistance={2.8}
+      maxDistance={8.4}
+      minPolarAngle={0.25}
+      maxPolarAngle={Math.PI / 2 - 0.05}
       touches={{ ONE: TOUCH.ROTATE, TWO: TOUCH.DOLLY_ROTATE }}
       mouseButtons={{ LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.ROTATE }}
       regress
@@ -777,7 +844,7 @@ export default function CatRoomScene({
         antialias: q.antialias,
         powerPreference: "high-performance",
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.06,
+        toneMappingExposure: 0.95,
       }}
       performance={{ min: 0.5 }}
       className="!touch-none"
@@ -790,13 +857,13 @@ export default function CatRoomScene({
       />
       <AdaptiveDpr pixelated />
       <ResponsiveCamera />
+      {/* Warna luar ruangan kayu hangat, tanpa kabut putih! */}
       <color attach="background" args={[lightPreset.bgHex]} />
-      <fogExp2 attach="fog" args={[lightPreset.bgHex, 0.022]} />
 
-      {/* Pencahayaan Hangat Multi-Sumber (Hemisphere + Sun + Fill + Room Warm Point) */}
-      <hemisphereLight args={[0xfff7ed, 0xd8b898, lightPreset.hemiIntensity]} />
+      {/* Pencahayaan Ruangan Hangat: Lampu Gantung, Lampu Sudut, Matahari, & Hemisphere */}
+      <hemisphereLight args={[0xffe9ce, 0x9c6d49, lightPreset.hemiIntensity]} position={[0, 7.5, 0]} />
       <directionalLight
-        position={[5.5, 8.8, 5.2]}
+        position={[4.5, 6.8, 4.0]}
         color={lightPreset.sunHex}
         intensity={lightPreset.sunIntensity}
         castShadow={q.shadows}
@@ -804,13 +871,15 @@ export default function CatRoomScene({
         shadow-bias={-0.0005}
         shadow-camera-near={0.5}
         shadow-camera-far={22}
-        shadow-camera-left={-6.5}
-        shadow-camera-right={6.5}
-        shadow-camera-top={6.5}
-        shadow-camera-bottom={-6.5}
+        shadow-camera-left={-6.8}
+        shadow-camera-right={6.8}
+        shadow-camera-top={6.8}
+        shadow-camera-bottom={-6.8}
       />
-      <directionalLight position={[-5, 4, 4]} color={0xffd8be} intensity={0.35} />
-      <pointLight position={[0, 3.8, 0.5]} color={0xffb86c} intensity={lightPreset.pointIntensity} distance={12} />
+      {/* Lampu Gantung Rotan di Tengah Plafon */}
+      <pointLight position={[0, 5.8, 0]} color={0xffb46b} intensity={lightPreset.ceilingIntensity} distance={18} decay={1.4} />
+      {/* Lampu Meja Sudut Rak Buku */}
+      <pointLight position={[-5.8, 2.8, 2.2]} color={0xff9e44} intensity={lightPreset.cornerIntensity} distance={9} decay={1.6} />
 
       <CatHouse
         onUse={onUseObject}
