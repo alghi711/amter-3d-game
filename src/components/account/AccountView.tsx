@@ -15,17 +15,27 @@ type AccountTab = "profil" | "masuk" | "daftar" | "pulihkan";
 interface AccountViewProps {
   initialAccount?: PlayerAccount;
   onBackToGame?: () => void;
+  onAccountChange?: (account: PlayerAccount) => void;
   isModal?: boolean;
 }
 
 export default function AccountView({
   initialAccount = mockDefaultAccount,
   onBackToGame,
+  onAccountChange,
   isModal = false,
 }: AccountViewProps) {
   const [account, setAccount] = useState<PlayerAccount>(initialAccount);
   const [activeTab, setActiveTab] = useState<AccountTab>("profil");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const updateAccount = (updater: (prev: PlayerAccount) => PlayerAccount) => {
+    setAccount((prev) => {
+      const next = updater(prev);
+      onAccountChange?.(next);
+      return next;
+    });
+  };
 
   // Form states
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -47,18 +57,18 @@ export default function AccountView({
 
   const handleSaveName = () => {
     if (!tempName.trim()) return;
-    setAccount((prev) => ({ ...prev, name: tempName.trim() }));
+    updateAccount((prev) => ({ ...prev, name: tempName.trim() }));
     setEditingName(false);
     showToast("Nama pemain berhasil diperbarui! ✨");
   };
 
   const handleSelectAvatar = (avatar: string) => {
-    setAccount((prev) => ({ ...prev, avatar }));
+    updateAccount((prev) => ({ ...prev, avatar }));
     showToast(`Avatar diubah menjadi ${avatar}! 🎨`);
   };
 
   const handleSwitchToGuest = () => {
-    setAccount(mockGuestAccount);
+    updateAccount(() => mockGuestAccount);
     setTempName(mockGuestAccount.name);
     showToast("Beralih ke sesi akun tamu 🐾");
   };
@@ -330,7 +340,7 @@ export default function AccountView({
       {activeTab === "masuk" && (
         <LoginForm
           onSuccess={(loggedIn) => {
-            setAccount(loggedIn);
+            updateAccount(() => loggedIn);
             setActiveTab("profil");
             showToast(`Selamat datang kembali, ${loggedIn.name}! 🐾`);
           }}
@@ -344,7 +354,7 @@ export default function AccountView({
       {activeTab === "daftar" && (
         <RegisterForm
           onSuccess={(newAccount) => {
-            setAccount(newAccount);
+            updateAccount(() => newAccount);
             setActiveTab("profil");
             showToast(`Selamat datang, ${newAccount.name}! Akun barumu berhasil didaftarkan 🎉`);
           }}

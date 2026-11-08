@@ -5,10 +5,15 @@ import type { PlayerAccount } from "@/lib/mock-account";
 
 interface AccountSheetProps {
   initialAccount?: PlayerAccount;
+  onAccountChange?: (account: PlayerAccount) => void;
   onClose: () => void;
 }
 
-export default function AccountSheet({ initialAccount, onClose }: AccountSheetProps) {
+export default function AccountSheet({
+  initialAccount,
+  onAccountChange,
+  onClose,
+}: AccountSheetProps) {
   return (
     <div
       role="dialog"
@@ -33,7 +38,12 @@ export default function AccountSheet({ initialAccount, onClose }: AccountSheetPr
           ✕
         </button>
 
-        <AccountView initialAccount={initialAccount} onBackToGame={onClose} isModal />
+        <AccountView
+          initialAccount={initialAccount}
+          onBackToGame={onClose}
+          onAccountChange={onAccountChange}
+          isModal
+        />
       </div>
     </div>
   );

@@ -20,6 +20,8 @@ import BadgeUnlockToast from "@/components/growth/BadgeUnlockToast";
 import GrowthSheet from "@/components/growth/GrowthSheet";
 import MoodRoutineSheet from "@/components/mood/MoodRoutineSheet";
 import AccountSheet from "@/components/account/AccountSheet";
+import { usePlayerAccount } from "@/lib/use-player-account";
+import type { PlayerAccount } from "@/lib/mock-account";
 import { computeGrowthProgress, type GrowthStage, type MockAchievement } from "@/lib/mock-growth";
 import { buildGentleReminders, deriveCatMood, evaluateMoodShift, getActiveRoutine, type CatMood, type MoodTransition } from "@/lib/mock-mood";
 import { CARE_ACTIONS, getRefusalReason, MEAL_ITEMS, TOY_ITEMS, useCare, type CareAction, type MealItem, type ToyItem } from "@/lib/use-care";
@@ -50,6 +52,7 @@ export default function Home() {
   const [showGrowthSheet, setShowGrowthSheet] = useState(false);
   const [showSaveSheet, setShowSaveSheet] = useState(false);
   const [showAccountSheet, setShowAccountSheet] = useState(false);
+  const { account: playerAccount, saveAccount: setPlayerAccount } = usePlayerAccount();
   const [experience, setExperience] = useState<number>(cat.experience + (cat.level - 1) * 50);
   const [closeness, setCloseness] = useState<number>(cat.closeness);
   const [stageOverride, setStageOverride] = useState<GrowthStage | null>(null);
@@ -79,6 +82,21 @@ export default function Home() {
   const spawnFloatingReaction = useCallback((text: string) => {
     setFloatingReaction({ id: Date.now(), text });
   }, []);
+
+  const handleAccountChange = useCallback(
+    (newAcc: PlayerAccount) => {
+      setPlayerAccount(newAcc);
+      if (newAcc.linkedCat) {
+        if (newAcc.linkedCat.experience !== undefined) setExperience(newAcc.linkedCat.experience);
+        if (newAcc.linkedCat.closeness !== undefined) setCloseness(newAcc.linkedCat.closeness);
+      }
+      playCatSound("purr_meow", growth.stage === "anak");
+      triggerVoiceBubble(`Meong~ Halo ${newAcc.name}! 💕`, "🐱", 2600);
+      spawnFloatingReaction(`🐾 Masuk: ${newAcc.name}`);
+      setToast(`Status akun terhubung: ${newAcc.name} (${newAcc.isGuest ? "Tamu" : "Terdaftar"}) ✨`);
+    },
+    [growth.stage, setPlayerAccount, triggerVoiceBubble, spawnFloatingReaction],
+  );
 
   useEffect(() => {
     if (!floatingReaction) return;
@@ -374,7 +392,7 @@ export default function Home() {
     <main className="relative h-dvh w-full overflow-hidden bg-[#eadaca] text-stone-800 select-none">
       <div className="absolute inset-0">
         <CatRoomScene
-          furColor={cat.furColor}
+          furColor={playerAccount.linkedCat?.furColor ?? cat.furColor}
           catSpot={spot}
           onAnimState={setAnim}
           onUseObject={useObject}
@@ -479,6 +497,32 @@ export default function Home() {
               {getActiveRoutine(simulatedHour).icon} {getActiveRoutine(simulatedHour).title}
             </button>
           </div>
+          <div className="mt-2 flex items-center justify-between border-t border-stone-100 pt-1.5 text-[11px]">
+            <button
+              type="button"
+              onClick={() => {
+                playCatSound("pop", isKitten);
+                setShowAccountSheet(true);
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-bold transition hover:scale-105 active:scale-95 ${
+                playerAccount.isGuest
+                  ? "border border-amber-300 bg-amber-50 text-amber-900"
+                  : "border border-emerald-300 bg-emerald-50 text-emerald-900"
+              }`}
+              title="Klik untuk membuka profil akun pemain"
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  playerAccount.isGuest ? "bg-amber-500" : "bg-emerald-500 animate-pulse"
+                }`}
+              />
+              <span>
+                {playerAccount.avatar} {playerAccount.name}
+              </span>
+              <span className="text-[9px] opacity-70">({playerAccount.isGuest ? "Tamu" : "Cloud"})</span>
+            </button>
+            <span className="text-[10px] text-stone-400">🛡️ Cloud Sync</span>
+          </div>
         </div>
 
         <div className="pointer-events-auto flex flex-col items-end gap-1.5">
@@ -548,9 +592,13 @@ export default function Home() {
               setShowSaveSheet(false);
               setShowAccountSheet((v) => !v);
             }}
-            className="rounded-full border border-sky-200 bg-white/90 px-3.5 py-1.5 text-xs font-bold text-sky-800 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
+            className={`rounded-full border px-3.5 py-1.5 text-xs font-bold shadow backdrop-blur transition hover:-translate-y-0.5 active:scale-95 ${
+              playerAccount.isGuest
+                ? "border-amber-300 bg-white/90 text-amber-900 hover:bg-white"
+                : "border-sky-300 bg-white/90 text-sky-800 hover:bg-white"
+            }`}
           >
-            👤 Akun & Profil
+            {playerAccount.isGuest ? "🐾 Akun Tamu" : `👤 ${playerAccount.name}`}
           </button>
           <div className="mt-0.5 flex items-center gap-1.5">
             <button
@@ -727,7 +775,13 @@ export default function Home() {
         </div>
       </footer>
 
-      {showAccountSheet && <AccountSheet onClose={() => setShowAccountSheet(false)} />}
+      {showAccountSheet && (
+        <AccountSheet
+          initialAccount={playerAccount}
+          onAccountChange={handleAccountChange}
+          onClose={() => setShowAccountSheet(false)}
+        />
+      )}
     </main>
   );
 }
