@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useGameSettings } from "@/lib/use-game-settings";
+import { useAudioPlayer } from "@/lib/mock-audio-player";
 import { GAME_FAQS, APP_INFO } from "@/lib/mock-settings";
 import { playCatSound, type SoundEffectType } from "@/lib/cat-audio";
 import type { QualityLevel } from "@/lib/quality";
@@ -19,11 +20,13 @@ export default function SettingsView({
   isModal = false,
 }: SettingsViewProps) {
   const { settings, updateSettings, resetSettings } = useGameSettings();
+  const audioPlayer = useAudioPlayer();
   const [activeTab, setActiveTab] = useState<SettingsTab>("suara");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
   const [faqSearch, setFaqSearch] = useState("");
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showAudioLogs, setShowAudioLogs] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -31,8 +34,8 @@ export default function SettingsView({
   };
 
   const handleTestSound = (type: SoundEffectType = "meow") => {
-    playCatSound(type, settings.vocalPitch === "anak");
-    showToast("Memutar suara sampel kucing! 🐾");
+    audioPlayer.playSfx(type, settings.vocalPitch === "anak");
+    showToast(`Memutar sampel suara '${type}'! 🐾`);
   };
 
   const filteredFaqs = GAME_FAQS.filter(
@@ -324,6 +327,93 @@ export default function SettingsView({
                   <span>{settings.musicEnabled ? "Jeda Musik Latar" : "Putar Musik Latar (BGM)"}</span>
                 </button>
               </div>
+            </div>
+
+            {/* Playlist Trek Musik Latar (BGM) */}
+            <div className="p-5 rounded-2xl bg-white dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700/60 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-bold text-stone-900 dark:text-white flex items-center gap-2">
+                    <span>🎶</span>
+                    <span>Pilihan Musik Latar Kamar</span>
+                  </h4>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                    Pilih suasana melodi yang mengalun saat bermain bersama Mochi
+                  </p>
+                </div>
+                {settings.musicEnabled && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold animate-pulse">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>Memutar</span>
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {audioPlayer.tracks.map((track) => {
+                  const isCurrent = audioPlayer.currentTrackId === track.id;
+                  return (
+                    <button
+                      key={track.id}
+                      type="button"
+                      onClick={() => {
+                        audioPlayer.selectTrack(track.id);
+                        showToast(`Musik diubah ke: ${track.title} 🎵`);
+                      }}
+                      className={`p-3.5 rounded-xl border text-left transition flex flex-col justify-between ${
+                        isCurrent
+                          ? "bg-amber-500/10 border-amber-500 dark:border-amber-400 ring-2 ring-amber-500/20 shadow-xs"
+                          : "bg-stone-50 dark:bg-stone-800/60 border-stone-200 dark:border-stone-700/60 hover:bg-stone-100"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-xs text-stone-900 dark:text-white">
+                            {track.title}
+                          </span>
+                          {isCurrent && <span className="text-xs text-amber-500">✓</span>}
+                        </div>
+                        <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5">
+                          {track.genre} • {track.bpm} BPM
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-stone-500 dark:text-stone-400 mt-2 line-clamp-2">
+                        {track.description}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Status Pemutar Audio & Diagnostic Log */}
+            <div className="p-4 rounded-2xl bg-stone-100/70 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700/50 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 text-stone-600 dark:text-stone-300">
+                  <span>📻</span>
+                  <span className="font-semibold">Status Audio:</span>
+                  <span className="text-[11px] text-stone-500">
+                    SFX: {settings.soundEnabled ? `Aktif (${settings.sfxVolume}%)` : "Mati"} • BGM: {settings.musicEnabled ? `Aktif (${settings.musicVolume}%)` : "Mati"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAudioLogs(!showAudioLogs)}
+                  className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:underline"
+                >
+                  {showAudioLogs ? "Sembunyikan Log ▲" : "Lihat Log Audio ▼"}
+                </button>
+              </div>
+
+              {showAudioLogs && (
+                <div className="mt-2 p-2.5 rounded-xl bg-stone-900 text-stone-200 font-mono text-[10px] max-h-36 overflow-y-auto space-y-1">
+                  {audioPlayer.audioLogs.map((log, idx) => (
+                    <div key={idx} className="leading-tight text-amber-300/90">
+                      {log}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
