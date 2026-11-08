@@ -1,20 +1,10 @@
 "use client";
 
 import type { CatStats } from "@/lib/mock-cat";
-import { CARE_ACTIONS, STAT_LABELS, type CareAction, type CareLogEntry } from "@/lib/use-care";
+import { careScore, careStatus, STAT_LABELS } from "@/lib/care-rules";
+import { CARE_ACTIONS, type CareAction, type CareLogEntry } from "@/lib/use-care";
 
-/** Skor perawatan keseluruhan 0..100 (rata-rata berbobot). */
-export function careScore(s: CatStats): number {
-  const w: Record<keyof CatStats, number> = { hunger: 0.25, thirst: 0.2, hygiene: 0.2, happiness: 0.25, energy: 0.1 };
-  return Math.round((Object.keys(w) as (keyof CatStats)[]).reduce((sum, k) => sum + s[k] * w[k], 0));
-}
-
-export function careStatus(score: number): { label: string; emoji: string; tone: string } {
-  if (score >= 80) return { label: "Sangat terawat", emoji: "🌟", tone: "text-emerald-600" };
-  if (score >= 60) return { label: "Terawat", emoji: "😊", tone: "text-emerald-500" };
-  if (score >= 40) return { label: "Butuh perhatian", emoji: "😐", tone: "text-amber-600" };
-  return { label: "Kurang terawat", emoji: "🥺", tone: "text-rose-600" };
-}
+export { careScore, careStatus };
 
 const TIPS: Record<keyof CatStats, { text: string; action?: CareAction }> = {
   hunger: { text: "Mangkuk makannya hampir kosong — beri makan, yuk.", action: "makan" },
