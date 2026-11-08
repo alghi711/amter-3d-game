@@ -58,6 +58,7 @@ export default function Home() {
   const [showAccountSheet, setShowAccountSheet] = useState(false);
   const [showSettingsSheet, setShowSettingsSheet] = useState(false);
   const [showHelpSheet, setShowHelpSheet] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { account: playerAccount, saveAccount: setPlayerAccount } = usePlayerAccount();
   const [experience, setExperience] = useState<number>(cat.experience + (cat.level - 1) * 50);
   const [closeness, setCloseness] = useState<number>(cat.closeness);
@@ -133,6 +134,7 @@ export default function Home() {
         setShowAccountSheet(false);
         setShowSettingsSheet(false);
         setShowHelpSheet(false);
+        setMobileMenuOpen(false);
       }
     };
     window.addEventListener("keydown", handleGlobalKeyDown);
@@ -566,141 +568,199 @@ export default function Home() {
           </div>
         </div>
 
+        {/* KONTROL KANAN ATAS — RESPONSif LAPTOP & HP */}
         <div className="pointer-events-auto flex flex-col items-end gap-1.5">
-          <AutosaveStatusPill
-            status={autosaveStatus}
-            lastSavedLabel={lastSavedLabel}
-            justSaved={justSaved}
-            onClick={() => {
-              playCatSound("pop", isKitten);
-              setShowStatus(false);
-              setShowMoodSheet(false);
-              setShowGrowthSheet(false);
-              setShowSaveSheet((v) => !v);
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => {
-              playCatSound("pop", isKitten);
-              setCameraReset((n) => n + 1);
-            }}
-            className="rounded-full border border-white/90 bg-white/90 px-3.5 py-1.5 text-xs font-bold text-stone-700 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
-            aria-label="Kembalikan kamera"
-          >
-            🎥 Reset kamera
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              playCatSound("pop", isKitten);
-              setShowStatus(false);
-              setShowGrowthSheet(false);
-              setShowSaveSheet(false);
-              setShowMoodSheet((v) => !v);
-            }}
-            className="rounded-full border border-white/90 bg-white/90 px-3.5 py-1.5 text-xs font-bold text-amber-800 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
-          >
-            🦊 Mood & Rutinitas
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              playCatSound("pop", isKitten);
-              setShowStatus(false);
-              setShowMoodSheet(false);
-              setShowSaveSheet(false);
-              setShowGrowthSheet((v) => !v);
-            }}
-            className="rounded-full border border-emerald-200 bg-white/90 px-3.5 py-1.5 text-xs font-bold text-emerald-800 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
-          >
-            🌱 Tumbuh Besar
-          </button>
-          <button
-            type="button"
-            onClick={callMochiVoice}
-            className="rounded-full border border-rose-200 bg-white/90 px-3.5 py-1.5 text-xs font-bold text-rose-700 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
-          >
-            🐾 Panggil Mochi
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              playCatSound("pop", isKitten);
-              setShowStatus(false);
-              setShowMoodSheet(false);
-              setShowGrowthSheet(false);
-              setShowSaveSheet(false);
-              setShowSettingsSheet(false);
-              setShowHelpSheet(false);
-              setShowAccountSheet((v) => !v);
-            }}
-            className={`rounded-full border px-3.5 py-1.5 text-xs font-bold shadow backdrop-blur transition hover:-translate-y-0.5 active:scale-95 ${
-              playerAccount.isGuest
-                ? "border-amber-300 bg-white/90 text-amber-900 hover:bg-white"
-                : "border-sky-300 bg-white/90 text-sky-800 hover:bg-white"
-            }`}
-          >
-            {playerAccount.isGuest ? "🐾 Akun Tamu" : `👤 ${playerAccount.name}`}
-          </button>
-          <div className="mt-0.5 flex items-center gap-1.5">
+          {/* Tampilan Desktop & Laptop (sm ke atas) */}
+          <div className="hidden sm:flex flex-col items-end gap-1.5">
+            {/* Baris 1: Progres & Kucing */}
+            <div className="flex items-center gap-1.5">
+              <AutosaveStatusPill
+                status={autosaveStatus}
+                lastSavedLabel={lastSavedLabel}
+                justSaved={justSaved}
+                onClick={() => {
+                  playCatSound("pop", isKitten);
+                  setShowStatus(false);
+                  setShowMoodSheet(false);
+                  setShowGrowthSheet(false);
+                  setShowAccountSheet(false);
+                  setShowSettingsSheet(false);
+                  setShowHelpSheet(false);
+                  setShowSaveSheet((v) => !v);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  playCatSound("pop", isKitten);
+                  setShowStatus(false);
+                  setShowMoodSheet(false);
+                  setShowSaveSheet(false);
+                  setShowAccountSheet(false);
+                  setShowSettingsSheet(false);
+                  setShowHelpSheet(false);
+                  setShowGrowthSheet((v) => !v);
+                }}
+                className="rounded-full border border-emerald-200 bg-white/90 px-3 py-1.5 text-xs font-bold text-emerald-800 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
+              >
+                🌱 Tumbuh Besar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  playCatSound("pop", isKitten);
+                  setShowStatus(false);
+                  setShowGrowthSheet(false);
+                  setShowSaveSheet(false);
+                  setShowAccountSheet(false);
+                  setShowSettingsSheet(false);
+                  setShowHelpSheet(false);
+                  setShowMoodSheet((v) => !v);
+                }}
+                className="rounded-full border border-amber-200 bg-white/90 px-3 py-1.5 text-xs font-bold text-amber-800 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
+              >
+                🦊 Mood & Rutin
+              </button>
+              <button
+                type="button"
+                onClick={callMochiVoice}
+                className="rounded-full border border-rose-200 bg-white/90 px-3 py-1.5 text-xs font-bold text-rose-700 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
+              >
+                🐾 Panggil
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  playCatSound("pop", isKitten);
+                  setShowStatus(false);
+                  setShowMoodSheet(false);
+                  setShowGrowthSheet(false);
+                  setShowSaveSheet(false);
+                  setShowSettingsSheet(false);
+                  setShowHelpSheet(false);
+                  setShowAccountSheet((v) => !v);
+                }}
+                className={`rounded-full border px-3 py-1.5 text-xs font-bold shadow backdrop-blur transition hover:-translate-y-0.5 active:scale-95 ${
+                  playerAccount.isGuest
+                    ? "border-amber-300 bg-white/90 text-amber-900 hover:bg-white"
+                    : "border-sky-300 bg-white/90 text-sky-800 hover:bg-white"
+                }`}
+              >
+                {playerAccount.isGuest ? "🐾 Akun" : `👤 ${playerAccount.name}`}
+              </button>
+            </div>
+
+            {/* Baris 2: Utilitas Suasana & Pengaturan */}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  playCatSound("pop", isKitten);
+                  setCameraReset((n) => n + 1);
+                }}
+                className="rounded-full border border-white/90 bg-white/90 px-2.5 py-1.5 text-xs font-bold text-stone-700 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
+                title="Kembalikan sudut pandang kamera"
+              >
+                🎥 Kamera
+              </button>
+              <button
+                type="button"
+                onClick={cycleLightingMode}
+                className="rounded-full border border-white/90 bg-white/90 px-2.5 py-1.5 text-xs font-bold text-amber-800 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
+                title="Ganti Suasana Cahaya"
+              >
+                {currentLighting.icon} {currentLighting.label}
+              </button>
+              <button
+                type="button"
+                onClick={toggleSound}
+                className="rounded-full border border-white/90 bg-white/90 px-2.5 py-1.5 text-xs font-bold text-stone-700 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
+                title="Suara Kucing & Efek"
+              >
+                {settings.soundEnabled ? "🔊 SFX" : "🔇 Bisu"}
+              </button>
+              <button
+                type="button"
+                onClick={toggleMusic}
+                className="rounded-full border border-white/90 bg-white/90 px-2.5 py-1.5 text-xs font-bold text-stone-700 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
+                title="Musik Kamar Santai (BGM)"
+              >
+                {settings.musicEnabled ? "🎵 BGM" : "🔇 BGM"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  playCatSound("pop", isKitten);
+                  setShowStatus(false);
+                  setShowMoodSheet(false);
+                  setShowGrowthSheet(false);
+                  setShowSaveSheet(false);
+                  setShowAccountSheet(false);
+                  setShowHelpSheet(false);
+                  setShowSettingsSheet((v) => !v);
+                }}
+                className="rounded-full border border-white/90 bg-white/90 px-3 py-1.5 text-xs font-bold text-stone-700 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
+                title="Pengaturan & Grafis"
+              >
+                ⚙️ Pengaturan
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  playCatSound("pop", isKitten);
+                  setShowStatus(false);
+                  setShowMoodSheet(false);
+                  setShowGrowthSheet(false);
+                  setShowSaveSheet(false);
+                  setShowAccountSheet(false);
+                  setShowSettingsSheet(false);
+                  setShowHelpSheet((v) => !v);
+                }}
+                className="rounded-full border border-white/90 bg-white/90 px-3 py-1.5 text-xs font-bold text-stone-700 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
+                title="Buku Panduan Merawat Kucing"
+              >
+                📖 Panduan
+              </button>
+            </div>
+          </div>
+
+          {/* Tampilan Ringkas Mobile (sm ke bawah) */}
+          <div className="flex sm:hidden items-center gap-1.5">
             <button
               type="button"
               onClick={cycleLightingMode}
-              className="rounded-full border border-white/90 bg-white/90 px-3 py-1.5 text-xs font-bold text-amber-800 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
+              className="rounded-full border border-white/90 bg-white/90 p-2 text-xs font-bold text-amber-800 shadow backdrop-blur"
               title="Ganti Suasana Cahaya"
             >
-              {currentLighting.icon} {currentLighting.label}
+              {currentLighting.icon}
             </button>
             <button
               type="button"
               onClick={toggleSound}
-              className="rounded-full border border-white/90 bg-white/90 px-3 py-1.5 text-xs font-bold text-stone-700 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
-              title="Suara Kucing & Efek"
+              className="rounded-full border border-white/90 bg-white/90 p-2 text-xs font-bold text-stone-700 shadow backdrop-blur"
+              title="Toggle Suara"
             >
-              {settings.soundEnabled ? "🔊 Suara" : "🔇 Bisu"}
+              {settings.soundEnabled ? "🔊" : "🔇"}
             </button>
             <button
               type="button"
               onClick={toggleMusic}
-              className="rounded-full border border-white/90 bg-white/90 px-3 py-1.5 text-xs font-bold text-stone-700 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
-              title="Musik Kamar Santai (BGM)"
+              className="rounded-full border border-white/90 bg-white/90 p-2 text-xs font-bold text-stone-700 shadow backdrop-blur"
+              title="Toggle Musik"
             >
-              {settings.musicEnabled ? "🎵 Musik" : "🔇 Musik"}
+              {settings.musicEnabled ? "🎵" : "🔇"}
             </button>
             <button
               type="button"
               onClick={() => {
                 playCatSound("pop", isKitten);
-                setShowStatus(false);
-                setShowMoodSheet(false);
-                setShowGrowthSheet(false);
-                setShowSaveSheet(false);
-                setShowAccountSheet(false);
-                setShowHelpSheet(false);
-                setShowSettingsSheet((v) => !v);
+                setMobileMenuOpen((v) => !v);
               }}
-              className="rounded-full border border-white/90 bg-white/90 px-3 py-1.5 text-xs font-bold text-stone-700 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
-              title="Pengaturan & Suara"
+              className="rounded-full border border-amber-300 bg-amber-500 text-white px-3 py-1.5 text-xs font-bold shadow-md backdrop-blur transition active:scale-95 flex items-center gap-1"
+              title="Buka Menu Fitur"
             >
-              ⚙️ Pengaturan
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                playCatSound("pop", isKitten);
-                setShowStatus(false);
-                setShowMoodSheet(false);
-                setShowGrowthSheet(false);
-                setShowSaveSheet(false);
-                setShowAccountSheet(false);
-                setShowSettingsSheet(false);
-                setShowHelpSheet((v) => !v);
-              }}
-              className="rounded-full border border-white/90 bg-white/90 px-3 py-1.5 text-xs font-bold text-stone-700 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
-              title="Buku Panduan Merawat Kucing"
-            >
-              📖 Panduan
+              <span>☰</span>
+              <span>Menu</span>
             </button>
           </div>
         </div>
@@ -877,6 +937,159 @@ export default function Home() {
 
       {showHelpSheet && (
         <CareGuideSheet onClose={() => setShowHelpSheet(false)} />
+      )}
+
+      {/* Drawer / Sheet Menu Navigasi Mobile */}
+      {mobileMenuOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu Navigasi Mobile Mochi"
+          className="fixed inset-0 z-50 flex items-end sm:hidden p-3 animate-in fade-in duration-200"
+        >
+          <div
+            className="fixed inset-0 bg-stone-950/70 backdrop-blur-xs"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="relative z-10 w-full rounded-3xl bg-[#fdfbf7] dark:bg-stone-900 p-5 shadow-2xl ring-1 ring-amber-900/10 space-y-4 animate-in slide-in-from-bottom duration-200">
+            <div className="flex items-center justify-between border-b border-stone-200/80 dark:border-stone-800 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🐱</span>
+                <div>
+                  <h3 className="font-bold text-sm text-stone-900 dark:text-white">Menu Navigasi Permainan</h3>
+                  <p className="text-[10px] text-stone-500">Mochi Lv.{growth.level} • {playerAccount.name}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-7 h-7 rounded-full bg-stone-100 dark:bg-stone-800 text-stone-500 flex items-center justify-center text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setShowMoodSheet(true);
+                }}
+                className="p-3 rounded-2xl bg-amber-50 dark:bg-stone-800 border border-amber-200/70 dark:border-stone-700 text-left flex items-center gap-2.5 active:scale-95 transition"
+              >
+                <span className="text-xl">🦊</span>
+                <div>
+                  <div className="text-xs font-bold text-stone-800 dark:text-stone-200">Mood & Rutin</div>
+                  <div className="text-[10px] text-stone-400">Emosi & Jam</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setShowGrowthSheet(true);
+                }}
+                className="p-3 rounded-2xl bg-emerald-50 dark:bg-stone-800 border border-emerald-200/70 dark:border-stone-700 text-left flex items-center gap-2.5 active:scale-95 transition"
+              >
+                <span className="text-xl">🌱</span>
+                <div>
+                  <div className="text-xs font-bold text-stone-800 dark:text-stone-200">Tumbuh Besar</div>
+                  <div className="text-[10px] text-stone-400">XP & Lencana</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setShowAccountSheet(true);
+                }}
+                className="p-3 rounded-2xl bg-sky-50 dark:bg-stone-800 border border-sky-200/70 dark:border-stone-700 text-left flex items-center gap-2.5 active:scale-95 transition"
+              >
+                <span className="text-xl">👤</span>
+                <div>
+                  <div className="text-xs font-bold text-stone-800 dark:text-stone-200">Akun & Profil</div>
+                  <div className="text-[10px] text-stone-400">Kode Pemulihan</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setShowSaveSheet(true);
+                }}
+                className="p-3 rounded-2xl bg-indigo-50 dark:bg-stone-800 border border-indigo-200/70 dark:border-stone-700 text-left flex items-center gap-2.5 active:scale-95 transition"
+              >
+                <span className="text-xl">☁️</span>
+                <div>
+                  <div className="text-xs font-bold text-stone-800 dark:text-stone-200">Autosave</div>
+                  <div className="text-[10px] text-stone-400">Cadangan Cloud</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setShowSettingsSheet(true);
+                }}
+                className="p-3 rounded-2xl bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-left flex items-center gap-2.5 active:scale-95 transition"
+              >
+                <span className="text-xl">⚙️</span>
+                <div>
+                  <div className="text-xs font-bold text-stone-800 dark:text-stone-200">Pengaturan</div>
+                  <div className="text-[10px] text-stone-400">Grafis & Audio</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setShowHelpSheet(true);
+                }}
+                className="p-3 rounded-2xl bg-amber-50/60 dark:bg-stone-800 border border-amber-200/60 dark:border-stone-700 text-left flex items-center gap-2.5 active:scale-95 transition"
+              >
+                <span className="text-xl">📖</span>
+                <div>
+                  <div className="text-xs font-bold text-stone-800 dark:text-stone-200">Buku Panduan</div>
+                  <div className="text-[10px] text-stone-400">Kiat Rawat Kucing</div>
+                </div>
+              </button>
+            </div>
+
+            <div className="pt-2 flex items-center justify-between border-t border-stone-100 dark:border-stone-800 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  playCatSound("pop", isKitten);
+                  setCameraReset((n) => n + 1);
+                  setMobileMenuOpen(false);
+                  setToast("Kamera kembali ke posisi semula 🎥");
+                }}
+                className="text-stone-600 dark:text-stone-300 font-semibold flex items-center gap-1.5"
+              >
+                <span>🎥</span>
+                <span>Reset Kamera</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  callMochiVoice();
+                  setMobileMenuOpen(false);
+                }}
+                className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1.5"
+              >
+                <span>🐾</span>
+                <span>Panggil Mochi</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );
