@@ -5,6 +5,9 @@ export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   email: text("email").unique(),
   name: text("name").notNull(),
+  passwordHash: text("password_hash"),
+  avatar: text("avatar").notNull().default("🐱"),
+  isGuest: integer("is_guest", { mode: "boolean" }).notNull().default(true),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
@@ -153,4 +156,17 @@ export const playerRecoveryCodes = sqliteTable("player_recovery_codes", {
   code: text("code").notNull().unique(),
   createdAt: integer("created_at").notNull(),
   lastUsedAt: integer("last_used_at"),
+});
+
+/** Tabel token & kode pemulihan/reset kata sandi. */
+export const passwordResetTokens = sqliteTable("password_reset_tokens", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  code: text("code").notNull(), // 6 digit OTP misal '842109'
+  expiresAt: integer("expires_at").notNull(),
+  usedAt: integer("used_at"),
+  createdAt: integer("created_at").notNull(),
 });

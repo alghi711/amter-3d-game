@@ -153,9 +153,34 @@ export async function ensureCareSchema(): Promise<LibSQLDatabase<typeof schema>>
           unlocked_at INTEGER NOT NULL,
           PRIMARY KEY (cat_id, badge_id)
         )`,
+        `CREATE TABLE IF NOT EXISTS password_reset_tokens (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          token TEXT NOT NULL UNIQUE,
+          code TEXT NOT NULL,
+          expires_at INTEGER NOT NULL,
+          used_at INTEGER,
+          created_at INTEGER NOT NULL
+        )`,
+        `CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id, expires_at)`,
+        `CREATE INDEX IF NOT EXISTS idx_password_reset_token ON password_reset_tokens(token)`,
+        `CREATE INDEX IF NOT EXISTS idx_password_reset_code ON password_reset_tokens(code)`,
       ],
       "write",
     );
+
+    // Pastikan kolom baru pada tabel users (password_hash, avatar, is_guest) tersedia secara idempoten
+    const userCols = await client.execute("PRAGMA table_info(users)");
+    const colNames = new Set(userCols.rows.map((r) => String(r.name)));
+    if (!colNames.has("password_hash")) {
+      await client.execute("ALTER TABLE users ADD COLUMN password_hash TEXT");
+    }
+    if (!colNames.has("avatar")) {
+      await client.execute("ALTER TABLE users ADD COLUMN avatar TEXT NOT NULL DEFAULT '🐱'");
+    }
+    if (!colNames.has("is_guest")) {
+      await client.execute("ALTER TABLE users ADD COLUMN is_guest INTEGER NOT NULL DEFAULT 1");
+    }
 
     const now = Date.now();
     const routineSeeds = MOCK_ROUTINES.map((r) => ({
