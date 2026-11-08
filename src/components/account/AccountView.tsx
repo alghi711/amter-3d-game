@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import RegisterForm from "./RegisterForm";
 import { mockDefaultAccount, mockGuestAccount, type PlayerAccount } from "@/lib/mock-account";
 
 const AVATAR_OPTIONS = ["🐱", "🐾", "😸", "😻", "😽", "🦊", "🦁", "⭐", "🎀", "🍪"];
@@ -26,9 +27,6 @@ export default function AccountView({
   // Form states
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
-  const [registerName, setRegisterName] = useState("");
-  const [registerEmail, setRegisterEmail] = useState("");
-  const [registerPassword, setRegisterPassword] = useState("");
   const [recoveryInput, setRecoveryInput] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [copiedCode, setCopiedCode] = useState(false);
@@ -78,28 +76,6 @@ export default function AccountView({
       setActiveTab("profil");
       showToast("Selamat datang kembali! Akun berhasil masuk 🐾");
     }, 600);
-  };
-
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!registerName || !registerEmail || !registerPassword) {
-      showToast("Harap lengkapi semua data pendaftaran! ⚠️");
-      return;
-    }
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setAccount({
-        ...mockDefaultAccount,
-        id: `user-${Date.now()}`,
-        name: registerName,
-        email: registerEmail,
-        isGuest: false,
-        joinedAt: "Hari ini",
-      });
-      setActiveTab("profil");
-      showToast("Hore! Akun barumu berhasil didaftarkan 🎉");
-    }, 700);
   };
 
   const handleRecovery = (e: React.FormEvent) => {
@@ -460,88 +436,14 @@ export default function AccountView({
 
       {/* Konten Tab 3: Daftar Baru (Register) */}
       {activeTab === "daftar" && (
-        <div className="rounded-3xl border border-amber-100 bg-white/95 p-6 shadow-lg backdrop-blur-sm sm:p-8">
-          <div className="mb-6 text-center">
-            <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-3xl">
-              ✨
-            </div>
-            <h2 className="text-xl font-extrabold text-stone-800">Daftar Akun Baru</h2>
-            <p className="mt-1 text-xs text-stone-500">
-              Simpan selamanya data kucing Mochi dan progres bermainmu di cloud.
-            </p>
-          </div>
-
-          <form onSubmit={handleRegister} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-stone-700">Nama Pemain</label>
-              <input
-                type="text"
-                required
-                value={registerName}
-                onChange={(e) => setRegisterName(e.target.value)}
-                placeholder="Contoh: Budi Kucing"
-                className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-800 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-200"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-stone-700">Alamat Email</label>
-              <input
-                type="email"
-                required
-                value={registerEmail}
-                onChange={(e) => setRegisterEmail(e.target.value)}
-                placeholder="nama@email.com"
-                className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-800 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-200"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-stone-700">Kata Sandi</label>
-              <input
-                type="password"
-                required
-                value={registerPassword}
-                onChange={(e) => setRegisterPassword(e.target.value)}
-                placeholder="Minimal 6 karakter"
-                className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-800 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-200"
-              />
-            </div>
-
-            <div className="flex items-start gap-2 pt-1 text-xs text-stone-600">
-              <input
-                type="checkbox"
-                defaultChecked
-                id="cloud-agree"
-                className="mt-0.5 rounded border-stone-300 text-amber-500 focus:ring-amber-400"
-              />
-              <label htmlFor="cloud-agree">
-                Saya ingin progres kucing virtual tersimpan secara aman dan otomatis di cloud.
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full rounded-2xl bg-emerald-600 py-3.5 text-sm font-extrabold text-white shadow-md transition hover:bg-emerald-700 active:scale-95 disabled:opacity-50"
-            >
-              {isSubmitting ? "Mendaftarkan…" : "Daftar & Hubungkan Kucing 🎉"}
-            </button>
-          </form>
-
-          <div className="mt-6 border-t border-stone-100 pt-5 text-center">
-            <p className="text-xs text-stone-600">
-              Sudah punya akun?{" "}
-              <button
-                type="button"
-                onClick={() => setActiveTab("masuk")}
-                className="font-extrabold text-amber-700 hover:underline"
-              >
-                Masuk ke akunmu di sini
-              </button>
-            </p>
-          </div>
-        </div>
+        <RegisterForm
+          onSuccess={(newAccount) => {
+            setAccount(newAccount);
+            setActiveTab("profil");
+            showToast(`Selamat datang, ${newAccount.name}! Akun barumu berhasil didaftarkan 🎉`);
+          }}
+          onSwitchToLogin={() => setActiveTab("masuk")}
+        />
       )}
 
       {/* Konten Tab 4: Pemulihan Kata Sandi / Akun */}
