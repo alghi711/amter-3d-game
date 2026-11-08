@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { ensureCareSchema } from "@/db";
 import { catGrowth, cats, growthEvents } from "@/db/schema";
 import { DEFAULT_CAT_ID } from "@/lib/care-repository";
-import { computeGrowthProgress, XP_PER_LEVEL, type GrowthStage } from "@/lib/mock-growth";
+import { computeGrowthProgress, resolveClosenessTier, XP_PER_LEVEL, type GrowthStage } from "@/lib/mock-growth";
 
 export const MAX_XP_PER_REQUEST = 100;
 
@@ -99,5 +99,40 @@ export async function addExperience(
     stageChanged,
     previousStage: prevStage,
     previousLevel: cat.level,
+  };
+}
+
+export const MAX_CLOSENESS_PER_REQUEST = 20;
+
+export type ClosenessResult = {
+  catId: string;
+  gain: number;
+  previousCloseness: number;
+  closeness: number;
+  tier: { id: string; label: string; icon: string };
+  previousTier: { id: string; label: string; icon: string };
+  tierChanged: boolean;
+};
+
+/** Tambah tingkat kedekatan (dibatasi 0..100) dan kembalikan tingkatan hubungan terbaru. */
+export async function addCloseness(catId: string = DEFAULT_CAT_ID, gain: number): Promise<ClosenessResult | null> {
+  const db = await ensureCareSchema();
+  const [cat] = await db.select().from(cats).where(eq(cats.id, catId)).limit(1);
+  if (!cat) return null;
+
+  const next = Math.max(0, Math.min(100, cat.closeness + gain));
+  await db.update(cats).set({ closeness: next, lastPlayedAt: Date.now() }).where(eq(cats.id, catId));
+
+  const pick = (t: ReturnType<typeof resolveClosenessTier>) => ({ id: t.id, label: t.label, icon: t.icon });
+  const previousTier = pick(resolveClosenessTier(cat.closeness));
+  const tier = pick(resolveClosenessTier(next));
+  return {
+    catId,
+    gain,
+    previousCloseness: cat.closeness,
+    closeness: next,
+    tier,
+    previousTier,
+    tierChanged: tier.id !== previousTier.id,
   };
 }
