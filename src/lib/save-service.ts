@@ -120,3 +120,15 @@ export async function readLatestAutosave(catId: string = DEFAULT_CAT_ID): Promis
     .limit(1);
   return row ? toStored(row) : null;
 }
+
+/** Ambil progres terakhir pemain dari semua jenis simpanan (otomatis, manual, cadangan). */
+export async function readLatestProgress(catId: string = DEFAULT_CAT_ID): Promise<StoredSave | null> {
+  const db = await ensureCareSchema();
+  const [row] = await db
+    .select()
+    .from(gameSaves)
+    .where(eq(gameSaves.catId, catId))
+    .orderBy(desc(gameSaves.createdAt))
+    .limit(1);
+  return row ? toStored(row) : null;
+}
