@@ -3,6 +3,7 @@ import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { MOCK_PERSONALITY_TRAITS, MOCK_ROUTINES } from "@/lib/mock-mood";
+import { BADGE_DEFINITIONS } from "@/lib/badge-definitions";
 import * as schema from "./schema";
 
 const DEFAULT_DB_FILE = ".data/mochi.db";
@@ -119,6 +120,15 @@ export async function ensureCareSchema(): Promise<LibSQLDatabase<typeof schema>>
           created_at INTEGER NOT NULL
         )`,
         `CREATE INDEX IF NOT EXISTS idx_growth_events_cat ON growth_events(cat_id, created_at DESC)`,
+        `CREATE TABLE IF NOT EXISTS badge_definitions (
+          code TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL,
+          icon TEXT NOT NULL,
+          metric TEXT NOT NULL,
+          threshold INTEGER NOT NULL,
+          sort_order INTEGER NOT NULL DEFAULT 0
+        )`,
         `CREATE TABLE IF NOT EXISTS cat_badges (
           cat_id TEXT NOT NULL REFERENCES cats(id) ON DELETE CASCADE,
           badge_id TEXT NOT NULL,
@@ -172,6 +182,11 @@ export async function ensureCareSchema(): Promise<LibSQLDatabase<typeof schema>>
                 VALUES (?, ?, ?, ?, ?)`,
           args: ["cat-mochi", 0, 145, now, now],
         },
+        ...BADGE_DEFINITIONS.map((b) => ({
+          sql: `INSERT OR IGNORE INTO badge_definitions (code, name, description, icon, metric, threshold, sort_order)
+                VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          args: [b.code, b.name, b.description, b.icon, b.metric, b.threshold, b.sortOrder],
+        })),
         ...routineSeeds,
       ],
       "write",

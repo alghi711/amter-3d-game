@@ -119,3 +119,14 @@ export const catBadges = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.catId, t.badgeId] })],
 );
+
+/** Katalog lencana: syarat (metrik + ambang) untuk membuka tiap pencapaian. */
+export const badgeDefinitions = sqliteTable("badge_definitions", {
+  code: text("code").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  icon: text("icon").notNull(),
+  metric: text("metric").notNull(), // meals | plays | pets | hygiene | level | closeness
+  threshold: integer("threshold").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
