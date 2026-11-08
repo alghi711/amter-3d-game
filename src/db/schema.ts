@@ -130,3 +130,17 @@ export const badgeDefinitions = sqliteTable("badge_definitions", {
   threshold: integer("threshold").notNull(),
   sortOrder: integer("sort_order").notNull().default(0),
 });
+
+/** Tabel progres tersimpan & cadangan: snapshot permainan (otomatis, manual, atau cadangan). */
+export const gameSaves = sqliteTable("game_saves", {
+  id: text("id").primaryKey(),
+  catId: text("cat_id")
+    .notNull()
+    .references(() => cats.id, { onDelete: "cascade" }),
+  kind: text("kind").notNull().default("auto"), // auto | manual | backup
+  snapshotJson: text("snapshot_json").notNull(),
+  backupCode: text("backup_code"),
+  deviceLabel: text("device_label").notNull().default("Browser Perangkat Ini"),
+  version: integer("version").notNull().default(1),
+  createdAt: integer("created_at").notNull(),
+});
