@@ -792,6 +792,44 @@ function CameraRig({ enabled, resetSignal }: { enabled: boolean; resetSignal: nu
   );
 }
 
+/** Mengelola frame throttling 30/60fps dan sinkronisasi bayangan mesh ruangan. */
+function LiveQualityManager({
+  shadows,
+  batterySaver = false,
+  frameRateLimit = 60,
+}: {
+  shadows: boolean;
+  batterySaver?: boolean;
+  frameRateLimit?: 30 | 60;
+}) {
+  const { scene } = useThree();
+  const lastRenderTime = useRef(0);
+
+  useEffect(() => {
+    // Perbarui mesh objek saat bayangan diaktifkan/dinonaktifkan
+    scene.traverse((obj) => {
+      if ((obj as THREE.Mesh).isMesh) {
+        const mesh = obj as THREE.Mesh;
+        mesh.castShadow = shadows;
+        mesh.receiveShadow = shadows;
+      }
+    });
+  }, [scene, shadows]);
+
+  // Frame limiter jika 30 FPS atau Battery Saver aktif
+  useFrame(({ clock }) => {
+    if (frameRateLimit === 30 || batterySaver) {
+      const now = clock.getElapsedTime();
+      if (now - lastRenderTime.current < 1 / 32) {
+        return;
+      }
+      lastRenderTime.current = now;
+    }
+  });
+
+  return null;
+}
+
 export default function CatRoomScene({
   furColor,
   catSpot,
@@ -813,6 +851,8 @@ export default function CatRoomScene({
   vocalizing = false,
   qualityLevel = "auto",
   shadowsEnabled = true,
+  batterySaver = false,
+  frameRateLimit = 60,
 }: {
   furColor: string;
   catSpot: HouseSpot | null;
@@ -834,6 +874,8 @@ export default function CatRoomScene({
   vocalizing?: boolean;
   qualityLevel?: QualityLevel | "auto";
   shadowsEnabled?: boolean;
+  batterySaver?: boolean;
+  frameRateLimit?: 30 | 60;
 }) {
   const [petting, setPetting] = useState(false);
   const [quality, setQuality] = useState<QualityLevel>(() => detectQuality());
@@ -843,10 +885,12 @@ export default function CatRoomScene({
   const useShadows = shadowsEnabled && q.shadows;
   const lightPreset = LIGHTING_PRESETS[lightingMode];
 
+  const effectiveDpr: [number, number] = batterySaver ? [0.75, 1.0] : q.dpr;
+
   return (
     <Canvas
       shadows={useShadows}
-      dpr={q.dpr}
+      dpr={effectiveDpr}
       gl={{
         antialias: q.antialias,
         powerPreference: "high-performance",
@@ -863,6 +907,11 @@ export default function CatRoomScene({
         onFallback={() => setQuality("rendah")}
       />
       <AdaptiveDpr pixelated />
+      <LiveQualityManager
+        shadows={useShadows}
+        batterySaver={batterySaver}
+        frameRateLimit={frameRateLimit}
+      />
       <ResponsiveCamera />
       {/* Warna luar ruangan kayu hangat, tanpa kabut putih! */}
       <color attach="background" args={[lightPreset.bgHex]} />
@@ -873,7 +922,7 @@ export default function CatRoomScene({
         position={[4.5, 6.8, 4.0]}
         color={lightPreset.sunHex}
         intensity={lightPreset.sunIntensity}
-        castShadow={q.shadows}
+        castShadow={useShadows}
         shadow-mapSize={[q.shadowMapSize, q.shadowMapSize]}
         shadow-bias={-0.0005}
         shadow-camera-near={0.5}

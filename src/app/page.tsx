@@ -440,6 +440,8 @@ export default function Home() {
           vocalizing={vocalizing}
           qualityLevel={settings.graphicsQuality}
           shadowsEnabled={settings.shadowsEnabled}
+          batterySaver={settings.batterySaver}
+          frameRateLimit={settings.frameRateLimit}
         />
       </div>
 
