@@ -28,6 +28,7 @@ export default function AccountView({
   const [account, setAccount] = useState<PlayerAccount>(initialAccount);
   const [activeTab, setActiveTab] = useState<AccountTab>("profil");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [dismissFriendlyTip, setDismissFriendlyTip] = useState(false);
 
   const updateAccount = (updater: (prev: PlayerAccount) => PlayerAccount) => {
     setAccount((prev) => {
@@ -118,12 +119,41 @@ export default function AccountView({
         </span>
       </div>
 
+      {/* Friendly Tip Banner */}
+      {!dismissFriendlyTip && (
+        <div className="mb-5 flex items-start justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/90 p-3.5 text-xs text-amber-900 shadow-sm sm:text-sm">
+          <div className="flex items-start gap-2.5">
+            <span className="text-xl leading-none">💡</span>
+            <div>
+              <p className="font-extrabold text-stone-850">
+                {account.isGuest
+                  ? "Tips Bermain: Amankan Kucing Virtualmu!"
+                  : `Hai ${account.name}! Progresmu Aman di Cloud`}
+              </p>
+              <p className="mt-0.5 text-xs text-stone-600 leading-relaxed">
+                {account.isGuest
+                  ? "Kamu sedang bermain dalam Mode Tamu. Progres tersimpan di peramban ini. Hubungkan email atau simpan Kode Pemulihan agar kamu bisa melanjutkan merawat Mochi kapan saja saat ganti HP."
+                  : "Semua interaksi makan, tidur, dan kasih sayang dengan Mochi tersimpan otomatis. Kamu bisa membuka akun ini dari perangkat mana saja."}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDismissFriendlyTip(true)}
+            className="rounded-lg p-1 text-stone-400 hover:bg-amber-100 hover:text-stone-700"
+            aria-label="Tutup tips"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Navigasi Tab */}
-      <div className="mb-6 flex rounded-2xl border border-amber-200/80 bg-amber-50/70 p-1.5 shadow-sm">
+      <div className="mb-6 flex overflow-x-auto rounded-2xl border border-amber-200/80 bg-amber-50/70 p-1.5 shadow-sm">
         <button
           type="button"
           onClick={() => setActiveTab("profil")}
-          className={`flex-1 rounded-xl py-2 text-xs font-extrabold transition sm:text-sm ${
+          className={`flex-1 min-h-[42px] whitespace-nowrap rounded-xl px-2 py-2 text-xs font-extrabold transition sm:text-sm ${
             activeTab === "profil"
               ? "bg-white text-stone-800 shadow-sm"
               : "text-stone-600 hover:text-stone-900"
@@ -134,7 +164,7 @@ export default function AccountView({
         <button
           type="button"
           onClick={() => setActiveTab("masuk")}
-          className={`flex-1 rounded-xl py-2 text-xs font-extrabold transition sm:text-sm ${
+          className={`flex-1 min-h-[42px] whitespace-nowrap rounded-xl px-2 py-2 text-xs font-extrabold transition sm:text-sm ${
             activeTab === "masuk"
               ? "bg-white text-stone-800 shadow-sm"
               : "text-stone-600 hover:text-stone-900"
@@ -145,7 +175,7 @@ export default function AccountView({
         <button
           type="button"
           onClick={() => setActiveTab("daftar")}
-          className={`flex-1 rounded-xl py-2 text-xs font-extrabold transition sm:text-sm ${
+          className={`flex-1 min-h-[42px] whitespace-nowrap rounded-xl px-2 py-2 text-xs font-extrabold transition sm:text-sm ${
             activeTab === "daftar"
               ? "bg-white text-stone-800 shadow-sm"
               : "text-stone-600 hover:text-stone-900"
@@ -156,7 +186,7 @@ export default function AccountView({
         <button
           type="button"
           onClick={() => setActiveTab("pulihkan")}
-          className={`flex-1 rounded-xl py-2 text-xs font-extrabold transition sm:text-sm ${
+          className={`flex-1 min-h-[42px] whitespace-nowrap rounded-xl px-2 py-2 text-xs font-extrabold transition sm:text-sm ${
             activeTab === "pulihkan"
               ? "bg-white text-stone-800 shadow-sm"
               : "text-stone-600 hover:text-stone-900"
@@ -237,7 +267,7 @@ export default function AccountView({
                     key={av}
                     type="button"
                     onClick={() => handleSelectAvatar(av)}
-                    className={`flex h-9 w-9 items-center justify-center rounded-xl text-lg transition hover:scale-110 ${
+                    className={`flex h-11 w-11 items-center justify-center rounded-xl text-xl transition hover:scale-110 active:scale-95 ${
                       account.avatar === av
                         ? "border-2 border-amber-500 bg-amber-100 shadow-sm"
                         : "border border-stone-200 bg-stone-50 hover:bg-amber-50"

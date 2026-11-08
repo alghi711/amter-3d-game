@@ -179,7 +179,7 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
             onChange={(e) => setName(e.target.value)}
             onBlur={() => markTouched("name")}
             placeholder="Contoh: Budi Kucing"
-            className={`mt-1 w-full rounded-2xl border bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-800 outline-none transition focus:bg-white focus:ring-2 ${
+            className={`mt-1 w-full rounded-2xl border bg-stone-50 px-4 py-3 text-base sm:text-sm font-semibold text-stone-800 outline-none transition focus:bg-white focus:ring-2 ${
               touched.name && errors.name
                 ? "border-rose-400 focus:border-rose-500 focus:ring-rose-200"
                 : "border-stone-200 focus:border-amber-400 focus:ring-amber-200"
@@ -202,7 +202,7 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
             onChange={(e) => setEmail(e.target.value)}
             onBlur={() => markTouched("email")}
             placeholder="nama@email.com"
-            className={`mt-1 w-full rounded-2xl border bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-800 outline-none transition focus:bg-white focus:ring-2 ${
+            className={`mt-1 w-full rounded-2xl border bg-stone-50 px-4 py-3 text-base sm:text-sm font-semibold text-stone-800 outline-none transition focus:bg-white focus:ring-2 ${
               touched.email && errors.email
                 ? "border-rose-400 focus:border-rose-500 focus:ring-rose-200"
                 : "border-stone-200 focus:border-amber-400 focus:ring-amber-200"
@@ -225,7 +225,7 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
             onChange={(e) => setPassword(e.target.value)}
             onBlur={() => markTouched("password")}
             placeholder="Minimal 6 karakter"
-            className={`mt-1 w-full rounded-2xl border bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-800 outline-none transition focus:bg-white focus:ring-2 ${
+            className={`mt-1 w-full rounded-2xl border bg-stone-50 px-4 py-3 text-base sm:text-sm font-semibold text-stone-800 outline-none transition focus:bg-white focus:ring-2 ${
               touched.password && errors.password
                 ? "border-rose-400 focus:border-rose-500 focus:ring-rose-200"
                 : "border-stone-200 focus:border-amber-400 focus:ring-amber-200"
@@ -262,7 +262,7 @@ export default function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFor
             onChange={(e) => setConfirmPassword(e.target.value)}
             onBlur={() => markTouched("confirmPassword")}
             placeholder="Masukkan kembali kata sandi"
-            className={`mt-1 w-full rounded-2xl border bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-800 outline-none transition focus:bg-white focus:ring-2 ${
+            className={`mt-1 w-full rounded-2xl border bg-stone-50 px-4 py-3 text-base sm:text-sm font-semibold text-stone-800 outline-none transition focus:bg-white focus:ring-2 ${
               touched.confirmPassword && errors.confirmPassword
                 ? "border-rose-400 focus:border-rose-500 focus:ring-rose-200"
                 : "border-stone-200 focus:border-amber-400 focus:ring-amber-200"

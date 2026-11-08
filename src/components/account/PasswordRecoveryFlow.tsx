@@ -240,7 +240,7 @@ export default function PasswordRecoveryFlow({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="nama@email.com"
-                className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-800 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-200"
+                className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-base sm:text-sm font-semibold text-stone-800 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-200"
               />
               <p className="mt-1 text-[11px] text-stone-500">
                 Kami akan mengirimkan 6-digit kode verifikasi ke email kamu.
@@ -257,7 +257,7 @@ export default function PasswordRecoveryFlow({
                 value={recoveryCode}
                 onChange={(e) => setRecoveryCode(e.target.value.toUpperCase())}
                 placeholder="MOCHI-XXXX-XXXX-XXXX"
-                className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 font-mono text-sm font-semibold text-stone-800 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-200"
+                className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 font-mono text-base sm:text-sm font-semibold text-stone-800 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-200"
               />
               <p className="mt-1 text-[11px] text-stone-500">
                 Gunakan kode 12 digit yang pernah kamu simpan dari halaman profil.
@@ -353,7 +353,7 @@ export default function PasswordRecoveryFlow({
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Minimal 6 karakter"
-              className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-800 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-200"
+              className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-base sm:text-sm font-semibold text-stone-800 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-200"
             />
             {newPassword && (
               <div className="mt-2 space-y-1">
@@ -380,7 +380,7 @@ export default function PasswordRecoveryFlow({
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Ulangi kata sandi baru"
-              className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-800 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-200"
+              className="mt-1 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-base sm:text-sm font-semibold text-stone-800 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-200"
             />
           </div>
 
