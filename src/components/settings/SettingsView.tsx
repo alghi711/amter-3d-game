@@ -828,34 +828,104 @@ export default function SettingsView({
               <div className="w-16 h-16 mx-auto rounded-3xl bg-gradient-to-tr from-amber-400 to-orange-500 text-white flex items-center justify-center text-3xl shadow-lg shadow-amber-500/20">
                 🐱
               </div>
-              <h3 className="text-lg font-black tracking-tight text-stone-900 dark:text-white">
-                {APP_INFO.name}
-              </h3>
+              <div>
+                <h3 className="text-lg font-black tracking-tight text-stone-900 dark:text-white">
+                  {APP_INFO.name}
+                </h3>
+                <p className="text-xs text-amber-700 dark:text-amber-300 font-medium mt-0.5">
+                  {APP_INFO.tagline}
+                </p>
+              </div>
               <p className="text-xs text-stone-600 dark:text-stone-300 max-w-md mx-auto leading-relaxed">
                 {APP_INFO.credits}
               </p>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[11px] font-semibold">
+              <div className="inline-flex flex-wrap items-center justify-center gap-2 px-3 py-1.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[11px] font-semibold">
                 <span>Versi {APP_INFO.version}</span>
                 <span>•</span>
                 <span>Build {APP_INFO.build}</span>
+                <span>•</span>
+                <span>{APP_INFO.environment}</span>
               </div>
             </div>
 
-            {/* Spec details */}
+            {/* Spec & Architecture Details */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div className="p-4 rounded-xl bg-white dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700/60 space-y-1">
-                <span className="text-stone-400 text-[10px] uppercase font-bold tracking-wider">Teknologi</span>
+                <span className="text-stone-400 text-[10px] uppercase font-bold tracking-wider">Engine Utama</span>
                 <p className="font-semibold text-stone-800 dark:text-stone-200">{APP_INFO.engine}</p>
               </div>
 
               <div className="p-4 rounded-xl bg-white dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700/60 space-y-1">
-                <span className="text-stone-400 text-[10px] uppercase font-bold tracking-wider">Lisensi</span>
-                <p className="font-semibold text-stone-800 dark:text-stone-200">{APP_INFO.license}</p>
+                <span className="text-stone-400 text-[10px] uppercase font-bold tracking-wider">Lisensi & Kontak</span>
+                <p className="font-semibold text-stone-800 dark:text-stone-200">{APP_INFO.license} • {APP_INFO.contact}</p>
+              </div>
+            </div>
+
+            {/* Roadmap & Release Milestones */}
+            <div className="p-5 rounded-2xl bg-white dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700/60 space-y-3">
+              <h4 className="text-xs font-bold text-stone-800 dark:text-stone-200 flex items-center gap-2">
+                <span>🚀</span>
+                <span>Pencapaian Pengembangan (Milestone Roadmap)</span>
+              </h4>
+              <div className="space-y-2.5">
+                {APP_INFO.milestones.map((m) => (
+                  <div
+                    key={m.phase}
+                    className="p-3 rounded-xl bg-stone-50 dark:bg-stone-900 border border-stone-200/80 dark:border-stone-750 flex items-start justify-between gap-3"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-stone-900 dark:text-white">
+                          {m.phase}: {m.title}
+                        </span>
+                        <span
+                          className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                            m.status === "aktif"
+                              ? "bg-amber-500 text-white animate-pulse"
+                              : "bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300"
+                          }`}
+                        >
+                          {m.status === "aktif" ? "Sedang Aktif" : "Selesai ✓"}
+                        </span>
+                      </div>
+                      <ul className="mt-1 space-y-0.5 text-[10px] text-stone-500 dark:text-stone-400 list-disc list-inside">
+                        {m.highlights.map((h, i) => (
+                          <li key={i}>{h}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Technology Stack Chips */}
+            <div className="p-4 rounded-2xl bg-stone-100/60 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700/50 space-y-2">
+              <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider">
+                Komponen Stack & Pustaka
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {APP_INFO.techStack.map((tech) => (
+                  <span
+                    key={tech.name}
+                    title={tech.role}
+                    className="px-2.5 py-1 rounded-lg bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-750 text-[10px] font-semibold text-stone-700 dark:text-stone-300 shadow-2xs"
+                  >
+                    {tech.name}
+                  </span>
+                ))}
               </div>
             </div>
 
             {/* Footer Action Buttons */}
             <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <Link
+                href="/bantuan"
+                className="px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 text-xs font-semibold transition flex items-center gap-1.5"
+              >
+                <span>📖</span>
+                <span>Buku Panduan Rawat</span>
+              </Link>
               <Link
                 href="/riwayat"
                 className="px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 text-xs font-semibold transition flex items-center gap-1.5"

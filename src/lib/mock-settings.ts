@@ -24,7 +24,7 @@ export type GameSettings = {
 export const defaultSettings: GameSettings = {
   soundEnabled: true,
   sfxVolume: 80,
-  musicEnabled: true,
+  musicEnabled: false,
   musicVolume: 60,
   vocalPitch: "anak",
 
@@ -78,11 +78,82 @@ export const GAME_FAQS: FaqItem[] = [
   },
 ];
 
+export type ReleaseMilestone = {
+  phase: string;
+  title: string;
+  status: "selesai" | "aktif";
+  highlights: string[];
+};
+
 export const APP_INFO = {
   name: "MOCHI — Your Virtual Cat",
+  tagline: "Sahabat Kucing Virtual 3D di Browser Kamu",
   version: "1.0.0-fase5",
-  build: "2026.11.08",
-  engine: "Next.js 16 + React Three Fiber + Drizzle ORM",
+  build: "2026.11.08-rc5",
+  environment: "Production / Edge Ready",
+  engine: "Next.js 16 + React 19 + React Three Fiber + Drizzle ORM",
   license: "MIT License",
   credits: "Dibuat dengan penuh cinta untuk seluruh pecinta kucing di dunia 🐾",
+  contact: "support@mochi-cat.dev",
+  milestones: [
+    {
+      phase: "Fase 1",
+      title: "Kamar 3D & Kebutuhan Dasar",
+      status: "selesai",
+      highlights: [
+        "Ruang 3D realistis 4 dinding, jendela bukit, dan lampu gantung",
+        "Sistem rawat makan, minum, mandi busa, dan kotak pasir",
+        "Animasi kinematik jalan 4 kaki dan kecerdasan berkeliaran mandiri",
+      ],
+    },
+    {
+      phase: "Fase 2",
+      title: "Suasana Hati & Siklus Harian",
+      status: "selesai",
+      highlights: [
+        "Siklus waktu sirkadian 24 jam & mode pencahayaan siang/sore/malam",
+        "4 ragam emosi kucing dinamis (senang, lapar, main, mengantuk)",
+        "Pengingat kasih sayang lembut (gentle reminder banners)",
+      ],
+    },
+    {
+      phase: "Fase 3",
+      title: "Tumbuh Kembang & Galeri Lencana",
+      status: "selesai",
+      highlights: [
+        "Evolusi anak kucing mungil menjadi kucing dewasa berwibawa",
+        "Skor kedekatan batin & sistem Experience (XP)",
+        "Galeri 8 lencana pencapaian & penyimpanan cloud autosave",
+      ],
+    },
+    {
+      phase: "Fase 4",
+      title: "Akun Pemain & Keamanan Progres",
+      status: "selesai",
+      highlights: [
+        "Autentikasi akun email, kata sandi, dan mode tamu instan",
+        "Kunci kode pemulihan unik 12 karakter (MOCHI-XXXX-XXXX)",
+        "Sistem multi-sesi dan sinkronisasi lintas browser",
+      ],
+    },
+    {
+      phase: "Fase 5",
+      title: "Audio Synthesizer & Pengaturan Grafis",
+      status: "aktif",
+      highlights: [
+        "Formant bio-acoustic vocal synthesis meow & purr 27Hz",
+        "Pemutar melodi lo-fi ambient kamar kucing multi-trek",
+        "Preset kualitas grafis adaptif (rendah, sedang, tinggi, otomatis)",
+        "Buku panduan lengkap merawat kucing & navigasi pengaturan",
+      ],
+    },
+  ] as ReleaseMilestone[],
+  techStack: [
+    { name: "Next.js 16", role: "App Router Framework & Server Components" },
+    { name: "React 19", role: "Modern UI Architecture & Concurrent Features" },
+    { name: "Three.js & R3F", role: "High-Performance 3D Scene & Lighting" },
+    { name: "Web Audio API", role: "Bio-acoustic Meow & Formant Synthesis" },
+    { name: "Drizzle ORM", role: "Type-safe SQLite Data Persistence" },
+    { name: "Tailwind CSS", role: "Warm Pastel Responsive UI Design" },
+  ],
 };
