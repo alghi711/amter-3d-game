@@ -132,3 +132,56 @@ export async function readLatestProgress(catId: string = DEFAULT_CAT_ID): Promis
     .limit(1);
   return row ? toStored(row) : null;
 }
+
+export const MAX_BACKUPS_PER_CAT = 20;
+
+/** Kode cadangan unik & mudah disalin, mis. MOCHI-LV3-A8F2C1. */
+function makeBackupCode(level: number): string {
+  return `MOCHI-LV${level}-${randomUUID().replace(/-/g, "").slice(0, 6).toUpperCase()}`;
+}
+
+/** Buat cadangan manual dari snapshot; cadangan terlama dihapus bila melebihi batas. */
+export async function createBackup(
+  catId: string = DEFAULT_CAT_ID,
+  snapshot: SaveSnapshot,
+  deviceLabel = "Browser Perangkat Ini",
+): Promise<StoredSave & { backupCode: string } | null> {
+  const db = await ensureCareSchema();
+  const [cat] = await db.select().from(cats).where(eq(cats.id, catId)).limit(1);
+  if (!cat) return null;
+
+  const backupCode = makeBackupCode(snapshot.level);
+  const row = {
+    id: randomUUID(),
+    catId,
+    kind: "backup",
+    snapshotJson: JSON.stringify(snapshot),
+    backupCode,
+    deviceLabel: deviceLabel.slice(0, 60),
+    version: SAVE_VERSION,
+    createdAt: Date.now(),
+  };
+  await db.insert(gameSaves).values(row);
+
+  const all = await db
+    .select({ id: gameSaves.id })
+    .from(gameSaves)
+    .where(and(eq(gameSaves.catId, catId), eq(gameSaves.kind, "backup")))
+    .orderBy(desc(gameSaves.createdAt));
+  for (const old of all.slice(MAX_BACKUPS_PER_CAT)) {
+    await db.delete(gameSaves).where(eq(gameSaves.id, old.id));
+  }
+  return { ...toStored(row as typeof gameSaves.$inferSelect), backupCode };
+}
+
+/** Daftar cadangan (terbaru dulu). */
+export async function listBackups(catId: string = DEFAULT_CAT_ID): Promise<(StoredSave & { backupCode: string })[]> {
+  const db = await ensureCareSchema();
+  const rows = await db
+    .select()
+    .from(gameSaves)
+    .where(and(eq(gameSaves.catId, catId), eq(gameSaves.kind, "backup")))
+    .orderBy(desc(gameSaves.createdAt))
+    .limit(MAX_BACKUPS_PER_CAT);
+  return rows.map((r) => ({ ...toStored(r), backupCode: r.backupCode ?? "" }));
+}
