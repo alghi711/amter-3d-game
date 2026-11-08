@@ -19,6 +19,7 @@ import { evaluateAchievementBadges } from "@/components/growth/BadgeCollectionGa
 import BadgeUnlockToast from "@/components/growth/BadgeUnlockToast";
 import GrowthSheet from "@/components/growth/GrowthSheet";
 import MoodRoutineSheet from "@/components/mood/MoodRoutineSheet";
+import AccountSheet from "@/components/account/AccountSheet";
 import { computeGrowthProgress, type GrowthStage, type MockAchievement } from "@/lib/mock-growth";
 import { buildGentleReminders, deriveCatMood, evaluateMoodShift, getActiveRoutine, type CatMood, type MoodTransition } from "@/lib/mock-mood";
 import { CARE_ACTIONS, getRefusalReason, MEAL_ITEMS, TOY_ITEMS, useCare, type CareAction, type MealItem, type ToyItem } from "@/lib/use-care";
@@ -48,6 +49,7 @@ export default function Home() {
   const [moodHistory, setMoodHistory] = useState<MoodTransition[]>([]);
   const [showGrowthSheet, setShowGrowthSheet] = useState(false);
   const [showSaveSheet, setShowSaveSheet] = useState(false);
+  const [showAccountSheet, setShowAccountSheet] = useState(false);
   const [experience, setExperience] = useState<number>(cat.experience + (cat.level - 1) * 50);
   const [closeness, setCloseness] = useState<number>(cat.closeness);
   const [stageOverride, setStageOverride] = useState<GrowthStage | null>(null);
@@ -536,6 +538,20 @@ export default function Home() {
           >
             🐾 Panggil Mochi
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              playCatSound("pop", isKitten);
+              setShowStatus(false);
+              setShowMoodSheet(false);
+              setShowGrowthSheet(false);
+              setShowSaveSheet(false);
+              setShowAccountSheet((v) => !v);
+            }}
+            className="rounded-full border border-sky-200 bg-white/90 px-3.5 py-1.5 text-xs font-bold text-sky-800 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
+          >
+            👤 Akun & Profil
+          </button>
           <div className="mt-0.5 flex items-center gap-1.5">
             <button
               type="button"
@@ -710,6 +726,8 @@ export default function Home() {
           )}
         </div>
       </footer>
+
+      {showAccountSheet && <AccountSheet onClose={() => setShowAccountSheet(false)} />}
     </main>
   );
 }
