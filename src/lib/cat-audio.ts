@@ -20,6 +20,13 @@ export type SoundEffectType =
 
 let audioCtx: AudioContext | null = null;
 let soundEnabledState = true;
+let sfxVolumeState = 0.8; // 0.0 - 1.0
+
+let musicEnabledState = false;
+let musicVolumeState = 0.6; // 0.0 - 1.0
+let bgmGainNode: GainNode | null = null;
+let bgmIntervalId: NodeJS.Timeout | null = null;
+let bgmStep = 0;
 
 const realCatAudio: { meow1?: HTMLAudioElement; meow2?: HTMLAudioElement; purr?: HTMLAudioElement } = {};
 
@@ -33,7 +40,7 @@ function initRealAudio() {
       if (a) {
         a.crossOrigin = "anonymous";
         a.preload = "auto";
-        a.volume = 0.65;
+        a.volume = Math.max(0, Math.min(1, 0.65 * sfxVolumeState));
       }
     });
   } catch {
@@ -49,6 +56,34 @@ export function setSoundEnabled(enabled: boolean): void {
   soundEnabledState = enabled;
 }
 
+export function getSfxVolume(): number {
+  return Math.round(sfxVolumeState * 100);
+}
+
+export function setSfxVolume(volPercent: number): void {
+  sfxVolumeState = Math.max(0, Math.min(100, volPercent)) / 100;
+  Object.values(realCatAudio).forEach((a) => {
+    if (a) a.volume = Math.max(0, Math.min(1, 0.65 * sfxVolumeState));
+  });
+}
+
+export function isMusicEnabled(): boolean {
+  return musicEnabledState;
+}
+
+export function getMusicVolume(): number {
+  return Math.round(musicVolumeState * 100);
+}
+
+export function setMusicVolume(volPercent: number): void {
+  musicVolumeState = Math.max(0, Math.min(100, volPercent)) / 100;
+  if (bgmGainNode && audioCtx) {
+    const targetGain = musicEnabledState ? musicVolumeState * 0.14 : 0;
+    bgmGainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+    bgmGainNode.gain.linearRampToValueAtTime(targetGain, audioCtx.currentTime + 0.1);
+  }
+}
+
 function ensureAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
   const Ctx = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -62,9 +97,109 @@ function ensureAudioContext(): AudioContext | null {
   return audioCtx;
 }
 
+// Chords sequence for soothing lo-fi room ambience: Cmaj7 -> Am9 -> Fmaj7 -> Gsus4
+const CHORD_PROGRESSION: number[][] = [
+  [130.81, 196.0, 246.94, 329.63, 392.0], // C3, G3, B3, E4, G4
+  [110.0, 164.81, 196.0, 261.63, 329.63], // A2, E3, G3, C4, E4
+  [87.31, 130.81, 164.81, 220.0, 261.63], // F2, C3, E3, A3, C4
+  [98.0, 146.83, 196.0, 246.94, 293.66],  // G2, D3, G3, B3, D4
+];
+
+function playAmbientChord(ctx: AudioContext, masterGain: GainNode, chordIdx: number) {
+  const notes = CHORD_PROGRESSION[chordIdx % CHORD_PROGRESSION.length];
+  const now = ctx.currentTime;
+
+  notes.forEach((freq, idx) => {
+    const osc = ctx.createOscillator();
+    const noteGain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+
+    osc.type = idx % 2 === 0 ? "sine" : "triangle";
+    osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(900, now);
+    filter.Q.setValueAtTime(1.2, now);
+
+    const noteStart = now + idx * 0.12;
+    const noteDur = 2.4;
+
+    noteGain.gain.setValueAtTime(0.0001, noteStart);
+    noteGain.gain.linearRampToValueAtTime(0.18 / notes.length, noteStart + 0.35);
+    noteGain.gain.exponentialRampToValueAtTime(0.0001, noteStart + noteDur);
+
+    osc.connect(filter);
+    filter.connect(noteGain);
+    noteGain.connect(masterGain);
+
+    osc.start(noteStart);
+    osc.stop(noteStart + noteDur + 0.05);
+  });
+}
+
+export function startBackgroundMusic(): void {
+  if (typeof window === "undefined") return;
+  const ctx = ensureAudioContext();
+  if (!ctx) return;
+
+  if (!bgmGainNode) {
+    bgmGainNode = ctx.createGain();
+    bgmGainNode.connect(ctx.destination);
+  }
+
+  musicEnabledState = true;
+  const targetGain = musicVolumeState * 0.14;
+  bgmGainNode.gain.cancelScheduledValues(ctx.currentTime);
+  bgmGainNode.gain.setValueAtTime(bgmGainNode.gain.value, ctx.currentTime);
+  bgmGainNode.gain.linearRampToValueAtTime(targetGain, ctx.currentTime + 0.8);
+
+  if (bgmIntervalId) return;
+
+  // Langsung bunyikan akord pertama
+  playAmbientChord(ctx, bgmGainNode, bgmStep);
+  bgmStep++;
+
+  bgmIntervalId = setInterval(() => {
+    if (!musicEnabledState || !bgmGainNode || !audioCtx) return;
+    playAmbientChord(audioCtx, bgmGainNode, bgmStep);
+    bgmStep++;
+  }, 2400);
+}
+
+export function stopBackgroundMusic(): void {
+  musicEnabledState = false;
+  if (bgmGainNode && audioCtx) {
+    bgmGainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+    bgmGainNode.gain.setValueAtTime(bgmGainNode.gain.value, audioCtx.currentTime);
+    bgmGainNode.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.6);
+  }
+  if (bgmIntervalId) {
+    clearInterval(bgmIntervalId);
+    bgmIntervalId = null;
+  }
+}
+
+export function setMusicEnabled(enabled: boolean): void {
+  if (enabled) {
+    startBackgroundMusic();
+  } else {
+    stopBackgroundMusic();
+  }
+}
+
+export function toggleBackgroundMusic(): boolean {
+  if (musicEnabledState) {
+    stopBackgroundMusic();
+    return false;
+  } else {
+    startBackgroundMusic();
+    return true;
+  }
+}
+
 /** Formant-filtered realistic cat vocalization + real sample hybrid. */
 export function playCatVocal(type: SoundEffectType, isKitten = false): void {
-  if (!soundEnabledState) return;
+  if (!soundEnabledState || sfxVolumeState <= 0) return;
   try {
     const ctx = ensureAudioContext();
     const now = ctx ? ctx.currentTime : 0;
@@ -74,12 +209,14 @@ export function playCatVocal(type: SoundEffectType, isKitten = false): void {
     if (type === "meow" || type === "happy_meow") {
       const sample = type === "happy_meow" ? realCatAudio.meow1 : realCatAudio.meow2;
       if (sample) {
+        sample.volume = Math.max(0, Math.min(1, 0.65 * sfxVolumeState));
         sample.currentTime = 0;
         sample.playbackRate = isKitten ? 1.32 : 1.04;
         sample.play().catch(() => {});
       }
     } else if (type === "purr") {
       if (realCatAudio.purr) {
+        realCatAudio.purr.volume = Math.max(0, Math.min(1, 0.65 * sfxVolumeState));
         realCatAudio.purr.currentTime = 0;
         realCatAudio.purr.play().catch(() => {});
         setTimeout(() => {
@@ -128,7 +265,7 @@ export function playCatVocal(type: SoundEffectType, isKitten = false): void {
       filter2.frequency.setValueAtTime(2200, now);
 
       masterGain.gain.setValueAtTime(0.001, now);
-      masterGain.gain.linearRampToValueAtTime(0.22, now + 0.06);
+      masterGain.gain.linearRampToValueAtTime(0.22 * sfxVolumeState, now + 0.06);
       masterGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
 
       osc1.connect(filter1);
@@ -160,7 +297,7 @@ export function playCatVocal(type: SoundEffectType, isKitten = false): void {
       filter.frequency.setValueAtTime(190, now);
 
       gain.gain.setValueAtTime(0.01, now);
-      gain.gain.linearRampToValueAtTime(0.16, now + 0.2);
+      gain.gain.linearRampToValueAtTime(0.16 * sfxVolumeState, now + 0.2);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 1.3);
 
       lfo.connect(lfoGain);
@@ -182,7 +319,7 @@ export function playCatVocal(type: SoundEffectType, isKitten = false): void {
         osc.type = "triangle";
         osc.frequency.setValueAtTime(280 + i * 60, t);
         osc.frequency.exponentialRampToValueAtTime(120, t + 0.09);
-        g.gain.setValueAtTime(0.18, t);
+        g.gain.setValueAtTime(0.18 * sfxVolumeState, t);
         g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
         osc.connect(g);
         g.connect(ctx.destination);
@@ -199,7 +336,7 @@ export function playCatVocal(type: SoundEffectType, isKitten = false): void {
         osc.type = "sine";
         osc.frequency.setValueAtTime(420, t);
         osc.frequency.exponentialRampToValueAtTime(880, t + 0.08);
-        g.gain.setValueAtTime(0.14, t);
+        g.gain.setValueAtTime(0.14 * sfxVolumeState, t);
         g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
         osc.connect(g);
         g.connect(ctx.destination);
@@ -225,7 +362,7 @@ export function playCatVocal(type: SoundEffectType, isKitten = false): void {
         const gain = ctx.createGain();
         osc.type = "sine";
         osc.frequency.setValueAtTime(freq, now + idx * 0.065);
-        gain.gain.setValueAtTime(0.11, now + idx * 0.065);
+        gain.gain.setValueAtTime(0.11 * sfxVolumeState, now + idx * 0.065);
         gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.065 + 0.28);
         osc.connect(gain);
         gain.connect(ctx.destination);

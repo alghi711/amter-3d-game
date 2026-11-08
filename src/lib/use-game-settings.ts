@@ -2,7 +2,12 @@
 
 import { useSyncExternalStore } from "react";
 import { defaultSettings, type GameSettings } from "./mock-settings";
-import { setSoundEnabled } from "./cat-audio";
+import {
+  setSoundEnabled,
+  setSfxVolume,
+  setMusicEnabled,
+  setMusicVolume,
+} from "./cat-audio";
 
 const SETTINGS_STORAGE_KEY = "mochi_game_settings_v1";
 
@@ -11,6 +16,13 @@ const listeners = new Set<() => void>();
 
 function notify() {
   listeners.forEach((listener) => listener());
+}
+
+function syncAudioModules(st: GameSettings) {
+  setSoundEnabled(st.soundEnabled);
+  setSfxVolume(st.sfxVolume);
+  setMusicEnabled(st.musicEnabled);
+  setMusicVolume(st.musicVolume);
 }
 
 function loadInitialSettings(): GameSettings {
@@ -32,7 +44,7 @@ function loadInitialSettings(): GameSettings {
 // Inisialisasi awal di client
 if (typeof window !== "undefined") {
   memorySettings = loadInitialSettings();
-  setSoundEnabled(memorySettings.soundEnabled);
+  syncAudioModules(memorySettings);
 }
 
 export function getSettingsSnapshot(): GameSettings {
@@ -59,6 +71,15 @@ export function updateGameSettings(updates: Partial<GameSettings>): GameSettings
   if (typeof updates.soundEnabled === "boolean") {
     setSoundEnabled(updates.soundEnabled);
   }
+  if (typeof updates.sfxVolume === "number") {
+    setSfxVolume(updates.sfxVolume);
+  }
+  if (typeof updates.musicEnabled === "boolean") {
+    setMusicEnabled(updates.musicEnabled);
+  }
+  if (typeof updates.musicVolume === "number") {
+    setMusicVolume(updates.musicVolume);
+  }
 
   if (typeof window !== "undefined") {
     try {
@@ -74,7 +95,7 @@ export function updateGameSettings(updates: Partial<GameSettings>): GameSettings
 
 export function resetGameSettings(): GameSettings {
   memorySettings = { ...defaultSettings };
-  setSoundEnabled(memorySettings.soundEnabled);
+  syncAudioModules(memorySettings);
   if (typeof window !== "undefined") {
     try {
       window.localStorage.removeItem(SETTINGS_STORAGE_KEY);

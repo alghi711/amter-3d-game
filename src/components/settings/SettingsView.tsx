@@ -307,6 +307,22 @@ export default function SettingsView({
                   <span>🎶</span>
                   <span>Uji Chirp Ceria</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !settings.musicEnabled;
+                    updateSettings({ musicEnabled: next });
+                    showToast(next ? "Melodi kamar santai dimainkan! 🎵" : "Melodi musik dihentikan 🔇");
+                  }}
+                  className={`px-3.5 py-1.5 rounded-xl border text-xs font-semibold transition shadow-xs flex items-center gap-1.5 ${
+                    settings.musicEnabled
+                      ? "bg-amber-500 text-white border-amber-600"
+                      : "bg-white dark:bg-stone-800 border-amber-300 dark:border-amber-700/60 text-amber-700 dark:text-amber-300 hover:bg-amber-50"
+                  }`}
+                >
+                  <span>{settings.musicEnabled ? "⏸️" : "▶️"}</span>
+                  <span>{settings.musicEnabled ? "Jeda Musik Latar" : "Putar Musik Latar (BGM)"}</span>
+                </button>
               </div>
             </div>
           </div>

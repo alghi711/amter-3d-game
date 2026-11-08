@@ -21,12 +21,13 @@ import GrowthSheet from "@/components/growth/GrowthSheet";
 import MoodRoutineSheet from "@/components/mood/MoodRoutineSheet";
 import AccountSheet from "@/components/account/AccountSheet";
 import SettingsSheet from "@/components/settings/SettingsSheet";
+import { useGameSettings } from "@/lib/use-game-settings";
 import { usePlayerAccount } from "@/lib/use-player-account";
 import type { PlayerAccount } from "@/lib/mock-account";
 import { computeGrowthProgress, type GrowthStage, type MockAchievement } from "@/lib/mock-growth";
 import { buildGentleReminders, deriveCatMood, evaluateMoodShift, getActiveRoutine, type CatMood, type MoodTransition } from "@/lib/mock-mood";
 import { CARE_ACTIONS, getRefusalReason, MEAL_ITEMS, TOY_ITEMS, useCare, type CareAction, type MealItem, type ToyItem } from "@/lib/use-care";
-import { playCatSound, playSoundForCareAction, setSoundEnabled, type SoundEffectType } from "@/lib/cat-audio";
+import { playCatSound, playSoundForCareAction, type SoundEffectType } from "@/lib/cat-audio";
 import { LIGHTING_PRESETS, type LightingMode } from "@/lib/procedural-textures";
 
 const CatRoomScene = dynamic(() => import("@/components/room/CatRoomScene"), {
@@ -63,8 +64,8 @@ export default function Home() {
   const seenBadgesRef = useRef<Set<string> | null>(null);
 
   // Suasana Cahaya 3D, Suara Web Audio Synthesizer, Balon Suara 3D, & Tooltip
+  const { settings, updateSettings } = useGameSettings();
   const [lightingMode, setLightingMode] = useState<LightingMode>("day");
-  const [soundActive, setSoundActive] = useState(true);
   const [voiceBubble, setVoiceBubble] = useState<{ text: string; icon: string } | null>(null);
   const [vocalizing, setVocalizing] = useState(false);
   const [floatingReaction, setFloatingReaction] = useState<{ id: number; text: string } | null>(null);
@@ -356,12 +357,19 @@ export default function Home() {
   };
 
   const toggleSound = () => {
-    const next = !soundActive;
-    setSoundActive(next);
-    setSoundEnabled(next);
+    const next = !settings.soundEnabled;
+    updateSettings({ soundEnabled: next });
     if (next) {
       playCatSound("meow", isKitten);
       triggerVoiceBubble("Meong~ Suara aktif! ♪", "🔊", 2000);
+    }
+  };
+
+  const toggleMusic = () => {
+    const next = !settings.musicEnabled;
+    updateSettings({ musicEnabled: next });
+    if (next) {
+      triggerVoiceBubble("Melodi kamar santai aktif! 🎵", "🎶", 2000);
     }
   };
 
@@ -636,7 +644,15 @@ export default function Home() {
               className="rounded-full border border-white/90 bg-white/90 px-3 py-1.5 text-xs font-bold text-stone-700 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
               title="Suara Kucing & Efek"
             >
-              {soundActive ? "🔊 Suara: Aktif" : "🔇 Suara: Mati"}
+              {settings.soundEnabled ? "🔊 Suara" : "🔇 Bisu"}
+            </button>
+            <button
+              type="button"
+              onClick={toggleMusic}
+              className="rounded-full border border-white/90 bg-white/90 px-3 py-1.5 text-xs font-bold text-stone-700 shadow backdrop-blur transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
+              title="Musik Kamar Santai (BGM)"
+            >
+              {settings.musicEnabled ? "🎵 Musik" : "🔇 Musik"}
             </button>
             <button
               type="button"
