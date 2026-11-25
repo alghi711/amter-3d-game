@@ -1,23 +1,36 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
-import { mockDefaultAccount, mockGuestAccount, type PlayerAccount } from "@/lib/mock-account";
+import { createFreshGuestAccount, mockGuestAccount, type PlayerAccount } from "@/lib/mock-account";
 
-const STORAGE_KEY = "mochi_active_account";
+const STORAGE_KEY = "mochi_active_account_v2";
+const LEGACY_KEYS = ["mochi_active_account", "mochi:autosave:v1"];
 
 let cachedRaw: string | null = null;
-let cachedAccount: PlayerAccount = mockDefaultAccount;
+let cachedAccount: PlayerAccount = mockGuestAccount;
 
 function getSnapshot(): PlayerAccount {
   if (typeof window === "undefined") return mockGuestAccount;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    // Bersihkan kunci sesi lama agar pengunjung baru tidak mewarisi akun demo Lv.3
+    for (const oldKey of LEGACY_KEYS) {
+      if (localStorage.getItem(oldKey) !== null) {
+        localStorage.removeItem(oldKey);
+      }
+    }
+
+    let raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      const fresh = createFreshGuestAccount();
+      raw = JSON.stringify(fresh);
+      localStorage.setItem(STORAGE_KEY, raw);
+    }
     if (raw !== cachedRaw) {
       cachedRaw = raw;
-      cachedAccount = raw ? (JSON.parse(raw) as PlayerAccount) : mockDefaultAccount;
+      cachedAccount = JSON.parse(raw) as PlayerAccount;
     }
   } catch {
-    cachedAccount = mockDefaultAccount;
+    cachedAccount = mockGuestAccount;
   }
   return cachedAccount;
 }
@@ -70,12 +83,7 @@ export function usePlayerAccount() {
   );
 
   const logoutToGuest = useCallback(() => {
-    const freshGuest: PlayerAccount = {
-      ...mockGuestAccount,
-      id: `user-guest-${Date.now()}`,
-      joinedAt: "Hari ini",
-      lastActiveAt: "Baru saja",
-    };
+    const freshGuest = createFreshGuestAccount();
     saveAccount(freshGuest);
     return freshGuest;
   }, [saveAccount]);

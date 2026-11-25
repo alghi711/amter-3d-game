@@ -1,0 +1,10 @@
+kind: wasmer.io/App.v0
+name: mochi-kucing-virtual
+owner: alghifari1235
+description: MOCHI - Kucing Virtual 3D Web App
+package: .
+env:
+  SERVER_CONFIG_FILE: /settings/config.toml
+redirect:
+  force_https: true
+app_id: da_nP7IptBUx4Ve

@@ -1,4 +1,4 @@
-// Data tiruan (stub) untuk fase frontend — nanti diganti data dari backend.
+// Data awal kucing virtual AMTER untuk pemain baru (mulai dari Level 1 & 0 XP).
 export type CatStats = {
   hunger: number; // 0-100, makin tinggi makin kenyang
   thirst: number;
@@ -19,14 +19,22 @@ export type MockCat = {
   stats: CatStats;
 };
 
+export const INITIAL_CAT_STATS: CatStats = {
+  hunger: 55,
+  thirst: 55,
+  hygiene: 65,
+  happiness: 65,
+  energy: 75,
+};
+
 export const mockCat: MockCat = {
-  id: "cat-mochi",
-  name: "Mochi",
+  id: "cat-amter",
+  name: "Amter",
   stage: "anak",
-  level: 3,
-  experience: 45,
-  closeness: 62,
+  level: 1,
+  experience: 0,
+  closeness: 10,
   mood: "senang",
   furColor: "#f4b673",
-  stats: { hunger: 70, thirst: 55, hygiene: 80, happiness: 85, energy: 60 },
+  stats: { ...INITIAL_CAT_STATS },
 };

@@ -1,9 +1,18 @@
 import type { NextConfig } from "next";
 
+const isExport = process.env.IS_EXPORT === "true";
+
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  ...(isExport
+    ? {
+        output: "export",
+        distDir: "dist",
+        trailingSlash: true,
+      }
+    : {
+        cacheComponents: true,
+        partialPrefetching: true,
+      }),
   turbopack: {
     rules: {
       "*.css": {

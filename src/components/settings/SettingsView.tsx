@@ -296,11 +296,19 @@ export default function SettingsView({
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleTestSound("purr_meow")}
+                  onClick={() => handleTestSound("purr")}
                   className="px-3.5 py-1.5 rounded-xl bg-white dark:bg-stone-800 border border-amber-300 dark:border-amber-700/60 text-amber-700 dark:text-amber-300 text-xs font-semibold hover:bg-amber-50 transition shadow-xs flex items-center gap-1.5"
                 >
                   <span>💞</span>
                   <span>Uji Dengkuran (Purr)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTestSound("purr_meow")}
+                  className="px-3.5 py-1.5 rounded-xl bg-white dark:bg-stone-800 border border-amber-300 dark:border-amber-700/60 text-amber-700 dark:text-amber-300 text-xs font-semibold hover:bg-amber-50 transition shadow-xs flex items-center gap-1.5"
+                >
+                  <span>😻</span>
+                  <span>Purr + Meong</span>
                 </button>
                 <button
                   type="button"

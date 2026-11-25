@@ -21,6 +21,10 @@ export type GrowthStageDefinition = {
   appearance: StageAppearance;
 };
 
+// Skala konstanta ukuran Amter
+export const ADULT_SCALE = 0.68;  // Ukuran dewasa pakai ukuran anak kucing yang sebelumnya
+export const KITTEN_SCALE = 0.46; // Ukuran anak kucing diperkecil lagi
+
 export const GROWTH_STAGES: Record<GrowthStage, GrowthStageDefinition> = {
   anak: {
     stage: "anak",
@@ -28,11 +32,11 @@ export const GROWTH_STAGES: Record<GrowthStage, GrowthStageDefinition> = {
     subtitle: "Level 1–5 · Mungil & Penuh Rasa Ingin Tahu",
     icon: "🐱",
     minLevel: 1,
-    scale3d: 0.88,
+    scale3d: KITTEN_SCALE,
     description: "Tubuh masih mungil, langkah lincah, dan senang mengejar bola lonceng.",
     perks: ["Gerakan ekstra lincah", "Suara meong halus", "Cepat akrab saat dielus"],
     appearance: {
-      bodyScaleLabel: "0.88x (Mungil & bulat)",
+      bodyScaleLabel: "0.46x (Mungil & imut)",
       earProportion: "Telinga besar & mata bulat lebar",
       collarLabel: "Belum memakai kalung lonceng",
       stripeLabel: "Bulu halus polos hangat",
@@ -46,11 +50,11 @@ export const GROWTH_STAGES: Record<GrowthStage, GrowthStageDefinition> = {
     subtitle: "Level 6+ · Anggun, Tangguh & Setia",
     icon: "🐈",
     minLevel: 6,
-    scale3d: 1.12,
+    scale3d: ADULT_SCALE,
     description: "Tubuh tumbuh proporsional, bulu makin lebat, dan ikatan batin denganmu makin kuat.",
-    perks: ["Postur tubuh lebih besar", "Ekor lebih panjang & anggun", "Stamina bermain lebih tahan lama"],
+    perks: ["Postur tubuh ideal", "Ekor lebih panjang & anggun", "Stamina bermain lebih tahan lama"],
     appearance: {
-      bodyScaleLabel: "1.12x (Tegap & proporsional)",
+      bodyScaleLabel: "0.68x (Tegap & proporsional)",
       earProportion: "Telinga meruncing anggun & kumis panjang",
       collarLabel: "Kalung merah dengan lonceng emas",
       stripeLabel: "Corak belang dewasa & dada putih lebat",

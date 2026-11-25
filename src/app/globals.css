@@ -24,3 +24,99 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes mochiCardFloat {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes mochiLogoBob {
+  0%, 100% {
+    transform: translateY(0px) rotate(-1.5deg) scale(1);
+  }
+  50% {
+    transform: translateY(-6px) rotate(1.5deg) scale(1.03);
+  }
+}
+
+@keyframes cloudDriftSlow {
+  0%, 100% {
+    transform: translateX(-18px) translateY(0px);
+  }
+  50% {
+    transform: translateX(18px) translateY(-6px);
+  }
+}
+
+@keyframes cloudDriftReverse {
+  0%, 100% {
+    transform: translateX(16px) translateY(0px);
+  }
+  50% {
+    transform: translateX(-16px) translateY(5px);
+  }
+}
+
+@keyframes sparkleTwinkle {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(0.85) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.18) rotate(15deg);
+  }
+}
+
+@keyframes buttonShimmer {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(220%) skewX(-18deg);
+  }
+}
+
+.animate-mochi-card {
+  animation: mochiCardFloat 4s ease-in-out infinite;
+}
+
+.animate-mochi-logo {
+  animation: mochiLogoBob 3.2s ease-in-out infinite;
+}
+
+.animate-cloud-slow {
+  animation: cloudDriftSlow 7s ease-in-out infinite;
+}
+
+.animate-cloud-reverse {
+  animation: cloudDriftReverse 6s ease-in-out infinite;
+}
+
+.animate-sparkle {
+  animation: sparkleTwinkle 2.4s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  animation: buttonShimmer 2.8s infinite;
+}
+
+@keyframes pulseBorder {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(244, 63, 94, 0);
+  }
+}
+
+.needs-attention {
+  border: 1.5px solid #f43f5e !important;
+  background: #fff1f2 !important;
+  color: #be123c !important;
+  animation: pulseBorder 1.6s infinite;
+}

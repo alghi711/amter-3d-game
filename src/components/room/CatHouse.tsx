@@ -358,23 +358,33 @@ export default function CatHouse({
           <boxGeometry args={[2.8, 2.1, 0.05]} />
           <meshBasicMaterial color={preset.skyHex} />
         </mesh>
-        {/* Bukit Hijau Taman */}
-        <mesh position={[-0.5, -0.75, 0.03]} scale={[1.6, 0.55, 0.1]}>
-          <sphereGeometry args={[0.95, 16, 12]} />
+        {/* Bukit Hijau Taman (Pas di dalam bingkai jendela tanpa bocor ke samping/bawah) */}
+        <mesh position={[-0.45, -0.68, 0.03]} scale={[1.15, 0.42, 0.08]}>
+          <sphereGeometry args={[0.72, 16, 12]} />
           <meshBasicMaterial color="#76b87c" />
         </mesh>
-        <mesh position={[0.55, -0.8, 0.035]} scale={[1.7, 0.5, 0.1]}>
-          <sphereGeometry args={[0.85, 16, 12]} />
+        <mesh position={[0.48, -0.72, 0.035]} scale={[1.15, 0.38, 0.08]}>
+          <sphereGeometry args={[0.68, 16, 12]} />
+          <meshBasicMaterial color="#5da165" />
+        </mesh>
+        {/* Rumput Dasar Jendela agar bagian bawah kaca tertutup rapi */}
+        <mesh position={[0, -0.88, 0.038]}>
+          <boxGeometry args={[2.72, 0.28, 0.04]} />
           <meshBasicMaterial color="#5da165" />
         </mesh>
         {/* Awan Putih Lembut */}
-        <mesh position={[-0.55, 0.42, 0.04]} scale={[1.8, 0.75, 0.15]}>
-          <sphereGeometry args={[0.3, 12, 12]} />
+        <mesh position={[-0.55, 0.42, 0.04]} scale={[1.45, 0.65, 0.12]}>
+          <sphereGeometry args={[0.26, 12, 12]} />
           <meshBasicMaterial color="#ffffff" transparent opacity={0.92} />
         </mesh>
-        <mesh position={[0.55, 0.25, 0.04]} scale={[1.6, 0.7, 0.15]}>
-          <sphereGeometry args={[0.24, 12, 12]} />
+        <mesh position={[0.55, 0.25, 0.04]} scale={[1.35, 0.6, 0.12]}>
+          <sphereGeometry args={[0.22, 12, 12]} />
           <meshBasicMaterial color="#ffffff" transparent opacity={0.92} />
+        </mesh>
+        {/* Lapisan Kaca Jendela Halus */}
+        <mesh position={[0, 0, 0.05]}>
+          <planeGeometry args={[2.72, 2.02]} />
+          <meshStandardMaterial color="#e0f2fe" transparent opacity={0.14} roughness={0.1} metalness={0.2} />
         </mesh>
         {/* Kusen & Palang Jendela */}
         <mesh position={[0, 1.08, 0]}>

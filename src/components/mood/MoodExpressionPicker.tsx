@@ -13,8 +13,8 @@ export function MoodFaceIcon({ mood, size = 44 }: { mood: CatMood; size?: number
       aria-label={`Ekspresi ${mood}`}
       className="shrink-0"
     >
-      {/* Telinga: tegak saat senang/lapar, agak turun saat bosan/ngantuk */}
-      {mood === "bosan" || mood === "ngantuk" ? (
+      {/* Telinga: tegak saat senang/lapar, agak turun saat bosan/ngantuk/badmood */}
+      {mood === "bosan" || mood === "ngantuk" || mood === "badmood" ? (
         <>
           <polygon points="8,24 22,14 20,30" fill="#f4b673" stroke="#b45309" strokeWidth="2" strokeLinejoin="round" />
           <polygon points="56,24 42,14 44,30" fill="#f4b673" stroke="#b45309" strokeWidth="2" strokeLinejoin="round" />
@@ -69,6 +69,17 @@ export function MoodFaceIcon({ mood, size = 44 }: { mood: CatMood; size?: number
           </text>
         </>
       )}
+      {mood === "badmood" && (
+        <>
+          <line x1="19" y1="29" x2="28" y2="33" stroke="#7f1d1d" strokeWidth="2.5" strokeLinecap="round" />
+          <circle cx="24" cy="35" r="2.4" fill="#292524" />
+          <line x1="45" y1="29" x2="36" y2="33" stroke="#7f1d1d" strokeWidth="2.5" strokeLinecap="round" />
+          <circle cx="40" cy="35" r="2.4" fill="#292524" />
+          <text x="46" y="21" fontSize="10" fontWeight="bold" fill="#e11d48">
+            💢
+          </text>
+        </>
+      )}
 
       {/* Hidung & mulut */}
       <polygon points="30,38 34,38 32,40.5" fill="#e88a9a" />
@@ -77,8 +88,8 @@ export function MoodFaceIcon({ mood, size = 44 }: { mood: CatMood; size?: number
           <path d="M28 43 Q32 46 36 43" stroke="#292524" strokeWidth="2" strokeLinecap="round" fill="none" />
           <path d="M34 44 Q37 47 38 43" fill="#fb7185" />
         </>
-      ) : mood === "bosan" ? (
-        <path d="M28 44 Q32 41.5 36 44" stroke="#292524" strokeWidth="2" strokeLinecap="round" fill="none" />
+      ) : mood === "bosan" || mood === "badmood" ? (
+        <path d="M27 45 Q32 40.5 37 45" stroke="#292524" strokeWidth="2.2" strokeLinecap="round" fill="none" />
       ) : (
         <path d="M27 42 Q29.5 45 32 42 Q34.5 45 37 42" stroke="#292524" strokeWidth="2" strokeLinecap="round" fill="none" />
       )}
@@ -115,10 +126,10 @@ export default function MoodExpressionPicker({
         </div>
       </div>
 
-      {/* Grid 4 suasana hati */}
+      {/* Grid 5 suasana hati */}
       <div>
         <div className="flex items-center justify-between text-xs text-stone-500">
-          <span>Empat ekspresi suasana hati:</span>
+          <span>Lima ekspresi suasana hati:</span>
           {moodOverride && (
             <button
               type="button"
@@ -129,7 +140,7 @@ export default function MoodExpressionPicker({
             </button>
           )}
         </div>
-        <div className="mt-1.5 grid grid-cols-4 gap-1.5" role="radiogroup" aria-label="Pilih suasana hati">
+        <div className="mt-1.5 grid grid-cols-5 gap-1.5" role="radiogroup" aria-label="Pilih suasana hati">
           {(Object.keys(MOOD_DEFINITIONS) as CatMood[]).map((m) => {
             const isSelected = activeMood === m;
             return (

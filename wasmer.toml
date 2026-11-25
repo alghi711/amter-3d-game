@@ -1,0 +1,11 @@
+[package]
+name = "mochi-kucing-virtual"
+version = "1.0.0"
+description = "MOCHI - Kucing Virtual 3D Web App"
+
+[dependencies]
+"wasmer/static-web-server" = "1"
+
+[fs]
+public = "dist"
+settings = "settings"

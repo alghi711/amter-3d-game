@@ -12,10 +12,23 @@ export type MealItem = {
   fillColor: string;
   effect: Partial<CatStats>;
   message: string;
+  cooldownMs?: number;
+  isPremium?: boolean;
 };
 
 export const MEAL_ITEMS: Record<"makan" | "minum", MealItem[]> = {
   makan: [
+    {
+      id: "amter_food",
+      action: "makan",
+      label: "Amter Food",
+      icon: "👑",
+      fillColor: "#f59e0b",
+      effect: { hunger: 100, happiness: 45, energy: 30, thirst: 20, hygiene: 15 },
+      message: "melompat kegirangan menyantap Amter Food spesial! 😻✨",
+      cooldownMs: 120_000,
+      isPremium: true,
+    },
     { id: "kibble", action: "makan", label: "Biskuit Ikan", icon: "🐟", fillColor: "#a0522d", effect: { hunger: 25, happiness: 5 }, message: "melahap biskuit ikan dengan lahap" },
     { id: "salmon", action: "makan", label: "Salmon Segar", icon: "🍣", fillColor: "#fa8072", effect: { hunger: 40, happiness: 15 }, message: "sangat senang makan salmon segar!" },
     { id: "snack", action: "makan", label: "Camilan Krim", icon: "🍮", fillColor: "#fde68a", effect: { hunger: 15, happiness: 20 }, message: "menjilat camilan krim sampai habis" },
@@ -118,13 +131,13 @@ export const ACTION_COOLDOWN_MS: Record<CareInteractionType, number> = {
   elus: 800,
 };
 
-/** Penurunan alami kondisi kucing per jam (bila ditinggal lama). */
+/** Penurunan alami kondisi kucing per menit (dan saat offline ditinggal lama). */
 export const HOURLY_DECAY_RATES: Record<keyof CatStats, number> = {
-  hunger: 6,
-  thirst: 8,
-  hygiene: 4,
-  happiness: 5,
-  energy: 3,
+  hunger: 22,
+  thirst: 25,
+  hygiene: 18,
+  happiness: 24,
+  energy: 12,
 };
 
 const clampStat = (v: number): number => Math.max(0, Math.min(100, Math.round(v * 10) / 10));
@@ -132,7 +145,7 @@ const clampStat = (v: number): number => Math.max(0, Math.min(100, Math.round(v 
 /** Hitung kondisi kucing setelah memperhitungkan waktu berlalu sejak update terakhir. */
 export function applyTimeDecay(stats: CatStats, lastUpdatedAtMs: number, nowMs = Date.now()): CatStats {
   const elapsedHours = Math.max(0, Math.min(24, (nowMs - lastUpdatedAtMs) / 3_600_000));
-  if (elapsedHours < 0.01) return { ...stats };
+  if (elapsedHours < 0.005) return { ...stats };
   return {
     hunger: clampStat(stats.hunger - HOURLY_DECAY_RATES.hunger * elapsedHours),
     thirst: clampStat(stats.thirst - HOURLY_DECAY_RATES.thirst * elapsedHours),

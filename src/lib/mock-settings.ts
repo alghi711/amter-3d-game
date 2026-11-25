@@ -23,9 +23,9 @@ export type GameSettings = {
 
 export const defaultSettings: GameSettings = {
   soundEnabled: true,
-  sfxVolume: 80,
-  musicEnabled: false,
-  musicVolume: 60,
+  sfxVolume: 100,
+  musicEnabled: true,
+  musicVolume: 85,
   vocalPitch: "anak",
 
   graphicsQuality: "sedang",

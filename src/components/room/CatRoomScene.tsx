@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { MathUtils, MOUSE, TOUCH, type Group, type Mesh } from "three";
 import { resolveAnimState, type CatAnimState } from "@/lib/cat-animation";
-import type { GrowthStage } from "@/lib/mock-growth";
+import { ADULT_SCALE, KITTEN_SCALE, type GrowthStage } from "@/lib/mock-growth";
 import type { CatMood } from "@/lib/mock-mood";
 import { CAMERA_CONTROL_PRESETS, useInputKind } from "@/lib/use-input-kind";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -60,6 +60,80 @@ function RoutineEffect({ state }: { state: CatAnimState }) {
         <mesh key={i}>
           <octahedronGeometry args={[0.085, mode === "sleep" ? 2 : 0]} />
           <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.45} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function HappyCelebrationParticles() {
+  const group = useRef<Group>(null);
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    if (!group.current) return;
+    group.current.children.forEach((c, i) => {
+      const angle = t * 4.2 + i * ((Math.PI * 2) / 8);
+      const radius = 0.55 + Math.sin(t * 6 + i) * 0.18;
+      const yOffset = ((t * 1.4 + i * 0.25) % 1.6);
+      c.position.set(Math.cos(angle) * radius, 0.7 + yOffset * 1.25, Math.sin(angle) * radius);
+      c.rotation.y = t * 5 + i;
+      c.rotation.z = t * 3 + i;
+      const pulse = Math.sin((yOffset / 1.6) * Math.PI);
+      c.scale.setScalar(0.7 + pulse * 0.65);
+    });
+  });
+  const colors = ["#fbbf24", "#ff5e7e", "#f59e0b", "#fde047", "#fb7185", "#34d399", "#fbbf24", "#ff5e7e"];
+  return (
+    <group ref={group}>
+      {colors.map((col, i) => (
+        <mesh key={i}>
+          {i % 2 === 0 ? (
+            <octahedronGeometry args={[0.11, 0]} />
+          ) : (
+            <dodecahedronGeometry args={[0.095, 0]} />
+          )}
+          <meshStandardMaterial color={col} emissive={col} emissiveIntensity={0.65} roughness={0.2} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function StinkFlies({ dirty, badmood }: { dirty: boolean; badmood: boolean }) {
+  const group = useRef<Group>(null);
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    if (!group.current) return;
+    group.current.children.forEach((c, i) => {
+      if (i < 4) {
+        // Awan kusam / bau naik pelan
+        const phase = (t * 0.55 + i * 0.25) % 1;
+        const angle = i * 1.57 + t * 0.7;
+        c.position.set(Math.cos(angle) * 0.52, 0.5 + phase * 1.3, Math.sin(angle) * 0.52);
+        c.scale.setScalar(Math.sin(phase * Math.PI) * 0.85);
+      } else {
+        // Lalat kecil mengitari kepala saat kotor/badmood
+        const flyIdx = i - 4;
+        const angle = t * (3.8 + flyIdx * 0.9) + flyIdx * 2.1;
+        const r = 0.62 + Math.sin(t * 5 + flyIdx) * 0.14;
+        c.position.set(Math.cos(angle) * r, 1.55 + Math.sin(t * 9 + flyIdx) * 0.18, Math.sin(angle) * r);
+      }
+    });
+  });
+
+  if (!dirty && !badmood) return null;
+  return (
+    <group ref={group}>
+      {[0, 1, 2, 3].map((i) => (
+        <mesh key={`cloud-${i}`} visible={dirty}>
+          <sphereGeometry args={[0.11, 10, 10]} />
+          <meshStandardMaterial color="#78716c" transparent opacity={0.42} roughness={0.9} />
+        </mesh>
+      ))}
+      {[0, 1, 2].map((i) => (
+        <mesh key={`fly-${i}`}>
+          <sphereGeometry args={[0.032, 8, 8]} />
+          <meshBasicMaterial color={badmood && !dirty ? "#e11d48" : "#292524"} />
         </mesh>
       ))}
     </group>
@@ -162,6 +236,8 @@ function Cat({
   onHoverSpot,
   anim,
   bathing = false,
+  superHappy = false,
+  dirty = false,
   mood = "senang",
   growthScale = 1,
   stage = "dewasa",
@@ -170,6 +246,8 @@ function Cat({
 }: {
   anim: QualityProfile["anim"];
   bathing?: boolean;
+  superHappy?: boolean;
+  dirty?: boolean;
   mood?: CatMood;
   growthScale?: number;
   stage?: GrowthStage;
@@ -202,9 +280,27 @@ function Cat({
 
   const textures = useMemo(() => {
     if (typeof document === "undefined") return null;
+    const bellyCanvas = document.createElement("canvas");
+    bellyCanvas.width = 512;
+    bellyCanvas.height = 512;
+    const ctx = bellyCanvas.getContext("2d");
+    if (ctx) {
+      ctx.fillStyle = "#fff5e6";
+      ctx.fillRect(0, 0, 512, 512);
+      ctx.font = "900 48px 'Fredoka', 'Plus Jakarta Sans', sans-serif";
+      ctx.fillStyle = "#5a2711";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("Amter", 256, 232);
+    }
+    const bellyTex = new THREE.CanvasTexture(bellyCanvas);
+    bellyTex.colorSpace = THREE.SRGBColorSpace;
+    bellyTex.needsUpdate = true;
+
     return {
       fur: createCatFurGradientTexture(),
       shadow: createContactShadowTexture(),
+      belly: bellyTex,
     };
   }, []);
 
@@ -235,7 +331,7 @@ function Cat({
     onPettingChange?.(true);
   };
   const onMove = (e: ThreeEvent<PointerEvent>) => {
-    onHoverSpot?.("Mochi 🐱 · Klik / Usap untuk Mengelus & Bersuara", e.clientX, e.clientY);
+    onHoverSpot?.("Amter 🐱 · Klik / Usap untuk Mengelus & Bersuara", e.clientX, e.clientY);
     const st = stroke.current;
     if (!st) return;
     e.stopPropagation();
@@ -313,7 +409,12 @@ function Cat({
       }
 
       // Animasi ayunan 4 kaki Mochi (Front paws & hind feet)
-      if (moving) {
+      if (superHappy && !moving) {
+        if (leftFrontPawRef.current) leftFrontPawRef.current.rotation.x = -0.85 + Math.sin(elapsed * 18) * 0.45;
+        if (rightFrontPawRef.current) rightFrontPawRef.current.rotation.x = -0.85 - Math.sin(elapsed * 18) * 0.45;
+        if (leftHindFootRef.current) leftHindFootRef.current.position.y = 0.14 + Math.abs(Math.sin(elapsed * 13)) * 0.08;
+        if (rightHindFootRef.current) rightHindFootRef.current.position.y = 0.14 + Math.abs(Math.cos(elapsed * 13)) * 0.08;
+      } else if (moving) {
         if (leftFrontPawRef.current) leftFrontPawRef.current.rotation.x = 0.3 + Math.sin(elapsed * 14) * 0.45;
         if (rightFrontPawRef.current) rightFrontPawRef.current.rotation.x = 0.3 - Math.sin(elapsed * 14) * 0.45;
         if (leftHindFootRef.current) leftHindFootRef.current.position.y = 0.12 + Math.max(0, -Math.sin(elapsed * 14)) * 0.08;
@@ -364,33 +465,34 @@ function Cat({
     }
 
     // Ekor belang bergoyang anggun
-    const moodTailMul = mood === "senang" ? 1.2 : mood === "bosan" ? 0.65 : mood === "ngantuk" ? 0.5 : 1;
+    const moodTailMul = superHappy ? 2.1 : mood === "senang" ? 1.2 : mood === "bosan" ? 0.65 : mood === "ngantuk" ? 0.5 : 1;
     if (tailPivot.current) {
       const speed = (next === "kesal" ? 12 : next === "main" ? 7 : 4.5) * moodTailMul;
-      tailPivot.current.rotation.z = Math.sin(elapsed * speed) * 0.35;
+      tailPivot.current.rotation.z = Math.sin(elapsed * speed) * (superHappy ? 0.52 : 0.35);
       tailPivot.current.rotation.x = Math.cos(elapsed * 2.5) * 0.12;
     }
 
     // Gerak telinga kucing
-    const earDroop = mood === "bosan" || mood === "ngantuk" ? 0.16 : 0;
+    const earDroop = mood === "badmood" ? 0.34 : mood === "bosan" || mood === "ngantuk" ? 0.16 : 0;
     if (leftEar.current && rightEar.current) {
-      leftEar.current.rotation.z = 0.38 + earDroop + Math.sin(elapsed * 2.8) * 0.06;
-      rightEar.current.rotation.z = -0.38 - earDroop - Math.sin(elapsed * 3.1) * 0.06;
+      const earWiggle = superHappy ? Math.sin(elapsed * 14) * 0.15 : Math.sin(elapsed * 2.8) * 0.06;
+      leftEar.current.rotation.z = 0.38 + earDroop + earWiggle;
+      rightEar.current.rotation.z = -0.38 - earDroop - earWiggle;
     }
 
     // Kedipan mata & ekspresi mood
     const blinkCycle = elapsed % 4.2;
     const isBlinking =
-      (blinkCycle > 3.95 && blinkCycle < 4.1) || next === "tidur" || next === "dielus";
-    const openEyeY = mood === "ngantuk" ? 0.45 : mood === "bosan" ? 0.72 : mood === "lapar" ? 1.12 : 1.0;
+      (blinkCycle > 3.95 && blinkCycle < 4.1) || next === "tidur" || next === "dielus" || (superHappy && Math.sin(elapsed * 6) > 0.2);
+    const openEyeY = mood === "ngantuk" ? 0.45 : mood === "badmood" ? 0.58 : mood === "bosan" ? 0.72 : mood === "lapar" ? 1.12 : 1.0;
     if (leftEyeGroup.current && rightEyeGroup.current) {
-      leftEyeGroup.current.scale.y = isBlinking ? 0.14 : openEyeY;
-      rightEyeGroup.current.scale.y = isBlinking ? 0.14 : openEyeY;
+      leftEyeGroup.current.scale.y = isBlinking ? 0.18 : openEyeY;
+      rightEyeGroup.current.scale.y = isBlinking ? 0.18 : openEyeY;
     }
 
     // Mulut pink terbuka saat mengeong / makan / bersuara
     const mouthActive =
-      vocalizing || next === "makan" || next === "minum" || next === "dielus" || next === "kaget";
+      superHappy || vocalizing || next === "makan" || next === "minum" || next === "dielus" || next === "kaget";
     if (openMouthMesh.current) {
       if (mouthActive) {
         openMouthMesh.current.scale.y = 0.55 + Math.abs(Math.sin(elapsed * 18)) * 0.85;
@@ -401,38 +503,48 @@ function Cat({
 
     // Animasi kepala & badan aktif
     if (headGroup.current && bodyGroup.current) {
-      if (next === "dielus" || next === "kaget" || next === "mandi") {
-        headGroup.current.rotation.z = Math.sin(elapsed * 10) * 0.13;
-        if (!moving) bodyGroup.current.position.y = Math.abs(Math.sin(elapsed * 9)) * 0.12;
-      } else if (next === "makan" || next === "minum") {
-        headGroup.current.rotation.x = 0.28 + Math.sin(elapsed * 15) * 0.14;
-        headGroup.current.rotation.z = 0;
-      } else if (next === "main" || next === "garuk") {
-        if (!moving) bodyGroup.current.position.y = Math.abs(Math.sin(elapsed * 11)) * 0.2;
-        headGroup.current.rotation.z = Math.sin(elapsed * 7) * 0.08;
-      } else if (next === "tidur") {
-        headGroup.current.rotation.x = MathUtils.lerp(headGroup.current.rotation.x, 0.22, dt * 6);
-        headGroup.current.rotation.z = MathUtils.lerp(headGroup.current.rotation.z, 0.12, dt * 6);
+      if (superHappy && !moving) {
+        bodyGroup.current.position.y = Math.abs(Math.sin(elapsed * 12)) * 0.32;
+        bodyGroup.current.rotation.y = Math.sin(elapsed * 6.5) * 0.38;
+        bodyGroup.current.rotation.z = Math.sin(elapsed * 12) * 0.09;
+        headGroup.current.rotation.z = Math.sin(elapsed * 12) * 0.22;
+        headGroup.current.rotation.x = -0.1 + Math.sin(elapsed * 14) * 0.12;
       } else {
-        headGroup.current.rotation.z = Math.sin(elapsed * 1.6) * 0.04;
-        headGroup.current.rotation.x = Math.sin(elapsed * 1.2) * 0.03;
+        bodyGroup.current.rotation.y = MathUtils.lerp(bodyGroup.current.rotation.y, 0, dt * 8);
+        bodyGroup.current.rotation.z = MathUtils.lerp(bodyGroup.current.rotation.z, 0, dt * 8);
+        if (next === "dielus" || next === "kaget" || next === "mandi") {
+          headGroup.current.rotation.z = Math.sin(elapsed * 10) * 0.13;
+          if (!moving) bodyGroup.current.position.y = Math.abs(Math.sin(elapsed * 9)) * 0.12;
+        } else if (next === "makan" || next === "minum") {
+          headGroup.current.rotation.x = 0.28 + Math.sin(elapsed * 15) * 0.14;
+          headGroup.current.rotation.z = 0;
+        } else if (next === "main" || next === "garuk") {
+          if (!moving) bodyGroup.current.position.y = Math.abs(Math.sin(elapsed * 11)) * 0.2;
+          headGroup.current.rotation.z = Math.sin(elapsed * 7) * 0.08;
+        } else if (next === "tidur") {
+          headGroup.current.rotation.x = MathUtils.lerp(headGroup.current.rotation.x, 0.22, dt * 6);
+          headGroup.current.rotation.z = MathUtils.lerp(headGroup.current.rotation.z, 0.12, dt * 6);
+        } else {
+          headGroup.current.rotation.z = Math.sin(elapsed * 1.6) * 0.04;
+          headGroup.current.rotation.x = Math.sin(elapsed * 1.2) * 0.03;
+        }
       }
     }
 
-    // Skala pertumbuhan kucing (Anak 0.68x -> Dewasa 1.0x)
+    // Skala pertumbuhan kucing (Anak 0.46x -> Dewasa 0.68x)
     if (scaleGroup.current) {
-      const targetScale = stage === "anak" ? 0.68 : growthScale;
-      const nextScale = MathUtils.damp(scaleGroup.current.scale.x, targetScale, 5, dt);
+      const targetScale = stage === "anak" ? KITTEN_SCALE : (growthScale || ADULT_SCALE);
+      const nextScale = MathUtils.damp(scaleGroup.current.scale.x, targetScale, 6, dt);
       scaleGroup.current.scale.setScalar(nextScale);
     }
 
-    // Update proyeksi koordinat 3D kepala Mochi ke layar untuk Speech Bubble
+    // Update proyeksi koordinat 3D kepala Amter ke layar untuk Speech Bubble
     if (headGroup.current && typeof document !== "undefined") {
       const bubbleEl = document.getElementById(headScreenElementId);
       if (bubbleEl) {
         const vec = headWorldRef.current;
         headGroup.current.getWorldPosition(vec);
-        vec.y += stage === "anak" ? 0.65 : 0.85;
+        vec.y += stage === "anak" ? 0.38 : 0.58;
         vec.project(camera);
         const screenX = (vec.x * 0.5 + 0.5) * size.width;
         const screenY = (-(vec.y * 0.5) + 0.5) * size.height;
@@ -442,7 +554,7 @@ function Cat({
     }
   });
 
-  const orangeColor = color || "#f29b4b";
+  const orangeColor = dirty ? "#b86b35" : color || "#f29b4b";
 
   return (
     <group
@@ -455,22 +567,22 @@ function Cat({
       onPointerOver={(e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
         document.body.style.cursor = "pointer";
-        onHoverSpot?.("Mochi 🐱 · Klik / Usap untuk Mengelus & Bersuara", e.clientX, e.clientY);
+        onHoverSpot?.("Amter 🐱 · Klik / Usap untuk Mengelus & Bersuara", e.clientX, e.clientY);
       }}
       onPointerOut={() => {
         document.body.style.cursor = "auto";
         onHoverSpot?.(null);
       }}
     >
-      {/* Bayangan kontak halus di bawah Mochi */}
+      {/* Bayangan kontak halus di bawah Amter */}
       {textures?.shadow && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 0]}>
-          <planeGeometry args={[1.7, 1.7]} />
+          <planeGeometry args={[stage === "anak" ? 1.05 : 1.45, stage === "anak" ? 1.05 : 1.45]} />
           <meshBasicMaterial map={textures.shadow} transparent depthWrite={false} />
         </mesh>
       )}
 
-      <group ref={scaleGroup} scale={growthScale}>
+      <group ref={scaleGroup} scale={stage === "anak" ? KITTEN_SCALE : ADULT_SCALE}>
         <group ref={bodyGroup}>
           {/* Torso Chubby */}
           <mesh
@@ -489,10 +601,10 @@ function Cat({
             />
           </mesh>
 
-          {/* Bulu Dada / Perut Krem Putih */}
-          <mesh name="badan" position={[0, 0.59, 0.44]} scale={[0.86, 0.88, 0.56]}>
+          {/* Bulu Dada / Perut Krem Putih dengan Tulisan "Amter" */}
+          <mesh name="badan" position={[0, 0.59, 0.44]} rotation={[0, -Math.PI / 2, 0]} scale={[0.56, 0.88, 0.86]}>
             <sphereGeometry args={[0.53, 32, 32]} />
-            <meshStandardMaterial color="#fff5e6" roughness={0.55} />
+            <meshStandardMaterial map={textures?.belly ?? null} color="#fff5e6" roughness={0.55} />
           </mesh>
 
           {/* 3 Garis Belang di Punggung */}
@@ -503,13 +615,13 @@ function Cat({
             </mesh>
           ))}
 
-          {/* Kaki Depan Kiri & Kanan */}
+          {/* Kaki Depan Kiri & Kanan (Digeser sedikit ke samping agar tulisan "Amter" di perut terlihat penuh) */}
           <mesh
             ref={leftFrontPawRef}
             name="badan"
-            position={[-0.28, 0.36, 0.58]}
+            position={[-0.34, 0.34, 0.54]}
             rotation={[0.3, 0, 0]}
-            scale={[0.88, 1.35, 0.92]}
+            scale={[0.82, 1.3, 0.88]}
             castShadow
           >
             <sphereGeometry args={[0.175, 20, 20]} />
@@ -518,9 +630,9 @@ function Cat({
           <mesh
             ref={rightFrontPawRef}
             name="badan"
-            position={[0.28, 0.36, 0.58]}
+            position={[0.34, 0.34, 0.54]}
             rotation={[0.3, 0, 0]}
-            scale={[0.88, 1.35, 0.92]}
+            scale={[0.82, 1.3, 0.88]}
             castShadow
           >
             <sphereGeometry args={[0.175, 20, 20]} />
@@ -708,6 +820,8 @@ function Cat({
         </group>
 
         {bathing && <SoapBubbles />}
+        {superHappy && <HappyCelebrationParticles />}
+        <StinkFlies dirty={dirty && !bathing} badmood={mood === "badmood" && !superHappy} />
         <RoutineEffect state={activeRoutineAnim} />
         {hearts.map((h) => (
           <Heart key={h} onDone={() => setHearts((all) => all.filter((x) => x !== h))} />
@@ -841,6 +955,8 @@ export default function CatRoomScene({
   foodBowlState,
   waterBowlState,
   bathing = false,
+  superHappy = false,
+  dirty = false,
   litterDirty = false,
   toyColor = "#f4b928",
   playingToy = false,
@@ -865,6 +981,8 @@ export default function CatRoomScene({
   foodBowlState?: BowlState;
   waterBowlState?: BowlState;
   bathing?: boolean;
+  superHappy?: boolean;
+  dirty?: boolean;
   litterDirty?: boolean;
   toyColor?: string;
   playingToy?: boolean;
@@ -967,6 +1085,8 @@ export default function CatRoomScene({
         onHoverSpot={onHoverSpot}
         anim={q.anim}
         bathing={bathing}
+        superHappy={superHappy}
+        dirty={dirty}
         mood={mood}
         growthScale={growthScale}
         stage={stage}

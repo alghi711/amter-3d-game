@@ -19,44 +19,54 @@ export type PlayerAccount = {
   deviceLabel: string;
 };
 
-export const mockDefaultAccount: PlayerAccount = {
-  id: "user-mochi-player-01",
-  name: "Budi Petualang",
-  email: "budi.catlover@example.com",
-  avatar: "🐱",
-  isGuest: false,
-  recoveryCode: "MOCHI-7K9A-4M2P-9XQ3",
-  joinedAt: "1 November 2026",
-  lastActiveAt: "Baru saja",
-  linkedCat: {
-    id: "cat-mochi",
-    name: "Mochi",
-    stage: "anak",
-    level: 3,
-    experience: 145,
-    closeness: 74,
-    furColor: "#f4b673",
-  },
-  deviceLabel: "Laptop Safari · macOS",
-};
+/** Buat akun tamu baru yang dimulai bersih dari Level 1 (0 XP). */
+export function createFreshGuestAccount(customId?: number): PlayerAccount {
+  const num = customId ?? Math.floor(1000 + Math.random() * 9000);
+  const codePart1 = Math.random().toString(36).substring(2, 6).toUpperCase() || "NEW1";
+  const codePart2 = Math.random().toString(36).substring(2, 6).toUpperCase() || "CAT1";
+  return {
+    id: `user-guest-${num}`,
+    name: `Tamu #${num}`,
+    email: null,
+    avatar: "🐾",
+    isGuest: true,
+    recoveryCode: `AMTER-${codePart1}-${codePart2}`,
+    joinedAt: "Hari ini",
+    lastActiveAt: "Baru saja",
+    linkedCat: {
+      id: "cat-amter",
+      name: "Amter",
+      stage: "anak",
+      level: 1,
+      experience: 0,
+      closeness: 10,
+      furColor: "#f4b673",
+    },
+    deviceLabel: "Perangkat ini (Tamu Baru)",
+  };
+}
 
 export const mockGuestAccount: PlayerAccount = {
-  id: "user-guest-mochi-882",
-  name: "Tamu Petualang #882",
+  id: "user-guest-baru",
+  name: "Pemain Tamu",
   email: null,
   avatar: "🐾",
   isGuest: true,
-  recoveryCode: "MOCHI-GUEST-3819-XK72",
-  joinedAt: "8 November 2026",
+  recoveryCode: "AMTER-TAMU-BARU-0001",
+  joinedAt: "Hari ini",
   lastActiveAt: "Baru saja",
   linkedCat: {
-    id: "cat-mochi",
-    name: "Mochi",
+    id: "cat-amter",
+    name: "Amter",
     stage: "anak",
-    level: 3,
-    experience: 145,
-    closeness: 74,
+    level: 1,
+    experience: 0,
+    closeness: 10,
     furColor: "#f4b673",
   },
   deviceLabel: "Perangkat ini (Tamu)",
+};
+
+export const mockDefaultAccount: PlayerAccount = {
+  ...mockGuestAccount,
 };

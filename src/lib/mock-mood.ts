@@ -1,7 +1,7 @@
 import type { HouseSpot } from "@/components/room/CatHouse";
 import type { CatStats } from "@/lib/mock-cat";
 
-export type CatMood = "senang" | "lapar" | "bosan" | "ngantuk";
+export type CatMood = "senang" | "lapar" | "bosan" | "ngantuk" | "badmood";
 
 export type MoodInfo = {
   mood: CatMood;
@@ -45,6 +45,14 @@ export const MOOD_DEFINITIONS: Record<CatMood, Omit<MoodInfo, "reason">> = {
     badgeColor: "bg-indigo-100 text-indigo-700",
     expression: "Kelopak mata sayu & sering menguap",
     sound: "Hoaam… zzz",
+  },
+  badmood: {
+    mood: "badmood",
+    label: "Badmood & Kotor",
+    emoji: "😾",
+    badgeColor: "bg-rose-200 text-rose-800",
+    expression: "Telinga terlipat kesal, bulu kusam & cemberut karena lama ditinggal",
+    sound: "Hmph! Meong kesal~ 😾💢",
   },
 };
 
@@ -174,6 +182,19 @@ export function deriveCatMood(stats: CatStats, hour = 9, override?: CatMood | nu
     const base = MOOD_DEFINITIONS[override];
     return { ...base, reason: "Dipilih dari simulasi suasana hati" };
   }
+  if (
+    stats.hygiene < 38 ||
+    stats.happiness < 35 ||
+    (stats.hunger < 35 && stats.hygiene < 50)
+  ) {
+    return {
+      ...MOOD_DEFINITIONS.badmood,
+      reason:
+        stats.hygiene < 38
+          ? "Badan & kamar kotor karena lama tidak dibersihkan/dimandikan"
+          : "Kelaparan dan kesepian karena lama ditinggal sendiri",
+    };
+  }
   if (stats.hunger < 45 || stats.thirst < 40) {
     return {
       ...MOOD_DEFINITIONS.lapar,
@@ -186,10 +207,10 @@ export function deriveCatMood(stats: CatStats, hour = 9, override?: CatMood | nu
       reason: stats.energy < 35 ? "Energi mulai habis setelah beraktivitas" : "Sudah memasuki jam tidur malam",
     };
   }
-  if (stats.happiness < 55 || stats.hygiene < 45) {
+  if (stats.happiness < 55 || stats.hygiene < 50) {
     return {
       ...MOOD_DEFINITIONS.bosan,
-      reason: stats.happiness < 55 ? "Sudah agak lama belum diajak bermain" : "Merasa kurang nyaman karena bulu kotor",
+      reason: stats.happiness < 55 ? "Sudah agak lama belum diajak bermain" : "Merasa kurang nyaman karena bulu mulai kotor",
     };
   }
   return {

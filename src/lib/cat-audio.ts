@@ -20,10 +20,10 @@ export type SoundEffectType =
 
 let audioCtx: AudioContext | null = null;
 let soundEnabledState = true;
-let sfxVolumeState = 0.8; // 0.0 - 1.0
+let sfxVolumeState = 1.0; // 0.0 - 1.0 (Maksimal kencang & jernih)
 
-let musicEnabledState = false;
-let musicVolumeState = 0.6; // 0.0 - 1.0
+let musicEnabledState = true;
+let musicVolumeState = 0.85; // 0.0 - 1.0 (Keras & hangat)
 let bgmGainNode: GainNode | null = null;
 let bgmIntervalId: NodeJS.Timeout | null = null;
 let bgmStep = 0;
@@ -31,20 +31,31 @@ let bgmStep = 0;
 const realCatAudio: { meow1?: HTMLAudioElement; meow2?: HTMLAudioElement; purr?: HTMLAudioElement } = {};
 
 function initRealAudio() {
-  if (typeof window === "undefined" || realCatAudio.meow1) return;
+  if (typeof window === "undefined" || realCatAudio.purr) return;
   try {
-    realCatAudio.meow1 = new Audio("https://upload.wikimedia.org/wikipedia/commons/6/66/Meow.ogg");
-    realCatAudio.meow2 = new Audio("https://upload.wikimedia.org/wikipedia/commons/0/06/Meow_domestic_cat.ogg");
-    realCatAudio.purr = new Audio("https://upload.wikimedia.org/wikipedia/commons/6/60/Cat_purring.ogg");
+    realCatAudio.meow1 = new Audio("/sounds/cat-meow.wav");
+    realCatAudio.meow2 = new Audio("/sounds/cat-meow.wav");
+    realCatAudio.purr = new Audio("/sounds/cat-purr.wav");
     Object.values(realCatAudio).forEach((a) => {
       if (a) {
-        a.crossOrigin = "anonymous";
         a.preload = "auto";
-        a.volume = Math.max(0, Math.min(1, 0.65 * sfxVolumeState));
+        a.volume = Math.max(0, Math.min(1, 1.0 * sfxVolumeState));
       }
     });
   } catch {
     // abaikan di SSR / lingkungan tanpa audio
+  }
+}
+
+function playAudioSample(src: string, volume = 1.0, playbackRate = 1.0) {
+  if (typeof window === "undefined") return;
+  try {
+    const audio = new Audio(src);
+    audio.volume = Math.max(0, Math.min(1, volume * sfxVolumeState));
+    audio.playbackRate = playbackRate;
+    audio.play().catch(() => {});
+  } catch {
+    // abaikan jika dicegah browser
   }
 }
 
@@ -63,7 +74,7 @@ export function getSfxVolume(): number {
 export function setSfxVolume(volPercent: number): void {
   sfxVolumeState = Math.max(0, Math.min(100, volPercent)) / 100;
   Object.values(realCatAudio).forEach((a) => {
-    if (a) a.volume = Math.max(0, Math.min(1, 0.65 * sfxVolumeState));
+    if (a) a.volume = Math.max(0, Math.min(1, 1.0 * sfxVolumeState));
   });
 }
 
@@ -78,7 +89,7 @@ export function getMusicVolume(): number {
 export function setMusicVolume(volPercent: number): void {
   musicVolumeState = Math.max(0, Math.min(100, volPercent)) / 100;
   if (bgmGainNode && audioCtx) {
-    const targetGain = musicEnabledState ? musicVolumeState * 0.14 : 0;
+    const targetGain = musicEnabledState ? musicVolumeState * 0.65 : 0;
     bgmGainNode.gain.cancelScheduledValues(audioCtx.currentTime);
     bgmGainNode.gain.linearRampToValueAtTime(targetGain, audioCtx.currentTime + 0.1);
   }
@@ -115,17 +126,17 @@ function playAmbientChord(ctx: AudioContext, masterGain: GainNode, chordIdx: num
     const filter = ctx.createBiquadFilter();
 
     osc.type = idx % 2 === 0 ? "sine" : "triangle";
-    osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+    osc.frequency.setValueAtTime(freq, now + idx * 0.08);
 
     filter.type = "lowpass";
-    filter.frequency.setValueAtTime(900, now);
-    filter.Q.setValueAtTime(1.2, now);
+    filter.frequency.setValueAtTime(1400, now);
+    filter.Q.setValueAtTime(1.0, now);
 
-    const noteStart = now + idx * 0.12;
-    const noteDur = 2.4;
+    const noteStart = now + idx * 0.08;
+    const noteDur = 2.6;
 
     noteGain.gain.setValueAtTime(0.0001, noteStart);
-    noteGain.gain.linearRampToValueAtTime(0.18 / notes.length, noteStart + 0.35);
+    noteGain.gain.linearRampToValueAtTime(0.55 / Math.sqrt(notes.length), noteStart + 0.25);
     noteGain.gain.exponentialRampToValueAtTime(0.0001, noteStart + noteDur);
 
     osc.connect(filter);
@@ -135,6 +146,21 @@ function playAmbientChord(ctx: AudioContext, masterGain: GainNode, chordIdx: num
     osc.start(noteStart);
     osc.stop(noteStart + noteDur + 0.05);
   });
+
+  // Melodic acoustic chime accent yang merdu dan jelas
+  const melodyNotes = [523.25, 659.25, 783.99, 880.0, 1046.5];
+  const chimeFreq = melodyNotes[(chordIdx * 2 + 1) % melodyNotes.length];
+  const chimeOsc = ctx.createOscillator();
+  const chimeGain = ctx.createGain();
+  chimeOsc.type = "sine";
+  chimeOsc.frequency.setValueAtTime(chimeFreq, now + 0.5);
+  chimeGain.gain.setValueAtTime(0.0001, now + 0.5);
+  chimeGain.gain.linearRampToValueAtTime(0.32, now + 0.58);
+  chimeGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.8);
+  chimeOsc.connect(chimeGain);
+  chimeGain.connect(masterGain);
+  chimeOsc.start(now + 0.5);
+  chimeOsc.stop(now + 1.85);
 }
 
 export function startBackgroundMusic(): void {
@@ -148,7 +174,7 @@ export function startBackgroundMusic(): void {
   }
 
   musicEnabledState = true;
-  const targetGain = musicVolumeState * 0.14;
+  const targetGain = musicVolumeState * 0.65;
   bgmGainNode.gain.cancelScheduledValues(ctx.currentTime);
   bgmGainNode.gain.setValueAtTime(bgmGainNode.gain.value, ctx.currentTime);
   bgmGainNode.gain.linearRampToValueAtTime(targetGain, ctx.currentTime + 0.8);
@@ -207,31 +233,16 @@ export function playCatVocal(type: SoundEffectType, isKitten = false): void {
 
     // Putar rekaman sampel kucing asli jika tersedia untuk meow / purr
     if (type === "meow" || type === "happy_meow") {
-      const sample = type === "happy_meow" ? realCatAudio.meow1 : realCatAudio.meow2;
-      if (sample) {
-        sample.volume = Math.max(0, Math.min(1, 0.65 * sfxVolumeState));
-        sample.currentTime = 0;
-        sample.playbackRate = isKitten ? 1.32 : 1.04;
-        sample.play().catch(() => {});
-      }
+      playAudioSample("/sounds/cat-meow.wav", 1.0, isKitten ? 1.28 : 1.0);
     } else if (type === "purr") {
-      if (realCatAudio.purr) {
-        realCatAudio.purr.volume = Math.max(0, Math.min(1, 0.65 * sfxVolumeState));
-        realCatAudio.purr.currentTime = 0;
-        realCatAudio.purr.play().catch(() => {});
-        setTimeout(() => {
-          try {
-            realCatAudio.purr?.pause();
-          } catch {}
-        }, 1600);
-      }
+      playAudioSample("/sounds/cat-purr.wav", 1.0, isKitten ? 1.12 : 1.0);
     }
 
     if (!ctx) return;
 
     if (type === "meow" || type === "happy_meow" || type === "chirp") {
-      // Bio-acoustic double-formant cat meow ("M-eee-aaa-oow")
-      const dur = type === "chirp" ? 0.26 : 0.52;
+      // Bio-acoustic double-formant cat meow ("M-eee-aaa-oow") - kencang & jernih
+      const dur = type === "chirp" ? 0.32 : 0.62;
       const osc1 = ctx.createOscillator();
       const osc2 = ctx.createOscillator();
       const filter1 = ctx.createBiquadFilter();
@@ -241,9 +252,9 @@ export function playCatVocal(type: SoundEffectType, isKitten = false): void {
       osc1.type = "sawtooth";
       osc2.type = "triangle";
 
-      const baseF = (type === "chirp" ? 620 : 490) * pitchMult;
-      const peakF = (type === "chirp" ? 920 : 760) * pitchMult;
-      const endF = (type === "chirp" ? 680 : 410) * pitchMult;
+      const baseF = (type === "chirp" ? 640 : 510) * pitchMult;
+      const peakF = (type === "chirp" ? 960 : 790) * pitchMult;
+      const endF = (type === "chirp" ? 700 : 430) * pitchMult;
 
       osc1.frequency.setValueAtTime(baseF, now);
       osc1.frequency.exponentialRampToValueAtTime(peakF, now + dur * 0.35);
@@ -255,17 +266,17 @@ export function playCatVocal(type: SoundEffectType, isKitten = false): void {
 
       // Sapuan formant vokal ("ee" -> "ah" -> "oh")
       filter1.type = "bandpass";
-      filter1.Q.setValueAtTime(4.5, now);
-      filter1.frequency.setValueAtTime(800 * pitchMult, now);
-      filter1.frequency.exponentialRampToValueAtTime(1450 * pitchMult, now + dur * 0.4);
-      filter1.frequency.exponentialRampToValueAtTime(650 * pitchMult, now + dur);
+      filter1.Q.setValueAtTime(2.4, now);
+      filter1.frequency.setValueAtTime(850 * pitchMult, now);
+      filter1.frequency.exponentialRampToValueAtTime(1550 * pitchMult, now + dur * 0.4);
+      filter1.frequency.exponentialRampToValueAtTime(700 * pitchMult, now + dur);
 
-      filter2.type = "bandpass";
-      filter2.Q.setValueAtTime(3.2, now);
-      filter2.frequency.setValueAtTime(2200, now);
+      filter2.type = "lowpass";
+      filter2.Q.setValueAtTime(1.8, now);
+      filter2.frequency.setValueAtTime(2800 * pitchMult, now);
 
       masterGain.gain.setValueAtTime(0.001, now);
-      masterGain.gain.linearRampToValueAtTime(0.22 * sfxVolumeState, now + 0.06);
+      masterGain.gain.linearRampToValueAtTime(0.85 * sfxVolumeState, now + 0.07);
       masterGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
 
       osc1.connect(filter1);
@@ -279,37 +290,72 @@ export function playCatVocal(type: SoundEffectType, isKitten = false): void {
       osc1.stop(now + dur + 0.02);
       osc2.stop(now + dur + 0.02);
     } else if (type === "purr") {
-      // Rhythmic 27Hz feline purr
-      const osc = ctx.createOscillator();
+      // Dengkuran kucing bio-akustik (25.5Hz tremor laring + resonansi tenggorokan 95-180Hz)
+      const dur = 2.4;
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const osc3 = ctx.createOscillator();
       const lfo = ctx.createOscillator();
-      const lfoGain = ctx.createGain();
+      const lfoDepth = ctx.createGain();
+      const tremorGain = ctx.createGain();
       const filter = ctx.createBiquadFilter();
-      const gain = ctx.createGain();
+      const masterGain = ctx.createGain();
 
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(27, now);
+      osc1.type = "sawtooth";
+      osc2.type = "triangle";
+      osc3.type = "sine";
 
+      // Frekuensi resonansi tenggorokan kucing (terdengar jelas di speaker HP)
+      const baseFreq = (isKitten ? 118 : 96) * pitchMult;
+      osc1.frequency.setValueAtTime(baseFreq, now);
+      osc1.frequency.linearRampToValueAtTime(baseFreq * 1.12, now + dur * 0.45);
+      osc1.frequency.linearRampToValueAtTime(baseFreq * 0.95, now + dur);
+
+      osc2.frequency.setValueAtTime(baseFreq * 1.5, now);
+      osc2.frequency.linearRampToValueAtTime(baseFreq * 1.68, now + dur * 0.45);
+      osc2.frequency.linearRampToValueAtTime(baseFreq * 1.45, now + dur);
+
+      osc3.frequency.setValueAtTime(baseFreq * 2.2, now);
+
+      // Tremor laring 25.5Hz (denyut dengkuran kucing asli)
       lfo.type = "sine";
-      lfo.frequency.setValueAtTime(3.2, now);
-      lfoGain.gain.setValueAtTime(0.08, now);
+      lfo.frequency.setValueAtTime(25.5, now);
 
+      lfoDepth.gain.setValueAtTime(0.48, now);
+      tremorGain.gain.setValueAtTime(0.52, now);
+
+      lfo.connect(lfoDepth);
+      lfoDepth.connect(tremorGain.gain);
+
+      // Filter rongga dada & tenggorokan kucing (hangat, lembut, dan tebal)
       filter.type = "lowpass";
-      filter.frequency.setValueAtTime(190, now);
+      filter.frequency.setValueAtTime(540 * pitchMult, now);
+      filter.Q.setValueAtTime(2.2, now);
 
-      gain.gain.setValueAtTime(0.01, now);
-      gain.gain.linearRampToValueAtTime(0.16 * sfxVolumeState, now + 0.2);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.3);
+      // Envelope pernapasan dengkuran (masuk lembut, mengalun 2 siklus napas, lalu pudar)
+      masterGain.gain.setValueAtTime(0.001, now);
+      masterGain.gain.linearRampToValueAtTime(0.85 * sfxVolumeState, now + 0.15);
+      masterGain.gain.setValueAtTime(0.70 * sfxVolumeState, now + dur * 0.5);
+      masterGain.gain.linearRampToValueAtTime(0.90 * sfxVolumeState, now + dur * 0.72);
+      masterGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
 
-      lfo.connect(lfoGain);
-      lfoGain.connect(gain.gain);
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
+      osc1.connect(tremorGain);
+      osc2.connect(tremorGain);
+      osc3.connect(tremorGain);
 
-      osc.start(now);
+      tremorGain.connect(filter);
+      filter.connect(masterGain);
+      masterGain.connect(ctx.destination);
+
+      osc1.start(now);
+      osc2.start(now);
+      osc3.start(now);
       lfo.start(now);
-      osc.stop(now + 1.35);
-      lfo.stop(now + 1.35);
+
+      osc1.stop(now + dur + 0.05);
+      osc2.stop(now + dur + 0.05);
+      osc3.stop(now + dur + 0.05);
+      lfo.stop(now + dur + 0.05);
     } else if (type === "crunch" || type === "eat") {
       // Crunching kibbles
       for (let i = 0; i < 3; i++) {
@@ -317,14 +363,14 @@ export function playCatVocal(type: SoundEffectType, isKitten = false): void {
         const osc = ctx.createOscillator();
         const g = ctx.createGain();
         osc.type = "triangle";
-        osc.frequency.setValueAtTime(280 + i * 60, t);
-        osc.frequency.exponentialRampToValueAtTime(120, t + 0.09);
-        g.gain.setValueAtTime(0.18 * sfxVolumeState, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+        osc.frequency.setValueAtTime(320 + i * 70, t);
+        osc.frequency.exponentialRampToValueAtTime(140, t + 0.1);
+        g.gain.setValueAtTime(0.60 * sfxVolumeState, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
         osc.connect(g);
         g.connect(ctx.destination);
         osc.start(t);
-        osc.stop(t + 0.11);
+        osc.stop(t + 0.13);
       }
       setTimeout(() => playCatVocal("meow", isKitten), 550);
     } else if (type === "lap" || type === "drink") {
@@ -334,19 +380,19 @@ export function playCatVocal(type: SoundEffectType, isKitten = false): void {
         const osc = ctx.createOscillator();
         const g = ctx.createGain();
         osc.type = "sine";
-        osc.frequency.setValueAtTime(420, t);
-        osc.frequency.exponentialRampToValueAtTime(880, t + 0.08);
-        g.gain.setValueAtTime(0.14 * sfxVolumeState, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+        osc.frequency.setValueAtTime(460, t);
+        osc.frequency.exponentialRampToValueAtTime(940, t + 0.08);
+        g.gain.setValueAtTime(0.55 * sfxVolumeState, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
         osc.connect(g);
         g.connect(ctx.destination);
         osc.start(t);
-        osc.stop(t + 0.1);
+        osc.stop(t + 0.11);
       }
       setTimeout(() => playCatVocal("chirp", isKitten), 520);
     } else if (type === "purr_meow") {
       playCatVocal("purr", isKitten);
-      setTimeout(() => playCatVocal("happy_meow", isKitten), 240);
+      setTimeout(() => playCatVocal("happy_meow", isKitten), 1300);
     } else if (type === "bath") {
       playCatVocal("chime", isKitten);
       setTimeout(() => playCatVocal("happy_meow", isKitten), 350);
@@ -362,7 +408,7 @@ export function playCatVocal(type: SoundEffectType, isKitten = false): void {
         const gain = ctx.createGain();
         osc.type = "sine";
         osc.frequency.setValueAtTime(freq, now + idx * 0.065);
-        gain.gain.setValueAtTime(0.11 * sfxVolumeState, now + idx * 0.065);
+        gain.gain.setValueAtTime(0.45 * sfxVolumeState, now + idx * 0.065);
         gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.065 + 0.28);
         osc.connect(gain);
         gain.connect(ctx.destination);
@@ -390,6 +436,6 @@ export function playSoundForCareAction(action: CareInteractionType, isKitten = f
     setTimeout(() => playCatVocal("happy_meow", isKitten), 320);
   } else if (action === "elus") {
     playCatVocal("purr", isKitten);
-    setTimeout(() => playCatVocal("happy_meow", isKitten), 240);
+    setTimeout(() => playCatVocal("happy_meow", isKitten), 1300);
   }
 }

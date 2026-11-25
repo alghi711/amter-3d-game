@@ -1,4 +1,4 @@
-import type { CatStats } from "@/lib/mock-cat";
+import { INITIAL_CAT_STATS, type CatStats } from "@/lib/mock-cat";
 import type { GrowthStage } from "@/lib/mock-growth";
 import type { CatMood } from "@/lib/mock-mood";
 
@@ -26,34 +26,19 @@ export const MOCK_SAVE_SLOTS: GameSaveSnapshot[] = [
     catId: "cat-mochi",
     catName: "Mochi",
     stage: "anak",
-    level: 3,
-    experience: 145,
-    closeness: 62,
+    level: 1,
+    experience: 0,
+    closeness: 10,
     mood: "senang",
-    stats: { hunger: 70, thirst: 55, hygiene: 80, happiness: 85, energy: 60 },
-    savedAtLabel: "Baru saja (Otomatis)",
-    savedAtMs: 1_762_527_600_000,
+    stats: { ...INITIAL_CAT_STATS },
+    savedAtLabel: "Awal Permainan (Lv.1)",
+    savedAtMs: Date.now(),
     deviceLabel: "Browser Perangkat Ini",
-    backupCode: "MOCHI-LV3-A8F2",
-  },
-  {
-    id: "save-cloud-morning",
-    catId: "cat-mochi",
-    catName: "Mochi",
-    stage: "anak",
-    level: 2,
-    experience: 90,
-    closeness: 54,
-    mood: "senang",
-    stats: { hunger: 85, thirst: 80, hygiene: 75, happiness: 78, energy: 90 },
-    savedAtLabel: "Tadi Pagi · 08:30",
-    savedAtMs: 1_762_506_600_000,
-    deviceLabel: "Cadangan Lokal HP",
-    backupCode: "MOCHI-LV2-C4D9",
+    backupCode: "MOCHI-LV1-START",
   },
 ];
 
-const LOCAL_STORAGE_KEY = "mochi:autosave:v1";
+const LOCAL_STORAGE_KEY = "mochi:autosave:v2";
 
 /** Buat kode cadangan ringkas (base64 JSON) yang mudah disalin pemain untuk pindah perangkat. */
 export function encodeBackupSnapshot(snapshot: Omit<GameSaveSnapshot, "backupCode">): string {
@@ -102,9 +87,9 @@ export function decodeBackupSnapshot(code: string): Partial<GameSaveSnapshot> | 
     return {
       catName: parsed.n ?? "Mochi",
       stage: parsed.s === "dewasa" ? "dewasa" : "anak",
-      level: parsed.lv ?? 3,
+      level: parsed.lv ?? 1,
       experience: parsed.xp,
-      closeness: parsed.cl ?? 62,
+      closeness: parsed.cl ?? 10,
       mood: parsed.m ?? "senang",
       stats: parsed.st,
       deviceLabel: parsed.dv ?? "Pulihan Cadangan",
@@ -121,6 +106,17 @@ export function writeLocalAutosave(snapshot: GameSaveSnapshot): void {
     window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(snapshot));
   } catch {
     // abaikan bila storage penuh
+  }
+}
+
+/** Hapus simpanan lokal untuk reset progres ke awal. */
+export function clearLocalAutosave(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(LOCAL_STORAGE_KEY);
+    window.localStorage.removeItem("mochi:autosave:v1");
+  } catch {
+    // abaikan
   }
 }
 

@@ -6,7 +6,7 @@ import RegisterForm from "./RegisterForm";
 import LoginForm from "./LoginForm";
 import LogoutConfirmModal from "./LogoutConfirmModal";
 import PasswordRecoveryFlow from "./PasswordRecoveryFlow";
-import { mockDefaultAccount, mockGuestAccount, type PlayerAccount } from "@/lib/mock-account";
+import { createFreshGuestAccount, mockDefaultAccount, type PlayerAccount } from "@/lib/mock-account";
 
 const AVATAR_OPTIONS = ["🐱", "🐾", "😸", "😻", "😽", "🦊", "🦁", "⭐", "🎀", "🍪"];
 
@@ -69,9 +69,10 @@ export default function AccountView({
   };
 
   const handleSwitchToGuest = () => {
-    updateAccount(() => mockGuestAccount);
-    setTempName(mockGuestAccount.name);
-    showToast("Beralih ke sesi akun tamu 🐾");
+    const fresh = createFreshGuestAccount();
+    updateAccount(() => fresh);
+    setTempName(fresh.name);
+    showToast(`Beralih ke sesi tamu baru (${fresh.name}) dari Level 1 🐾`);
   };
 
   return (
